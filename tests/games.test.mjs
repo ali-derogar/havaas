@@ -254,7 +254,7 @@ test('letter search has exactly one matching letter and mark in both layouts',()
     const s=FACTORIES.search({level,material:'letters',layout,random:seededRandom(seed)}),{target,choices}=s.current;
     assert.equal(s.variant,layout==='grid'?'letters':'letters-scattered');assert.ok(target.shape.startsWith('letter-'));
     assert.equal(choices.filter(c=>c.shape===target.shape&&c.color===target.color&&c.detail===target.detail).length,1);
-    assert.ok(symbol(target).includes('<text'));
+    assert.ok(symbol(target).includes('stroke-linecap="round"'));assert.ok(!symbol(target).includes('<text'));assert.equal(symbol(target).includes('letter-mark'),target.detail>0);
   }
 });
 test('five Stroop tutorial trials teach all four rules',()=>{

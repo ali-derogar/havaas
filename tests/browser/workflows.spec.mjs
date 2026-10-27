@@ -7,16 +7,16 @@ async function click(page,action,selector=''){
  const refresh=['open','material','search-mode','search-layout','hunt-mode','theme','level','adaptive-level','dashboard','account','assessment-reports'].includes(action)?page.waitForResponse(r=>r.url().includes('/api/bootstrap')&&r.status()===200):null;
  await page.locator(`[data-action="${action}"]${selector}`).first().click();
  if(refresh){const response=await refresh;await response.finished();await page.evaluate(()=>new Promise(resolve=>setTimeout(resolve,0)));}
- if(['practice','main-game','replay'].includes(action))await expect(page.locator('.play-panel')).toBeVisible();
+ if(['practice','main-game','replay'].includes(action)){await expect(page.locator('.game-preparation')).toBeVisible();await click(page,'begin-game');await advance(page,3000);}
 }
-async function login(page,key='therapist'){await page.goto('/');await page.locator('#login-form [name=email]').fill(seed.users[key].email);await page.locator('#login-form [name=password]').fill(seed.password);await page.locator('#login-form button[type=submit]').click();await expect(page.locator('.hero')).toBeVisible();}
+async function login(page,key='therapist'){await page.goto('/');await expect(page.locator('#login-form')).toBeVisible();await page.locator('#login-form [name=email]').fill(seed.users[key].email);await page.locator('#login-form [name=password]').fill(seed.password);await page.locator('#login-form button[type=submit]').click();await expect(page.locator('.hero')).toBeVisible();}
 async function advance(page,ms){await page.evaluate(ms=>window.advanceGame(ms),ms);}
-async function finishReaction(page,game){let guard=0;while(await page.locator('.result-card').count()===0&&guard++<180){if(await page.locator('[data-action=acknowledge]').count())await click(page,'acknowledge');await advance(page,50);if(game==='hunt'){
+async function finishReaction(page,game){let guard=0;while(await page.locator('.result-card').count()===0&&guard++<180){if(await page.locator('[data-action=continue-review]').count()){await click(page,'continue-review');continue;}if(await page.locator('[data-action=acknowledge]').count())await click(page,'acknowledge');await advance(page,50);if(game==='hunt'){
  const index=await page.evaluate(()=>{const targets=[...document.querySelectorAll('.target-mini .symbol')].map(el=>el.outerHTML);return [...document.querySelectorAll('.hunt-choice')].findIndex(el=>targets.includes(el.querySelector('.symbol').outerHTML));});if(index>=0)await click(page,'stimulus-response',`[data-choice="${index}"]`);
  }else await page.keyboard.press('Space');await advance(page,950);}expect(guard).toBeLessThan(180);await expect(page.locator('.local-note')).toContainText('ذخیره شد');}
 const required={ark:['آب آشامیدنی','خوراک','کمک‌های اولیه','جلیقهٔ نجات','چراغ‌قوه','قطب‌نما'],space:['اکسیژن','لباس فضایی','سوخت','کلاه فضایی','خوراک','نقشهٔ فضایی']};
-async function finishAdventure(page,game,practice=true){for(let i=0;i<60;i++){if(await page.locator('.result-card').count())break;const items=await page.locator('.scene-object:not(.collected):not(.rejected)').evaluateAll(elements=>elements.map(el=>({index:el.dataset.index,name:el.querySelector('span').textContent,blocked:el.classList.contains('blocked')})));const blocked=items.find(i=>i.blocked),target=items.find(i=>required[game].includes(i.name));await advance(page,100);if(blocked)await click(page,'item',`[data-index="${blocked.index}"]`);else if(target)await click(page,'item',`[data-index="${target.index}"]`);else await click(page,practice?'reject-item':'depart');}await expect(page.locator('.local-note')).toContainText('ذخیره شد');}
-async function finishSearch(page,rounds){for(let i=0;i<rounds;i++){await expect(page.locator('.search-preview')).toBeVisible();const targets=await page.locator('.preview-target .symbol').evaluateAll(elements=>elements.map(el=>el.outerHTML));await advance(page,2000);const indices=await page.locator('.search-choice').evaluateAll((elements,targets)=>elements.filter(el=>targets.includes(el.querySelector('.symbol').outerHTML)).map(el=>el.dataset.index),targets);for(const index of indices){await advance(page,150);await click(page,'search-choice',`[data-index="${index}"]`);}}await expect(page.locator('.local-note')).toContainText('ذخیره شد');}
+async function finishAdventure(page,game,practice=true){for(let i=0;i<60;i++){if(await page.locator('.result-card').count())break;if(await page.locator('[data-action=continue-review]').count()){await click(page,'continue-review');continue;}const items=await page.locator('.scene-object:not(.collected):not(.rejected)').evaluateAll(elements=>elements.map(el=>({index:el.dataset.index,name:el.querySelector('span').textContent,blocked:el.classList.contains('blocked')})));const blocked=items.find(i=>i.blocked),target=items.find(i=>required[game].includes(i.name));await advance(page,100);if(blocked)await click(page,'item',`[data-index="${blocked.index}"]`);else if(target)await click(page,'item',`[data-index="${target.index}"]`);else {if(!practice)await expect(page.locator('[data-action=depart]')).toBeInViewport();await click(page,practice?'reject-item':'depart');}}await expect(page.locator('.local-note')).toContainText('ذخیره شد');}
+async function finishSearch(page,rounds){for(let i=0;i<rounds;i++){await expect(page.locator('.search-preview')).toBeVisible();const targets=await page.locator('.preview-target .symbol').evaluateAll(elements=>elements.map(el=>el.outerHTML));await advance(page,2000);const indices=await page.locator('.search-choice').evaluateAll((elements,targets)=>elements.filter(el=>targets.includes(el.querySelector('.symbol').outerHTML)).map(el=>el.dataset.index),targets);for(const index of indices){await advance(page,150);if(i===0){await page.locator(`[data-action="search-choice"][data-index="${index}"]`).focus();await page.keyboard.press('Space');}else await click(page,'search-choice',`[data-index="${index}"]`);}if(await page.locator('[data-action=continue-review]').count())await click(page,'continue-review');}await expect(page.locator('.local-note')).toContainText('ذخیره شد');}
 async function noOverflow(page){expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);}
 
 test('administrator creates a therapist invitation and the invited account can sign in',async({page,browser})=>{
@@ -43,9 +43,32 @@ test('all seven baselines sync across accounts and devices; role-specific report
 });
 
 test('a failed completion stays pending and can be saved after reauthentication without duplication',async({page})=>{
- await clock(page);await login(page,'parent');await click(page,'open','[data-game="traffic"]');await click(page,'main-game');
+ await clock(page);await login(page,'parent');
+ const {playSession}=await import('../helpers/play-session.mjs'),{csrfToken}=await (await page.request.get('/api/auth/session')).json(),headers={'X-CSRF-Token':csrfToken};
+ const run=await (await page.request.post(`/api/children/${seed.children[0].id}/sessions`,{headers,data:{gameId:'traffic',kind:'baseline'}})).json();expect((await page.request.post(`/api/children/${seed.children[0].id}/sessions/${run.id}/complete`,{headers,data:{result:playSession(run)}})).ok()).toBe(true);
+ await click(page,'open','[data-game="traffic"]');await click(page,'main-game');
  await page.route('**/api/children/*/sessions/*/complete',route=>route.abort('failed'));
  for(let i=0;i<150;i++){await advance(page,100);await page.keyboard.press('Space');await advance(page,900);}
  await expect(page.locator('[data-action=retry-save]')).toBeVisible();await expect(page.locator('.result-actions button').first()).toBeDisabled();
  await page.unroute('**/api/children/*/sessions/*/complete');await page.context().clearCookies();await click(page,'reauth');await page.locator('#modal #login-form [name=email]').fill(seed.users.parent.email);await page.locator('#modal #login-form [name=password]').fill(seed.password);await page.locator('#modal #login-form button[type=submit]').click();await expect(page.locator('.local-note')).toContainText('ذخیره شد');await expect(page.locator('.result-actions button').first()).toBeEnabled();await click(page,'dashboard');await expect(page.locator('.report-metrics')).toBeVisible();
+});
+
+test('every main game completes and its preparation and arena fit mobile, tablet and desktop',async({page})=>{
+ const {playSession}=await import('../helpers/play-session.mjs');await clock(page);await login(page);
+ const {csrfToken}=await (await page.request.get('/api/auth/session')).json(),headers={'X-CSRF-Token':csrfToken};
+ // Each main mode has its own completed initial assessment, even when run in isolation.
+ for(const gameId of ['hunt','ark','space','traffic','search','nback','stroop']){
+  const runResponse=await page.request.post(`/api/children/${seed.children[0].id}/sessions`,{headers,data:{gameId,kind:'baseline'}});expect(runResponse.ok()).toBe(true);
+  const run=await runResponse.json();const saved=await page.request.post(`/api/children/${seed.children[0].id}/sessions/${run.id}/complete`,{headers,data:{result:playSession(run)}});expect(saved.ok()).toBe(true);
+ }
+ for(const game of ['hunt','ark','space','traffic','search','nback','stroop']){
+  await click(page,'home');await click(page,'open',`[data-game="${game}"]`);
+  await page.locator('[data-action="main-game"]').first().click();await expect(page.locator('.game-preparation')).toBeVisible();
+  for(const width of [360,768,1440]){await page.setViewportSize({width,height:900});await noOverflow(page);await page.screenshot({path:`.local/verification/game-${game}-ready-${width}.png`,fullPage:true});}
+  await page.setViewportSize({width:360,height:900});await click(page,'begin-game');await advance(page,3000);
+  for(const width of [360,768,1440]){await page.setViewportSize({width,height:900});await noOverflow(page);await page.screenshot({path:`.local/verification/game-${game}-play-${width}.png`,fullPage:true});}
+  await page.setViewportSize({width:360,height:900});
+  if(required[game])await finishAdventure(page,game,false);else if(game==='search')await finishSearch(page,10);else await finishReaction(page,game);
+  await expect(page.locator('.result-card')).toBeVisible();await noOverflow(page);
+ }
 });

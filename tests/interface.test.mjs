@@ -9,7 +9,7 @@ import { EQUIPMENT } from '../src/games/adventure.js';
 
 const html=await readFile(new URL('../index.html',import.meta.url),'utf8');
 let iteration=0;
-async function fixture({blockedStorage=false,withProfile=true}={}) {
+async function fixture({blockedStorage=false,withProfile=true,autoReady=true,autoReview=true}={}) {
   const {window,document}=parseHTML(html);let now=0,next=0;const queue=new Map(),values=new Map();
   if(withProfile)values.set(CLIENTS_KEY,JSON.stringify({version:1,activeId:'child-1',profiles:[{id:'child-1',firstName:'سارا',lastName:'احمدی',birthDate:'2016-01-01',grade:'پایهٔ ۳',school:'امید',concerns:''}],records:[]}));
   globalThis.fetch=mockRemote(values);
@@ -26,10 +26,12 @@ async function fixture({blockedStorage=false,withProfile=true}={}) {
   await import(`../src/app.js?fixture=${iteration++}`);
   const click=async(action,selector='')=>{
     const el=document.querySelector(`[data-action="${action}"]${selector}`);assert.ok(el,`missing ${action}${selector}`);assert.ok(!el.hasAttribute('disabled'),`disabled ${action}`);
-    el.dispatchEvent(new window.Event('click',{bubbles:true}));await flush();return el;
+    el.dispatchEvent(new window.Event('click',{bubbles:true}));await flush();await prepare();await review();return el;
   };
-  const advance=async ms=>{now+=ms;const callbacks=[...queue.values()];queue.clear();for(const fn of callbacks)fn(now);await flush();};
-  const register=async(firstName='سارا',lastName='احمدی')=>{const form=document.querySelector('#profile-form');for(const [name,value] of Object.entries({firstName,lastName,birthDate:'2016-01-01',grade:'پایهٔ ۳',school:'امید',concerns:''})){const el=form.querySelector(`[name="${name}"]`);if(name==='grade')Object.defineProperty(el,'value',{configurable:true,value});else el.value=value;}form.dispatchEvent(new window.Event('submit',{bubbles:true,cancelable:true}));await flush();};
+  const advance=async ms=>{now+=ms;const callbacks=[...queue.values()];queue.clear();for(const fn of callbacks)fn(now);await flush();await review();};
+  const prepare=async()=>{if(autoReady&&document.querySelector('[data-action="begin-game"]')){await click('begin-game');await advance(3000);}};
+  const review=async()=>{if(autoReview&&document.querySelector('[data-action="continue-review"]'))await click('continue-review');};
+  const register=async(firstName='سارا',lastName='احمدی')=>{const form=document.querySelector('#profile-form');for(const [name,value] of Object.entries({firstName,lastName,birthDate:'2016-01-01',grade:'پایهٔ ۳',school:'امید',concerns:''})){const el=form.querySelector(`[name="${name}"]`);if(name==='grade')Object.defineProperty(el,'value',{configurable:true,value});else el.value=value;}form.dispatchEvent(new window.Event('submit',{bubbles:true,cancelable:true}));await flush();await prepare();};
   const slowRendering=cost=>{
     const descriptor=Object.getOwnPropertyDescriptor(window.Element.prototype,'innerHTML');
     Object.defineProperty(window.Element.prototype,'innerHTML',{...descriptor,set(value){now+=cost;descriptor.set.call(this,value);}});
@@ -227,4 +229,58 @@ test('interface: viewing a completed result opens that record even after earlier
   await ui.click('dashboard');assert.ok(ui.document.querySelector('.report-metrics'));assert.ok(ui.document.querySelector('.report-focus').textContent.includes('ارزیابی پایه'));assert.ok(ui.document.querySelector('.report-focus').textContent.includes('دو هدف'));
   await ui.click('home');await ui.click('open','[data-game="search"]');await ui.click('main-game');await finishSearch(ui,10);await ui.click('dashboard');
   assert.ok(ui.document.querySelector('.report-metrics'));assert.ok(ui.document.querySelector('.report-focus').textContent.includes('بازی اصلی'));assert.equal(ui.document.querySelectorAll('.session-history tbody tr').length,1);
+});
+
+test('interface: readiness and paused countdown never consume a reaction trial',async()=>{
+  const ui=await fixture({autoReady:false,autoReview:false});await ui.click('open','[data-game="traffic"]');await ui.click('practice');
+  assert.ok(ui.document.querySelector('.game-preparation'));assert.equal(ui.document.querySelector('.stimulus-shell'),null);
+  await ui.advance(60000);assert.ok(ui.document.querySelector('.game-preparation'));assert.equal(ui.document.querySelector('#time').textContent,'۰۰:۰۰');
+  await ui.click('begin-game');await ui.advance(1000);assert.equal(ui.document.querySelector('#countdown-number').textContent,'۲');
+  await ui.click('pause');await ui.advance(40000);await ui.click('resume');await ui.advance(1999);assert.ok(ui.document.querySelector('.game-countdown'));
+  await ui.advance(1);assert.equal(ui.document.querySelector('.stimulus-shell').style.visibility,'visible');assert.equal(ui.document.querySelector('#position').textContent,'۱ از ۵');assert.equal(ui.document.querySelector('#time').textContent,'۰۰:۰۰');
+  await ui.advance(1000);assert.ok(ui.document.querySelector('.practice-review'));assert.equal(ui.document.querySelector('#time').textContent,'۰۰:۰۱');
+});
+test('interface: reviewing a response survives a long pause and advances exactly one trial',async()=>{
+  const ui=await fixture({autoReview:false});await ui.click('open','[data-game="hunt"]');await ui.click('practice');
+  await ui.advance(100);await ui.click('respond');assert.ok(ui.document.querySelector('[data-action="respond"]').disabled);await ui.advance(900);
+  assert.ok(ui.document.querySelector('.practice-review'));assert.equal(ui.document.querySelector('[data-action="respond"]'),null);
+  await ui.advance(90000);assert.ok(ui.document.querySelector('.practice-review'));assert.equal(ui.document.querySelector('#time').textContent,'۰۰:۰۱');
+  await ui.click('pause');await ui.click('resume');await ui.advance(90000);assert.ok(ui.document.querySelector('.practice-review'));
+  await ui.click('continue-review');assert.equal(ui.document.querySelector('#position').textContent,'۲ از ۵');assert.equal(ui.document.querySelector('.stimulus-shell').style.visibility,'visible');assert.equal(ui.document.querySelector('#time').textContent,'۰۰:۰۱');
+});
+test('interface: the next search preview gets two full seconds after an untimed review',async()=>{
+  const ui=await fixture({autoReview:false});await ui.click('open','[data-game="search"]');await ui.click('practice');
+  const target=ui.document.querySelector('.preview-target .symbol').outerHTML;await ui.advance(2000);await ui.advance(150);
+  const choice=[...ui.document.querySelectorAll('.search-choice')].find(el=>el.querySelector('.symbol').outerHTML===target);await ui.click('search-choice',`[data-index="${choice.dataset.index}"]`);
+  assert.ok(ui.document.querySelector('.practice-review.good'));await ui.advance(60000);assert.ok(ui.document.querySelector('.practice-review'));
+  await ui.click('continue-review');assert.equal(ui.document.querySelector('#preview-seconds').textContent,'۲ ثانیه');await ui.advance(1999);assert.ok(ui.document.querySelector('.search-preview'));await ui.advance(1);assert.ok(ui.document.querySelector('.search-grid'));
+});
+test('interface: n-back reviews reveal the reference only after responding',async()=>{
+  const ui=await fixture({autoReview:false});await ui.click('open','[data-game="nback"]');await ui.click('material','[data-material="toys"]');await ui.click('practice');
+  assert.ok(ui.document.querySelector('.memory-status'));assert.equal(ui.document.querySelector('.memory-sequence'),null);
+  await ui.advance(1000);assert.equal(ui.document.querySelector('.practice-review'),null);assert.equal(ui.document.querySelector('.memory-sequence'),null);
+  await ui.advance(1000);assert.ok(ui.document.querySelector('.practice-review .memory-token.reference'));assert.equal(ui.document.querySelectorAll('.practice-review .memory-token').length,2);
+  await ui.click('continue-review');assert.equal(ui.document.querySelector('.memory-sequence'),null);
+});
+
+test('interface: switching tabs freezes the countdown until the child explicitly resumes',async()=>{
+  const ui=await fixture({autoReady:false});await ui.click('open','[data-game="traffic"]');await ui.click('practice');await ui.click('begin-game');await ui.advance(1000);
+  Object.defineProperty(ui.document,'hidden',{configurable:true,value:true});ui.document.dispatchEvent(new ui.window.Event('visibilitychange'));assert.ok(ui.document.querySelector('#modal').open);
+  await ui.advance(60000);assert.equal(ui.document.querySelector('#countdown-number').textContent,'۲');
+  Object.defineProperty(ui.document,'hidden',{configurable:true,value:false});await ui.click('resume');await ui.advance(1999);assert.ok(ui.document.querySelector('.game-countdown'));await ui.advance(1);assert.equal(ui.document.querySelector('.stimulus-shell').style.visibility,'visible');
+});
+test('interface: Space preserves native keyboard activation for search choices and pause controls',async()=>{
+  const ui=await fixture();await ui.click('open','[data-game="search"]');await ui.click('practice');await ui.advance(2000);
+  for(const button of [ui.document.querySelector('.search-choice'),ui.document.querySelector('[data-action="pause"]')]){
+    const event=new ui.window.Event('keydown',{bubbles:true,cancelable:true});Object.defineProperties(event,{code:{value:'Space'},repeat:{value:false}});button.dispatchEvent(event);assert.equal(event.defaultPrevented,false);
+  }
+  assert.ok(ui.document.querySelector('.search-grid'));
+});
+
+test('interface: rendering adventure scenes and reviews does not inflate decision duration',async()=>{
+  const ui=await fixture(),restore=ui.slowRendering(400);
+  try{
+    await ui.click('open','[data-game="space"]');await ui.click('practice');await finishAdventure(ui,'space',true,'easy');
+    const result=JSON.parse(ui.values.get(CLIENTS_KEY)).records[0].result;assert.equal(result.durationMs,400);assert.equal(result.correctResponses,5);
+  }finally{restore();}
 });

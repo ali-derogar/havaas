@@ -18,7 +18,7 @@ export function mockRemote(values){
     else if(path.endsWith('/difficulty')&&method==='PATCH')result={setting:body};
     else if(path.endsWith('/sessions')&&method==='POST'){
       const engine=FACTORIES[body.gameId]({...body,practice:body.kind==='baseline',random:seededRandom(42),now:()=>0});
-      result={id:`run-${++number}`,kind:body.kind,settings:{...body,seed:42,variant:engine.variant,protocolVersion:engine.protocolVersion}};runs.set(result.id,{...result,childId:path.split('/')[3]});
+      result={id:`run-${++number}`,kind:body.kind,settings:{...body,reviewEnabled:body.kind==='baseline',seed:42,variant:engine.variant,protocolVersion:engine.protocolVersion}};runs.set(result.id,{...result,childId:path.split('/')[3]});
     }else if(path.endsWith('/complete')){
       const run=runs.get(path.split('/')[5]);if(!run)throw Error('Unknown mocked run');
       let record=data.records.find(r=>r.id===run.id);if(!record){record={id:run.id,profileId:run.childId,kind:run.kind,result:body.result};data.records.push(record);write(data);}result={record};

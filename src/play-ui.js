@@ -55,7 +55,7 @@ export function reviewView(session) {
     label=trial.target?'این محرک هدف بود':'این محرک هدف نبود';
     if(session.gameId==='hunt') {
       text=trial.target?'شکل، رنگ و علامت با یکی از هدف‌ها یکسان بود؛ باید پاسخ می‌دادی.':'این شکل با نمونهٔ هدف یکسان نبود؛ باید بدون پاسخ صبر می‌کردی.';
-      sample=`<div class="review-comparison"><div><small>محرک این نوبت</small>${tokens([trial.stimulus])}</div><div><small>نمونهٔ هدف</small>${tokens(session.targets)}</div></div>`;
+      sample=`<div class="review-comparison"><div><small>${outcome.response?'انتخاب تو':trial.target?'هدف این نوبت':'یکی از شکل‌های این نوبت'}</small>${tokens([outcome.selectedStimulus||trial.stimulus])}</div><div><small>نمونهٔ هدف</small>${tokens(session.targets)}</div></div>`;
     } else if(session.gameId==='traffic')text=trial.target?'این نشانه اجازهٔ حرکت می‌داد؛ باید دکمهٔ حرکت را می‌زدی.':'این نشانه توقف بود؛ درست این بود که هیچ دکمه‌ای نزنی.';
     else if(session.gameId==='nback') {
       text=trial.target?`محرک فعلی با ${fa(session.n)} محرک قبل یکسان بود؛ باید پاسخ می‌دادی.`:`محرک فعلی با ${fa(session.n)} محرک قبل فرق داشت؛ باید صبر می‌کردی.`;

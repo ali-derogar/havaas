@@ -17,5 +17,5 @@ export function generateNBack(n, count, targets, random = Math.random, material 
 export function createNBack(options) {
   const n = LEVELS[options.level || 'easy'].n;
   const trials = generateNBack(n, options.practice ? 5 : PROTOCOL.trials, options.practice ? 2 : PROTOCOL.targets, options.random, options.material);
-  const session = new ReactionSession({ ...options, gameId: 'nback', variant: ['numbers','toys'].includes(options.material) ? options.material : 'standard' }, trials); session.n = n; return session;
+  const session = new ReactionSession({ ...options, gameId: 'nback', variant: ['numbers','toys'].includes(options.material) ? options.material : 'standard' }, trials); session.n = n; session.material=options.material; return session;
 }
