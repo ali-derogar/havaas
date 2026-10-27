@@ -68,6 +68,18 @@ apiTest('server: invalid response traces do not save or change difficulty',async
  const fixed=await start(parent,'search','baseline',{targetCount:2,material:'letters',layout:'scattered'});assert.equal((await complete(parent,fixed)).status,200);
  const timeout=await start(parent,'space','training');assert.equal((await complete(parent,timeout,playSession(timeout,{timeout:true}))).status,200);
 });
+apiTest('server: impossible timing is rolled back without saving results or increasing levels',async()=>{
+ const child=seed.children[0].id;
+ for(const gameId of ['traffic','search','space']){
+  const run=await start(parent,gameId,'training'),before=(await parent.call(`/children/${child}/difficulty`)).data.settings,payload=playSession(run);
+  if(gameId==='space')payload.outcomes.find(o=>o.reactionMs>0).reactionMs=-1;
+  else {payload.durationMs=1;for(const o of payload.outcomes){o.atMs=1;if(o.response)o.reactionMs=0;}}
+  assert.equal((await complete(parent,run,payload)).status,400);
+  assert.equal((await db.pool.query('SELECT result FROM game_sessions WHERE id=$1',[run.id])).rows[0].result,null);
+  assert.deepEqual((await parent.call(`/children/${child}/difficulty`)).data.settings,before);
+  assert.equal((await complete(parent,run)).status,200);
+ }
+});
 apiTest('server: invitation links are one-use, expire, and cannot take over an existing account',async()=>{
  const invite=await therapist.call('/invitations',{method:'POST',body:{email:'new-parent@example.test',role:'parent',childId:seed.children[0].id}});assert.equal(invite.status,201);const raw=invite.data.url.split('/').at(-1),guest=new Client();await guest.call('/auth/session');
  const stored=(await db.pool.query("SELECT * FROM invitations WHERE email='new-parent@example.test'")).rows[0];assert.notEqual(stored.token_hash,raw);

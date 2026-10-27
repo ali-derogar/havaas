@@ -12,6 +12,7 @@
     "static": "node scripts/serve.mjs",
     "db:migrate": "node --env-file-if-exists=.env scripts/migrate.mjs",
     "admin:create": "node --env-file-if-exists=.env scripts/admin-create.mjs",
+    "test:proposal": "node --test tests/proposal.test.mjs",
     "test:api": "node --env-file-if-exists=.env --test tests/server.test.mjs",
     "test:e2e": "playwright test",
     "setup:env": "node scripts/setup-env.mjs",

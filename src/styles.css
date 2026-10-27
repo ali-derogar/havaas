@@ -43,3 +43,4 @@
 @media(prefers-reduced-motion:reduce){.play-panel[data-response=good] .road-car,.play-panel[data-response=good] .response-button{animation:none}.button{transition:none}}
 /* Keep mission time in view while inspecting a long board on a phone. */
 .play-panel.adventure,.play-panel.search{overflow:clip}.adventure .play-hud,.search .play-hud{position:sticky;top:0;z-index:5;background:#fefef9;border-bottom:1px solid #e6ebdc;box-shadow:0 3px 10px #34443d05}
+.parent-narrative{background:#f1f6e9;border:1px solid #dde8cc;border-radius:14px;padding:19px 22px;margin:0 0 22px}.parent-narrative h3{font-size:14px;margin-bottom:10px}.parent-narrative p{font-size:12px;line-height:2.4;color:#677d54}@media(max-width:700px){.parent-narrative{padding:16px}.parent-narrative h3{font-size:13px}.parent-narrative p{font-size:11px}}@media print{.parent-narrative{break-inside:avoid}}

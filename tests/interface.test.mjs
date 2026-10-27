@@ -284,3 +284,19 @@ test('interface: rendering adventure scenes and reviews does not inflate decisio
     const result=JSON.parse(ui.values.get(CLIENTS_KEY)).records[0].result;assert.equal(result.durationMs,400);assert.equal(result.correctResponses,5);
   }finally{restore();}
 });
+
+test('interface: a session waits for the server and runs its authoritative settings snapshot',async()=>{
+  const ui=await fixture({autoReady:false}),fetcher=globalThis.fetch;let release;
+  const held=new Promise(resolve=>{release=resolve;});
+  globalThis.fetch=async(url,options)=>{
+    const response=await fetcher(url,options);
+    if(String(url).endsWith('/sessions')&&options?.method==='POST'){
+      await held;const data=await response.json();return {...response,json:async()=>({...data,settings:{...data.settings,trafficMode:'signs',variant:'signs'}})};
+    }
+    return response;
+  };
+  await ui.click('open','[data-game="traffic"]');await ui.click('practice');assert.equal(ui.document.querySelector('.play-panel'),null);
+  await ui.click('home');assert.ok(ui.document.querySelector('.intro-layout'));release();await ui.advance(0);
+  assert.ok(ui.document.querySelector('.game-preparation'));assert.ok(ui.document.querySelector('.game-preparation h2').textContent.includes('با نشانهٔ درست'));
+  await ui.click('begin-game');await ui.advance(3000);assert.ok(ui.document.querySelector('#instruction').textContent.includes('یک‌طرفه'));
+});

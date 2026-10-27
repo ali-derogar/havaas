@@ -16,10 +16,11 @@ export function recommendLevel(result) {
   if (p.count >= 5 && p.recall >= .85 && p.accuracy >= .9 && p.errorRate <= .1 && fast && streak) return { level: levels[Math.min(2,index+1)], reason: 'پاسخ‌های درست، سرعت مناسب و زنجیرهٔ پاسخ‌ها نشان می‌دهند که برای چالش بعدی آماده‌ای.' };
   return { level: levels[index], reason: 'ادامه در همین سطح به تمرین سرعت، دقت و پاسخ‌های پیوسته کمک می‌کند.' };
 }
-export function comparableRecords(records) {
-  if (!records.length) return [];
-  const last = records.at(-1).result;
-  return records.filter(r => r.result.gameId === last.gameId && r.result.level === last.level && variantOf(r.result) === variantOf(last) && (r.result.feedbackMode||'continuous') === (last.feedbackMode||'continuous') && (r.result.stimulusVersion||1) === (last.stimulusVersion||1) && (r.result.protocolVersion || 2) === (last.protocolVersion || 2) && r.kind === records.at(-1).kind);
+export const stimulusFamilyOf = result => result.gameId==='hunt' ? result.stimulusFamily || result.settingsSnapshot?.theme || 'unknown' : '';
+export function comparableRecords(records, reference = records.at(-1)) {
+  if (!reference) return [];
+  const last = reference.result;
+  return records.filter(r => r.result.gameId === last.gameId && r.result.level === last.level && variantOf(r.result) === variantOf(last) && stimulusFamilyOf(r.result) === stimulusFamilyOf(last) && (r.result.feedbackMode||'continuous') === (last.feedbackMode||'continuous') && (r.result.stimulusVersion||1) === (last.stimulusVersion||1) && (r.result.protocolVersion || 2) === (last.protocolVersion || 2) && r.kind === reference.kind);
 }
 export function observations(result) {
   const p = performanceOf(result), strengths = [], practice = [];
@@ -32,10 +33,16 @@ export function observations(result) {
   if (!strengths.length) strengths.push('این جلسه نقطهٔ شروعی برای مقایسه با تمرین‌های بعدی است.');
   return { strengths, practice };
 }
-export function progressText(records) {
-  const comparable = comparableRecords(records);
+export function progressText(records, reference = records.at(-1)) {
+  const comparable = comparableRecords(records, reference);
   if (comparable.length < 2) return 'برای بررسی روند، دست‌کم دو جلسه در یک بازی، سطح و حالت لازم است.';
   const first = performanceOf(comparable[0].result).accuracy, last = performanceOf(comparable.at(-1).result).accuracy;
   const delta = Math.round((last-first)*100);
   return delta > 0 ? `دقت نسبت به نخستین جلسهٔ هم‌سطح ${delta.toLocaleString('fa-IR')} واحد درصد بیشتر شده است.` : delta < 0 ? `دقت نسبت به نخستین جلسهٔ هم‌سطح ${Math.abs(delta).toLocaleString('fa-IR')} واحد درصد کمتر شده است؛ یک تمرین دیگر روند را روشن‌تر می‌کند.` : 'دقت در نخستین و آخرین جلسهٔ هم‌سطح برابر بوده است.';
+}
+
+export function parentNarrative(record, records) {
+  const r=record.result,p=performanceOf(r),fa=value=>Number(value).toLocaleString('fa-IR');
+  const response=r.meanReactionMs===null?'در این جلسه زمان واکنشِ درست قابل محاسبه نبود.':`میانگین زمان ${r.reactionMeasure==='decision-interval'?'انتخاب درست':'واکنش درست'} ${fa(r.meanReactionMs)} میلی‌ثانیه بود.`;
+  return `در ${record.kind==='baseline'?'ارزیابی اولیهٔ':'تمرین'} ${GAME_MAP[r.gameId].title}، ${fa(r.hits)} هدف از ${fa(r.maxScore)} هدف شناسایی شد و ${fa(r.correctResponses)} تصمیم از ${fa(p.count)} تصمیم درست بود. ${fa(r.omissions)} هدف بدون پاسخ و ${fa(r.falseSelections)} انتخاب اشتباه ثبت شد. طولانی‌ترین زنجیرهٔ تصمیم‌های درست ${fa(r.longestStreak)} بود. ${response} ${progressText(records,record)}`;
 }

@@ -34,7 +34,7 @@ export class Session {
   get result() {
     const m = this.metrics, times = m.reactionTimes;
     return {
-      version: 1, feedbackMode:this.reviewEnabled?'guided':'continuous', stimulusVersion:this.stimulusVersion||1, protocolVersion: this.protocolVersion, gameId: this.gameId, level: this.level, variant: this.variant, score: this.score, maxScore: this.maxScore,
+      version: 1, ...(this.gameId==='hunt'?{stimulusFamily:this.theme||'star'}:{}), feedbackMode:this.reviewEnabled?'guided':'continuous', stimulusVersion:this.stimulusVersion||1, protocolVersion: this.protocolVersion, gameId: this.gameId, level: this.level, variant: this.variant, score: this.score, maxScore: this.maxScore,
       hits: m.hits, correctResponses: m.hits + m.correctRejects, correctRejections: m.correctRejects, omissions: m.misses, falseSelections: m.falseAlarms,
       meanReactionMs: times.length ? Math.round(times.reduce((a, b) => a + b, 0) / times.length) : null, reactionMeasure: this.reactionMeasure,
       longestStreak: m.maxStreak, durationMs: Math.round(this.clock.elapsed), completed: this.completed, finishedAt: this.finishedAt || new Date().toISOString(), outcomes: this.outcomes.map(outcome => ({ ...outcome })),

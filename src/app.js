@@ -12,7 +12,7 @@ import { STROOP_RULES } from './games/stroop.js';
 import { readProgress, writeProgress, resultKey } from './core/storage.js';
 import { activeProfile, readClients, profileRecords, latestBaseline, validateProfile, escapeHTML as esc, variantOf } from './core/clients.js';
 import { describeStimulus } from './stimuli.js';
-import { recommendLevel } from './core/reports.js';
+import { recommendLevel, comparableRecords } from './core/reports.js';
 import { profileStrip, profilesView, reportsView, assessmentView, variantLabel } from './client-ui.js';
 import { icon, logo, art, heroArt, symbol, equipment, trophyArt, sceneBackground, huntBackground } from './visuals.js';
 
@@ -159,11 +159,11 @@ async function start(practice, forceBaseline = false) {
   starting=true;notify('در حال دریافت تنظیمات جلسه از سرور…');document.querySelectorAll('[data-action="practice"],[data-action="main-game"],[data-action="replay"]').forEach(button=>button.disabled=true);
   try {remoteRun=(!practice||sessionIsBaseline)?await api.request(`/children/${clients.activeId}/sessions`,{method:'POST',body:{...options,kind:sessionIsBaseline?'baseline':'training'}}):null;}
   finally {starting=false;document.querySelectorAll('[data-action="practice"],[data-action="main-game"],[data-action="replay"]').forEach(button=>button.disabled=false);}
-  if(remoteRun)selectedLevel=remoteRun.settings.level;
+  if(remoteRun){selectedLevel=remoteRun.settings.level;selectedGame=remoteRun.settings.gameId;}
   if (modal.open) modal.close();
   sessionRecordId=null;
   route = 'play'; playPhase='ready'; preparationClock=null;
-  engine = FACTORIES[selectedGame]({ ...options,level:selectedLevel,practice,reviewEnabled:remoteRun?remoteRun.settings.reviewEnabled:practice,random:remoteRun?seededRandom(remoteRun.settings.seed):Math.random }); engine.clock.pause(); arenaKey = '';
+  engine = FACTORIES[selectedGame]({ ...options,...remoteRun?.settings,level:selectedLevel,practice,reviewEnabled:remoteRun?remoteRun.settings.reviewEnabled:practice,random:remoteRun?seededRandom(remoteRun.settings.seed):Math.random }); engine.clock.pause(); arenaKey = '';
   const game = GAME_MAP[selectedGame];
   page(`<div class="play-heading"><div><span class="section-kicker">${practice ? sessionIsBaseline ? '۵ تمرین برای آموزش و ارزیابی پایه' : 'وقت تمرینه؛ امتیازت ثبت نمی‌شه' : 'نوبت ماجراجویی توئه'}</span><h1>${game.title}<span class="level-pill">${LEVELS[selectedLevel].label}</span></h1></div><button class="button subtle pause-button" data-action="pause">${icon('pause')} توقف</button></div><section class="play-panel ${game.kind}" aria-label="محیط بازی"><div class="play-hud"><div><span id="progress-label"></span><b id="position"></b></div><div class="hud-time">${icon('clock')}<div><span id="time-label"></span><b id="time"></b></div></div><div><span>پاسخ‌های هدف درست</span><b id="hits">۰</b></div></div><div class="progress-track"><span id="progress-fill"></span></div><div class="instruction-strip" id="instruction"></div><div id="arena" class="arena"></div><div class="play-controls" id="play-controls"></div><div id="feedback" class="feedback" role="status">با آرامش و دقت شروع کن؛ تو می‌تونی!</div></section><p class="play-footnote">${icon('info')} ${practice ? sessionIsBaseline ? 'این پنج تمرین برای آموزش و پیشنهاد سطح اولیه ثبت می‌شوند.' : 'این بخش فقط برای یادگرفتن قانون بازیه.' : game.kind==='reaction' ? 'محرک کوتاه دیده می‌شه؛ تا شروع نوبت بعد فرصت پاسخ داری.' : 'عجله نکن؛ انتخاب درست، مهم‌تر از انتخاب سریعه.'}</p>`, 'play-main');
   updatePlay();
@@ -253,7 +253,7 @@ function renderArena(game) {
   if (game.kind === 'reaction') {
     let cue, button;
     if (game.id === 'hunt') { cue = `<span class="target-examples">${engine.targets.map(target=>`<span class="target-mini">${symbol(target)}</span>`).join('')}</span><span>${engine.targets.length===2?'هدف‌های تو':'هدف تو'}: <b>${engine.targets.map(describe).join(' یا ')}</b></span>`; button = 'پیداش کردم'; }
-    if (game.id === 'traffic' && selectedTrafficMode === 'signs') { cue = `${icon('target')}<span>یک‌طرفه: <b>حرکت کن</b> <i class="cue-divider"></i> ورود ممنوع: <b>صبر کن</b></span>`; button = 'حرکت!'; }
+    if (game.id === 'traffic' && engine.variant === 'signs') { cue = `${icon('target')}<span>یک‌طرفه: <b>حرکت کن</b> <i class="cue-divider"></i> ورود ممنوع: <b>صبر کن</b></span>`; button = 'حرکت!'; }
     else if (game.id === 'traffic') { cue = `${icon('target')}<span>سبز: <b>حرکت کن</b> <i class="cue-divider"></i> قرمز: <b>صبر کن</b></span>`; button = 'حرکت!'; }
     if (game.id === 'nback') { cue = `${icon('target')}<span>فقط اگر با <b>${fa(engine.n)} محرک قبل</b> یکسانه، پاسخ بده.</span>`; button = `مثل ${fa(engine.n)} تا قبله`; }
     if (game.id === 'stroop') { cue = `${icon('target')}<span>مرحلهٔ ${fa(engine.current.phase+1)}: <b>${STROOP_RULES[engine.current.phase].title}</b></span>`; button = 'این هدفه'; }
@@ -291,7 +291,7 @@ function finish() {
   if (!session.practice || sessionIsBaseline) {
     const note = document.querySelector('.local-note');
     note.innerHTML=`${icon('clock')} در حال ثبت نتیجه در سرور مرکز…`;
-    const best = profileRecords(clients).filter(r=>r.kind==='training' && resultKey(r.result)===resultKey(result) && (r.result.protocolVersion || 2)===result.protocolVersion).map(r=>r.result).sort((a,b)=>b.score-a.score || Number(b.completed)-Number(a.completed))[0];
+    const best = comparableRecords(profileRecords(clients),{kind:'training',result}).map(r=>r.result).sort((a,b)=>b.score-a.score || Number(b.completed)-Number(a.completed))[0];
     if (Number.isFinite(best?.score)) document.querySelector('.result-main-score').insertAdjacentHTML('afterend', `<p class="best-score">${icon('trophy')} بهترین امتیاز تو در سطح ${LEVELS[result.level].label}: <b>${fa(best.score)} از ${fa(best.maxScore)}</b></p>`);
   }
   if(result.variant && result.variant!=='standard')document.querySelector('.result-caption').insertAdjacentHTML('afterend',`<span class="variant-note">${variantLabel(result.variant)}</span>`);
@@ -542,7 +542,7 @@ async function persistPending(){
     sessionRecordId=data.record.id;await refreshClients();pendingSave=null;
     const note=document.querySelector('.local-note');if(note)note.innerHTML=`${icon('check')} نتیجه در سرور مرکز ذخیره شد.`;
     document.querySelectorAll('.result-actions button').forEach(button=>button.disabled=false);
-    if(data.record.kind==='training'&&!document.querySelector('.best-score'))document.querySelector('.result-main-score')?.insertAdjacentHTML('afterend',`<p class="best-score">بهترین امتیاز این سطح: <b>${fa(Math.max(...profileRecords(clients).filter(r=>r.kind==='training'&&resultKey(r.result)===resultKey(data.record.result)).map(r=>r.result.score)))} از ${fa(data.record.result.maxScore)}</b></p>`);
+    if(data.record.kind==='training'&&!document.querySelector('.best-score'))document.querySelector('.result-main-score')?.insertAdjacentHTML('afterend',`<p class="best-score">بهترین امتیاز این سطح: <b>${fa(Math.max(...comparableRecords(profileRecords(clients),data.record).map(r=>r.result.score)))} از ${fa(data.record.result.maxScore)}</b></p>`);
   }catch(error){
     pending.saving=false;const note=document.querySelector('.local-note');if(note)note.innerHTML=`<span>${icon('info')} نتیجه هنوز ثبت نشده: ${esc(error.message)} نتیجه تا بستن صفحه در حافظه می‌ماند.</span><button class="button subtle" data-action="retry-save">تلاش دوباره برای ثبت</button><button class="text-button" data-action="reauth">ورود دوباره با حساب اجراکننده</button>`;
   }
