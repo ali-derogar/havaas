@@ -9,13 +9,13 @@ export async function testDatabase(source,name){
 }
 export async function seedAccounts(pool){
  const hash=await passwordHash(testPassword),users={};
- for(const [key,role,name] of [['admin','admin','مدیر مرکز'],['therapist','therapist','درمانگر اول'],['otherTherapist','therapist','درمانگر دوم'],['parent','parent','والد اول'],['otherParent','parent','والد دوم']]){
-   const id=randomUUID(),email=`${key.toLowerCase()}@example.test`;await pool.query('INSERT INTO users(id,email,name,role,password_hash) VALUES($1,$2,$3,$4,$5)',[id,email,name,role,hash]);users[key]={id,email,name,role};
+ for(const [key,role,name] of [['admin','admin','مدیر مرکز'],['user','user','کاربر اول'],['otherUser','user','کاربر دوم']]){
+   const id=randomUUID(),username=key.toLowerCase(),email=`${username}@example.test`;await pool.query('INSERT INTO users(id,username,email,name,role,password_hash) VALUES($1,$2,$3,$4,$5,$6)',[id,username,email,name,role,hash]);users[key]={id,username,email,name,role};
  }
  const children=[];
  for(let i=0;i<2;i++){
   const id=randomUUID(),profile={firstName:i?'علی':'سارا',lastName:'آزمون',birthDate:'2016-01-01',grade:'پایهٔ ۳',school:'امید',concerns:`clinical-secret-${i}`};
-  await pool.query('INSERT INTO children(id,therapist_id,profile) VALUES($1,$2,$3)',[id,i?users.otherTherapist.id:users.therapist.id,profile]);await pool.query('INSERT INTO parent_children(parent_id,child_id) VALUES($1,$2)',[i?users.otherParent.id:users.parent.id,id]);children.push({id,...profile});
+  await pool.query('INSERT INTO children(id,owner_user_id,profile) VALUES($1,$2,$3)',[id,i?users.otherUser.id:users.user.id,profile]);children.push({id,...profile});
  }
  return {users,children,password:testPassword};
 }

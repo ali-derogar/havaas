@@ -1,6 +1,6 @@
 import { ApiClient } from './api.js';
 import { preloadWorld,worldBackground,gameArtwork } from './worlds.js';
-import { accountView, loginView, importPreviewView, roleName } from './account-ui.js';
+import { accountView, loginView, importPreviewView, roleName, adminView, adminUserView, reportLinksView, passwordView } from './account-ui.js';
 import { seededRandom } from './core/random.js';
 import { ActiveClock } from './core/session.js';
 import { preparationView, countdownView, reviewView, transitionView, stroopStages, trafficRoad, missionChecklist, searchTargetStatus, searchRounds, huntBlocks, learningRecap, roundBreakView } from './play-ui.js';
@@ -23,9 +23,11 @@ const announcer = document.querySelector('#announcer');
 const progress = readProgress();
 const clients = {version:1,activeId:null,profiles:[],records:[],difficulties:[]};
 const api=new ApiClient();
-let currentUser=null,members=[],inviteToken=null,inviteInfo=null,remoteRun=null,pendingSave=null,starting=false,previewImport=null;
+let currentUser=null,members=[],inviteToken=null,inviteInfo=null,remoteRun=null,pendingSave=null,starting=false,launchAttempt=null,previewImport=null;
+let inspectedUserId=null,publicReportData=null;
+const adminState={search:'',status:'',role:''};
 let pendingStart = null, sessionIsBaseline = false, editingProfile = null, guideState = null, sessionAssessment = false, lessonState = null, sessionRecordId = null;
-const reportState = { tab: 'therapist', game: '', level: '', variant: '', kind: 'training', recordId: null };
+const reportState = { tab: 'admin', game: '', level: '', variant: '', kind: 'training', recordId: null };
 const fa = value => new Intl.NumberFormat('fa-IR', { maximumFractionDigits: 0 }).format(value);
 const time = ms => { const seconds = Math.max(0, Math.ceil(ms / 1000)); return `${fa(Math.floor(seconds / 60)).padStart(2, '۰')}:${fa(seconds % 60).padStart(2, '۰')}`; };
 const describe = describeStimulus;
@@ -34,10 +36,15 @@ let engine = null, frame = 0, arenaKey = '', modalKind = '', audioContext;
 let playPhase='ready', preparationClock=null, reactionPointerInput=false, loadedWorld=null;
 
 function header() {
-  return `<header class="site-header"><div class="header-inner"><a class="brand" href="#" data-action="home" aria-label="حواس، صفحهٔ اصلی">${logo()}<span>حواس<small>ماجراجویی‌های ذهنی</small></span></a><nav aria-label="منوی اصلی"><button class="nav-link ${route === 'home' ? 'active' : ''}" data-action="games">بازی‌ها <span class="nav-count">۷</span></button><button class="nav-link" data-action="about">چطور بازی کنیم؟</button><button class="nav-link report-nav" data-action="dashboard">گزارش‌ها</button></nav><div class="header-end">${currentUser?`<button class="profile-button" data-action="account">${esc(currentUser.name)} · ${roleName(currentUser.role)}</button>`:''}<button class="profile-button" data-action="profiles">${activeProfile(clients) ? esc(activeProfile(clients).firstName) : 'ثبت مراجع'}</button><button class="icon-button sound-button" data-action="sound" aria-label="${progress.sound ? 'خاموش‌کردن صدا' : 'روشن‌کردن صدا'}" aria-pressed="${progress.sound}">${icon(progress.sound ? 'sound' : 'mute')}</button></div></div></header>`;
+ const brand=`<a class="brand" href="#${currentUser?.role==='admin'?'admin':'app'}" data-action="home" aria-label="حواس، صفحهٔ اصلی">${logo()}<span>حواس<small>${currentUser?.role==='admin'?'پنل مدیریت':'ماجراجویی‌های ذهنی'}</small></span></a>`;
+ if(publicReportData||!currentUser)return `<header class="site-header"><div class="header-inner"><span class="brand">${logo()} حواس</span><span>${publicReportData?'گزارش خانواده':'ورود به حواس'}</span></div></header>`;
+ if(currentUser.passwordChangeRequired)return `<header class="site-header"><div class="header-inner">${brand}<button class="text-button" data-action="logout">خروج</button></div></header>`;
+ if(currentUser.role==='admin')return `<header class="site-header admin-header"><div class="header-inner">${brand}<nav aria-label="منوی مدیریت"><button class="nav-link ${route==='admin'?'active':''}" data-action="admin">کاربران</button><button class="nav-link" data-action="profiles">پرونده‌ها</button><button class="nav-link" data-action="account">حساب و انتقال داده</button></nav><div class="header-end"><span>${esc(currentUser.name)}</span><button class="text-button" data-action="logout">خروج</button></div></div></header>`;
+ return `<header class="site-header"><div class="header-inner">${brand}<nav aria-label="منوی اصلی"><button class="nav-link ${route==='home'?'active':''}" data-action="games">بازی‌ها <span class="nav-count">۷</span></button><button class="nav-link" data-action="assessment">ارزیابی اولیه</button><button class="nav-link report-nav" data-action="dashboard">گزارش من</button></nav><div class="header-end"><button class="profile-button" data-action="account">${esc(currentUser.name)}</button><button class="icon-button sound-button" data-action="sound" aria-label="${progress.sound?'خاموش‌کردن صدا':'روشن‌کردن صدا'}" aria-pressed="${progress.sound}">${icon(progress.sound?'sound':'mute')}</button></div></div></header>`;
 }
 const footer = () => `<footer class="site-footer"><span>${logo()} حواس؛ جایی برای بازی و کشف</span><span>با سرعت خودت، به سبک خودت ${icon('spark')}</span></footer>`;
 function page(content, className = '') {
+  if(launchAttempt){launchAttempt=null;starting=false;}
   cancelAnimationFrame(frame);
   document.body.dataset.screen=route;reactionPointerInput=false;
   app.innerHTML = `${header()}<main id="main" class="${className}" tabindex="-1">${content}</main>${footer()}`;
@@ -47,7 +54,9 @@ function page(content, className = '') {
 function setHash(hash) { if (location.hash !== hash) history.pushState({}, '', hash || location.pathname); }
 function home(updateHash = true) {
   if(!currentUser)return showLogin();
-  pendingStart = null; guideState = null; engine = null; route = 'home'; if (modal.open) modal.close(); if (updateHash) setHash('');
+  if(currentUser.passwordChangeRequired)return forcedPassword();
+  if(currentUser.role==='admin')return adminPanel();
+  pendingStart = null; guideState = null; engine = null; route = 'home'; if (modal.open) modal.close(); if (updateHash) setHash('#app');
   document.title = 'حواس — ماجراجویی‌های ذهنی';
   page(`<section class="hero"><div class="hero-copy"><div class="eyebrow"><span class="tiny-spark">✳</span> به دنیای حواس خوش اومدی</div><h1>یک بازی کوچک،<br>یک ذهن <span class="highlight">آماده‌تر.<svg viewBox="0 0 250 15" aria-hidden="true"><path d="M3 10Q120-3 246 8"/></svg></span></h1><p class="hero-description">کشف کن، به خاطر بسپار و با دقت انتخاب کن.<br>اینجا هر بازی، یک ماجراجویی تازه برای ذهن توئه.</p><div class="hero-actions"><button class="button primary" data-action="games">بزن بریم بازی ${icon('arrow')}</button><button class="text-button" data-action="about">${icon('play')} چطور بازی کنیم؟</button></div><div class="hero-facts"><span><b>۷</b> بازی متفاوت</span><i></i><span><b>۳</b> سطح چالش</span><i></i><span>${icon('check')} پروندهٔ شخصی تمرین</span></div></div><div class="hero-picture">${heroArt()}<div class="hero-caption"><span class="status-dot"></span> هر بار بازی، یک قدم رو به جلو</div></div></section>
     ${profileStrip(clients,currentUser)}<section class="library" id="games" aria-labelledby="library-heading"><div class="section-heading"><div><div class="section-kicker">یک چالش تازه انتخاب کن</div><h2 id="library-heading">امروز کدوم ماجراجویی؟ ${icon('spark')}</h2></div><p>از هر جا دوست داری، شروع کن.</p></div><div class="filter-bar" role="group" aria-label="دسته‌بندی بازی‌ها">${[['all','همهٔ بازی‌ها'],['attention','توجه و تمرکز'],['memory','حافظه'],['speed','سرعت واکنش']].map(([id,label]) => `<button class="filter ${filter === id ? 'selected' : ''}" data-action="filter" data-filter="${id}" aria-pressed="${filter === id}">${label}${id === 'all' ? '<span>۷</span>' : ''}</button>`).join('')}<span class="filter-note">همهٔ بازی‌ها برای تو بازه ${icon('check')}</span></div><div class="game-grid" id="game-grid">${gameCards()}</div></section>
@@ -93,6 +102,7 @@ function nextLesson() {
   document.querySelector('#lesson-box [data-action="lesson-answer"],#lesson-box [data-action="lesson-choice"],#lesson-box [data-action="lesson-hide"]')?.focus({preventScroll:true});
 }
 async function assessment() {
+  if(currentUser?.role==='admin')return adminPanel();
   if(currentUser)await refreshClients();
   engine=null;guideState=null;route='assessment';if(modal.open)modal.close();setHash('#assessment');
   document.title='ارزیابی اولیه — حواس';page(assessmentView(clients),'content-main assessment-main');
@@ -144,6 +154,7 @@ function gameCopy(game) {
   return game;
 }
 async function detail(id, updateHash = true) {
+  if(currentUser?.role==='admin')return adminPanel();
   if(currentUser)await refreshClients();
   if (!GAME_MAP[id]) return home();
   if (selectedGame !== id) selectedMaterial = 'shapes';
@@ -154,7 +165,7 @@ async function detail(id, updateHash = true) {
   if(!guideState&&policy)selectedLevel=policy.level;
   lessonState = {steps:createLesson(id,{level:selectedLevel,material:selectedMaterial,theme:selectedTheme,trafficMode:selectedTrafficMode,targetCount:id==='search'?(selectedSearchMode==='dual'?2:1):(selectedHuntMode==='divided'?2:1)}),index:0,answered:false};
   const game = gameCopy(GAME_MAP[id]); document.title = `${game.title} — حواس`;
-  page(`<div class="breadcrumb"><button data-action="home">بازی‌ها</button>${icon('chevron')}<span>${game.title}</span></div>${guideState?`<div class="guided-banner"><b>ارزیابی اولیه · ${fa(GAMES.findIndex(game=>game.id===id)+1)} از ۷</b><span>این بخش شامل پنج تمرین در سطح آسان است.</span><button class="text-button" data-action="assessment">دیدن مسیر ارزیابی ←</button></div>`:""}<section class="intro-layout"><div class="intro-copy"><div class="eyebrow">${icon('spark')} ${game.skill}</div><h1>${game.title}</h1><p class="intro-description">${game.description}</p><ol class="rules">${game.rules.map((rule,i) => `<li><span>${fa(i+1)}</span><p>${rule}</p></li>`).join('')}</ol>${lessonState.steps.length?`<section class="lesson-box" id="lesson-box" aria-label="نمونهٔ آموزشی تعاملی">${lessonContent()}</section>`:""}<fieldset class="level-selector"><legend>چالش امروزت چقدر باشه؟</legend><div class="levels">${Object.entries(LEVELS).map(([id,level],i) => `<button class="level-button ${selectedLevel === id ? 'selected' : ''}" data-action="level" data-level="${id}" aria-pressed="${selectedLevel === id}" ${guideState||currentUser?.role==='parent'?"disabled":""}><span class="level-bars" aria-hidden="true">${[0,1,2].map(j=>`<i class="${j<=i?'lit':''}"></i>`).join('')}</span><b>${level.label}</b><small>${level.caption}</small></button>`).join('')}</div></fieldset>${id === 'hunt' ? `<fieldset class="theme-selector"><legend>با چی بازی کنیم؟</legend><div class="theme-options">${Object.entries(THEMES).map(([key,label]) => `<button class="theme-button ${key===selectedTheme?'selected':''}" data-action="theme" data-theme="${key}" aria-pressed="${key===selectedTheme}">${label}</button>`).join('')}</div></fieldset>` : ''}${taskOptions(game)}${assessmentInfo()}${currentUser?.role!=='parent'&&activeProfile(clients)?`<div class="difficulty-policy"><span>روش سطح: ${policy?.mode==='fixed'?'ثابت؛ انتخاب سطح، تنظیم درمانگر را ثابت می‌کند.':'تطبیقی؛ سطح جلسهٔ بعد از عملکرد تعیین می‌شود.'}</span><button class="text-button" data-action="adaptive-level">فعال‌کردن سطح تطبیقی</button></div>`:''}<div class="start-row"><button class="button primary" data-action="practice">بریم تمرین کنیم ${icon('arrow')}</button>${!guideState && latestBaseline(clients,id,currentVariant()) ? '<button class="button primary" data-action="main-game">بازی اصلی ←</button>' : '<span>۵ تمرین؛ ارزیابی جدا از امتیاز اصلی</span>'}</div></div><aside class="intro-art" style="--card-color:${game.color}"><div class="intro-art-bubble">${gameArtwork(id)}</div><div class="intro-art-note">${icon('target')} <span>یک قانون ساده، یک چالش جذاب</span></div><div class="session-summary" id="session-summary">${levelSummary(game)}</div></aside></section>`, 'content-main');
+  page(`<div class="breadcrumb"><button data-action="home">بازی‌ها</button>${icon('chevron')}<span>${game.title}</span></div>${guideState?`<div class="guided-banner"><b>ارزیابی اولیه · ${fa(GAMES.findIndex(game=>game.id===id)+1)} از ۷</b><span>این بخش شامل پنج تمرین در سطح آسان است.</span><button class="text-button" data-action="assessment">دیدن مسیر ارزیابی ←</button></div>`:""}<section class="intro-layout"><div class="intro-copy"><div class="eyebrow">${icon('spark')} ${game.skill}</div><h1>${game.title}</h1><p class="intro-description">${game.description}</p><ol class="rules">${game.rules.map((rule,i) => `<li><span>${fa(i+1)}</span><p>${rule}</p></li>`).join('')}</ol>${lessonState.steps.length?`<section class="lesson-box" id="lesson-box" aria-label="نمونهٔ آموزشی تعاملی">${lessonContent()}</section>`:""}<fieldset class="level-selector"><legend>سطح تمرین تعیین‌شده</legend><div class="levels">${Object.entries(LEVELS).map(([id,level],i) => `<button class="level-button ${selectedLevel === id ? 'selected' : ''}" data-action="level" data-level="${id}" aria-pressed="${selectedLevel === id}" ${guideState||currentUser?.role!=='admin'?"disabled":""}><span class="level-bars" aria-hidden="true">${[0,1,2].map(j=>`<i class="${j<=i?'lit':''}"></i>`).join('')}</span><b>${level.label}</b><small>${level.caption}</small></button>`).join('')}</div></fieldset>${id === 'hunt' ? `<fieldset class="theme-selector"><legend>با چی بازی کنیم؟</legend><div class="theme-options">${Object.entries(THEMES).map(([key,label]) => `<button class="theme-button ${key===selectedTheme?'selected':''}" data-action="theme" data-theme="${key}" aria-pressed="${key===selectedTheme}">${label}</button>`).join('')}</div></fieldset>` : ''}${taskOptions(game)}${assessmentInfo()}${currentUser?.role==='admin'&&activeProfile(clients)?`<div class="difficulty-policy"><span>روش سطح: ${policy?.mode==='fixed'?'ثابت؛ انتخاب سطح، تنظیم ادمین را ثابت می‌کند.':'تطبیقی؛ سطح جلسهٔ بعد از عملکرد تعیین می‌شود.'}</span><button class="text-button" data-action="adaptive-level">فعال‌کردن سطح تطبیقی</button></div>`:''}<div class="start-row"><button class="button primary" data-action="practice">بریم تمرین کنیم ${icon('arrow')}</button>${!guideState && latestBaseline(clients,id,currentVariant()) ? '<button class="button primary" data-action="main-game">بازی اصلی ←</button>' : '<span>۵ تمرین؛ ارزیابی جدا از امتیاز اصلی</span>'}</div></div><aside class="intro-art" style="--card-color:${game.color}"><div class="intro-art-bubble">${gameArtwork(id)}</div><div class="intro-art-note">${icon('target')} <span>یک قانون ساده، یک چالش جذاب</span></div><div class="session-summary" id="session-summary">${levelSummary(game)}</div></aside></section>`, 'content-main');
   if(guideState)document.querySelectorAll('[data-action="theme"],[data-action="hunt-mode"],[data-action="material"],[data-action="traffic-mode"],[data-action="search-mode"],[data-action="search-layout"]').forEach(button=>button.disabled=true);
 }
 function levelSummary(game) {
@@ -173,9 +184,14 @@ async function start(practice, forceBaseline = false) {
   if (!practice && !latestBaseline(clients, selectedGame, currentVariant())) practice = true;
   sessionIsBaseline = practice && (forceBaseline || !latestBaseline(clients, selectedGame, currentVariant()));
   const options=gameOptions();
-  starting=true;notify('در حال آماده‌سازی بازی…');document.querySelectorAll('[data-action="practice"],[data-action="main-game"],[data-action="replay"]').forEach(button=>button.disabled=true);
-  try {remoteRun=(!practice||sessionIsBaseline)?await api.request(`/children/${clients.activeId}/sessions`,{method:'POST',body:{...options,kind:sessionIsBaseline?'baseline':'training'}}):null;loadedWorld=await preloadWorld(remoteRun?.settings||options);}
-  finally {starting=false;document.querySelectorAll('[data-action="practice"],[data-action="main-game"],[data-action="replay"]').forEach(button=>button.disabled=false);}
+  const attempt={};launchAttempt=attempt;starting=true;notify('در حال آماده‌سازی بازی…');document.querySelectorAll('[data-action="practice"],[data-action="main-game"],[data-action="replay"]').forEach(button=>button.disabled=true);
+  try {
+    const run=(!practice||sessionIsBaseline)?await api.request(`/children/${clients.activeId}/sessions`,{method:'POST',body:{...options,kind:sessionIsBaseline?'baseline':'training'}}):null;
+    const world=await preloadWorld(run?.settings||options);
+    if(launchAttempt!==attempt)return;
+    remoteRun=run;loadedWorld=world;
+  }catch(error){if(launchAttempt===attempt)throw error;return;}
+  finally {if(launchAttempt===attempt){launchAttempt=null;starting=false;document.querySelectorAll('[data-action="practice"],[data-action="main-game"],[data-action="replay"]').forEach(button=>button.disabled=false);}}
   if(remoteRun){selectedLevel=remoteRun.settings.level;selectedGame=remoteRun.settings.gameId;}
   if (modal.open) modal.close();
   sessionRecordId=null;
@@ -321,7 +337,7 @@ function finish() {
     const next=nextAssessmentGame(clients);
     document.querySelector('.result-actions').innerHTML=`<button class="button primary" data-action="${next?'assessment-next':'assessment'}">${next?'ادامهٔ ارزیابی بازی بعد':'جمع‌بندی ارزیابی هفت بازی'} ${icon('arrow')}</button><button class="button subtle" data-action="assessment">مسیر ارزیابی و استراحت</button>`;
   } else if(sessionIsBaseline) document.querySelector('.result-actions').insertAdjacentHTML('beforeend','<button class="text-button" data-action="assessment">ارزیابی سایر بازی‌ها</button>');
-  if(currentUser.role==='parent')document.querySelector('.level-recommendation button')?.remove();
+  if(currentUser.role!=='admin')document.querySelector('.level-recommendation button')?.remove();
   announcer.textContent = title;
   if(needsSave){document.querySelectorAll('.result-actions button').forEach(button=>button.disabled=true);void persistPending();}
 }
@@ -356,7 +372,8 @@ function answer(result,context={}) { if(result!==null&&result!==undefined) { ton
 
 async function profiles(editId = null, notice = '') {
   if(!currentUser)return showLogin();
-  await refreshClients();if(currentUser.role!=='parent')members=(await api.request('/users')).users;
+  if(currentUser.role!=='admin')return home();
+  inspectedUserId=null;await refreshClients();if(currentUser.role==='admin')members=(await api.request('/users')).users;
   guideState = null; engine = null; route = 'profiles'; editingProfile = editId;
   if (modal.open) modal.close(); setHash('#profiles'); document.title = 'پروندهٔ مراجعان — حواس';
   page(profilesView(clients, editId, notice,{user:currentUser,members}), 'content-main clients-main');
@@ -366,14 +383,12 @@ function continueAfterProfile() {
   return home();
 }
 async function dashboard() {
+  if(publicReportData)return renderPublicReport();
+  if(currentUser?.role==='admin'&&inspectedUserId)return inspectUser(inspectedUserId);
   await refreshClients();
   guideState = null; engine = null; route = 'reports'; if (modal.open) modal.close(); setHash('#reports');
   document.title = 'گزارش تمرین‌ها — حواس';
   page(reportsView(clients, reportState,currentUser), 'content-main reports-main');
-}
-function confirmDeleteProfile(id) {
-  const p = clients.profiles.find(p=>p.id===id); if (!p) return;
-  openModal(`<h2 id="modal-title">حذف پروندهٔ ${esc(p.firstName)}</h2><p>مشخصات و تمام ${fa(profileRecords(clients,id).length)} نتیجهٔ این مراجع از سرور مرکز حذف می‌شوند. پیش از حذف می‌توانی از گزارش‌ها خروجی بگیری.</p><div class="modal-buttons"><button class="button danger-button" data-action="confirm-delete-profile" data-id="${esc(id)}">حذف پرونده و نتیجه‌ها</button><button class="button subtle" data-action="close-modal">انصراف</button></div>`, 'delete-profile');
 }
 function download(data, type, filename) {
   const url = URL.createObjectURL(new Blob([data], { type }));
@@ -381,11 +396,11 @@ function download(data, type, filename) {
   setTimeout(()=>URL.revokeObjectURL(url),1000);
 }
 async function exportProfile() {
-  if(currentUser.role==='parent'||!clients.activeId)return;
+  if(currentUser.role!=='admin'||!clients.activeId)return;
   const data=await api.request(`/children/${clients.activeId}/export`);download(JSON.stringify(data,null,2),'application/json;charset=utf-8','havaas-profile.json');
 }
 async function exportTrials() {
-  if(currentUser.role==='parent')return;
+  if(currentUser.role!=='admin')return;
   const records=profileRecords(clients).filter(r=>(!reportState.game||r.result.gameId===reportState.game)&&(!reportState.level||r.result.level===reportState.level)&&(!reportState.variant||variantOf(r.result)===reportState.variant)&&(!reportState.kind||r.kind===reportState.kind));
   const record=records.find(r=>r.id===reportState.recordId)||records.at(-1);if(!record)return;
   const response=await fetch(`/api/children/${clients.activeId}/sessions/${record.id}/export`,{credentials:'same-origin'});if(!response.ok)throw Error('دریافت خروجی مجاز یا ممکن نیست.');download(await response.text(),'text/csv;charset=utf-8','havaas-responses.csv');
@@ -399,26 +414,35 @@ async function submitForm(form){
     currentUser=auth.user;
     if(pendingSave){if(modal.open)modal.close();return persistPending();}
     if(inviteToken){inviteInfo=await api.request('/invitations/inspect',{method:'POST',body:{token:inviteToken}});return showLogin(inviteInfo);}
-    await refreshClients();return home();
+    if(currentUser.passwordChangeRequired)return forcedPassword();await refreshClients();return home();
   }
   if(form.id==='accept-form'){
-    const auth=await api.request('/invitations/accept',{method:'POST',body:{...values,token:inviteToken}});currentUser=auth.user;inviteToken=null;inviteInfo=null;history.replaceState?.({},'',location.pathname);await refreshClients();return home();
+    const auth=await api.request('/invitations/accept',{method:'POST',body:{...values,token:inviteToken}});currentUser=auth.user;inviteToken=null;inviteInfo=null;history.replaceState?.({},'',location.pathname);if(currentUser.passwordChangeRequired)return forcedPassword();await refreshClients();return home();
   }
-  if(form.id==='password-form'){await api.request('/auth/change-password',{method:'POST',body:values});form.reset?.();return notify('رمز تغییر کرد؛ نشست‌های دیگر نیاز به ورود دوباره دارند.');}
+  if(form.id==='password-form'){const wasForced=currentUser.passwordChangeRequired;const data=await api.request('/auth/change-password',{method:'POST',body:values});currentUser=data.user;form.reset?.();if(wasForced){await refreshClients();await home();}return notify('رمز تغییر کرد؛ نشست‌های دیگر نیاز به ورود دوباره دارند.');}
+  if(form.id==='user-filter-form'){Object.assign(adminState,values);return adminPanel();}
+  if(form.id==='create-user-form'){const data=await api.request('/users',{method:'POST',body:{...values,profile:values}});await adminPanel();if(data.url)showInvitation(data);return notify('حساب و پرونده در سرور ساخته شد.');}
+  if(form.id==='edit-user-form'){const data=await api.request(`/users/${form.dataset.user}`,{method:'PATCH',body:values});if(data.user.id===currentUser.id)currentUser=data.user;await inspectUser(data.user.id);return notify('مشخصات حساب ذخیره شد.');}
+  if(form.id==='report-link-form'){const data=await api.request(`/children/${clients.activeId}/report-links`,{method:'POST',body:values});await reportLinks();return showInvitation(data);}
+  if(form.id==='admin-difficulty-form'){await api.request(`/children/${clients.activeId}/difficulty`,{method:'PATCH',body:{...policyOptions(values.gameId,values.variant),mode:values.mode,level:values.level}});await refreshClients();syncPolicyControls(false);return notify('تنظیم سطح برای جلسهٔ بعد ذخیره شد.');}
   if(form.id==='invitation-form'){const data=await api.request('/invitations',{method:'POST',body:values});return showInvitation(data);}
   if(form.id!=='profile-form')return;
   const validation=validateProfile(values);if(validation.error){document.querySelector('#profile-error').textContent=validation.error;return;}
-  const data=await api.request(editingProfile?`/children/${editingProfile}`:'/children',{method:editingProfile?'PATCH':'POST',body:{...validation.profile,...(values.therapistId?{therapistId:values.therapistId}:{})}});
+  const data=await api.request(editingProfile?`/children/${editingProfile}`:'/children',{method:editingProfile?'PATCH':'POST',body:{...validation.profile,...(values.ownerUserId?{ownerUserId:values.ownerUserId}:{})}});
   clients.activeId=data.profile.id;await refreshClients();
   if(pendingStart)return continueAfterProfile();
-  return profiles(null,'مشخصات در سرور مرکز ذخیره شد؛ مراجع را انتخاب کن و ادامه بده.');
+  if(inspectedUserId){await inspectUser(inspectedUserId);return notify('مشخصات پرونده ذخیره شد.');}return profiles(null,'مشخصات در سرور مرکز ذخیره شد.');
 }
 app.addEventListener('change',event=>{void changeInput(event).catch(showError);});
 async function changeInput(event){
+  if(['new-user-role','new-user-method','new-user-child'].includes(event.target.id))return syncCreateControls();
+  if(['policy-game','policy-variant'].includes(event.target.id))return syncPolicyControls(event.target.id==='policy-game');
   if(event.target.id==='import-file'){const file=event.target.files?.[0];if(file)return previewLegacy(JSON.parse(await file.text()));}
   if(event.target.id==='report-profile') {
-    if(!clients.profiles.some(p=>p.id===event.target.value))return;
-    clients.activeId=event.target.value;reportState.recordId=null;await dashboard();
+    const profile=clients.profiles.find(p=>p.id===event.target.value);if(!profile)return;
+    clients.activeId=profile.id;reportState.recordId=null;
+    if(currentUser.role==='admin'&&inspectedUserId){inspectedUserId=profile.ownerUserId||null;if(inspectedUserId)return inspectUser(inspectedUserId);}
+    await dashboard();
   }
   const filter=event.target.dataset.reportFilter;
   if(['game','level','variant','kind'].includes(filter)) {reportState[filter]=event.target.value;reportState.recordId=null;await dashboard();}
@@ -431,16 +455,20 @@ async function handleAction(event) {
   if(starting&&!['sound','about'].includes(action))return;
   if(route==='play'&&['account','profiles','dashboard','home','assessment','open'].includes(action))engine?.clock.pause();
   if(pendingSave&&!['retry-save','reauth','sound','close-modal','about'].includes(action)){notify('ابتدا ثبت نتیجهٔ این جلسه را کامل کنید.');return;}
+  if(action==='admin')return adminPanel();
+  if(action==='inspect-user')return inspectUser(button.dataset.user);
+  if(action==='review-profile'){clients.activeId=button.dataset.id;inspectedUserId=button.dataset.user||null;return inspectedUserId?inspectUser(inspectedUserId):dashboard();}
+  if(action==='report-links')return reportLinks();
+  if(action==='revoke-report-link'){await api.request(`/children/${clients.activeId}/report-links/${button.dataset.link}`,{method:'DELETE'});return reportLinks();}
   if(action==='account')return account();
-  if(action==='logout'){await api.request('/auth/logout',{method:'POST'});currentUser=null;members=[];inviteToken=null;inviteInfo=null;previewImport=null;remoteRun=null;Object.assign(clients,{activeId:null,profiles:[],records:[],difficulties:[]});await api.request('/auth/session');return showLogin();}
+  if(action==='logout'){await api.request('/auth/logout',{method:'POST'});currentUser=null;members=[];inspectedUserId=null;publicReportData=null;inviteToken=null;inviteInfo=null;previewImport=null;remoteRun=null;Object.assign(clients,{activeId:null,profiles:[],records:[],difficulties:[]});await api.request('/auth/session');return showLogin();}
   if(action==='retry-save')return persistPending();
   if(action==='reauth'){await api.request('/auth/session');return openModal(loginView({reauth:true}),'reauth');}
   if(action==='invite-login')return showLogin(null);
   if(action==='retry-connect')return initialize();
   if(action==='copy-invitation'){const field=document.querySelector('#invitation-url');field.select();await navigator.clipboard?.writeText(field.value);return;}
-  if(action==='reset-link')return showInvitation(await api.request('/invitations',{method:'POST',body:{email:button.dataset.email,purpose:'reset'}}));
-  if(action==='toggle-user'){await api.request(`/users/${button.dataset.user}`,{method:'PATCH',body:{active:button.dataset.active==='true'}});return account();}
-  if(action==='unlink-parent'){await api.request(`/children/${clients.activeId}/parents/${button.dataset.parent}`,{method:'DELETE'});return account();}
+  if(action==='reset-link')return showInvitation(await api.request('/invitations',{method:'POST',body:{userId:button.dataset.user,purpose:button.dataset.purpose||'reset'}}));
+  if(action==='toggle-user'){await api.request(`/users/${button.dataset.user}`,{method:'PATCH',body:{active:button.dataset.active==='true'}});if(button.dataset.user===currentUser.id&&button.dataset.active==='false'){currentUser=null;return showLogin();}return inspectUser(button.dataset.user);}
   if(action==='import-browser')return previewLegacy(readClients());
   if(action==='commit-import')return commitLegacy();
   if(action==='adaptive-level'){await api.request(`/children/${clients.activeId}/difficulty`,{method:'PATCH',body:{...gameOptions(),mode:'adaptive',level:selectedLevel}});await refreshClients();return detail(selectedGame,false);}
@@ -465,14 +493,12 @@ async function handleAction(event) {
   }
   if(action==='select-profile') { if(!clients.profiles.some(p=>p.id===button.dataset.id))return; clients.activeId=button.dataset.id; await refreshClients(); return continueAfterProfile(); }
   if(action==='edit-profile') return profiles(button.dataset.id);
-  if(action==='delete-profile') return confirmDeleteProfile(button.dataset.id);
-  if(action==='confirm-delete-profile') { await api.request(`/children/${button.dataset.id}`,{method:'DELETE'});modal.close();return profiles(null,'پرونده و همهٔ نتیجه‌های آن حذف شد.'); }
   if(action==='report-tab') { reportState.tab=button.dataset.tab; return dashboard(); }
   if(action==='select-record') { reportState.recordId=button.dataset.id; return dashboard(); }
   if(action==='print-report') return window.print();
   if(action==='export-profile') return exportProfile();
   if(action==='export-trials') return exportTrials();
-  if(action==='recommended-level') { if(currentUser.role==='parent')return;guideState=null;selectedLevel=button.dataset.level;await api.request(`/children/${clients.activeId}/difficulty`,{method:'PATCH',body:{...gameOptions(),mode:'fixed',level:selectedLevel}});return detail(selectedGame); }
+  if(action==='recommended-level') { if(currentUser.role!=='admin')return;guideState=null;selectedLevel=button.dataset.level;await api.request(`/children/${clients.activeId}/difficulty`,{method:'PATCH',body:{...gameOptions(),mode:'fixed',level:selectedLevel}});return detail(selectedGame); }
   if(action==='baseline') return start(true,true);
   if(action==='games') { if(route!=='home') home(); requestAnimationFrame(()=>document.querySelector('#games')?.scrollIntoView({behavior:matchMedia('(prefers-reduced-motion: reduce)').matches?'instant':'smooth',block:'start'})); return; }
   if(action==='about') return about();
@@ -481,7 +507,7 @@ async function handleAction(event) {
   if(action==='open') return detail(button.dataset.game);
   if(action==='detail') return detail(selectedGame);
   if(action==='filter') { filter=button.dataset.filter; document.querySelectorAll('.filter').forEach(node=>{ const selected=node.dataset.filter===filter; node.classList.toggle('selected',selected);node.setAttribute('aria-pressed',String(selected)); }); document.querySelector('#game-grid').innerHTML=gameCards(); return; }
-  if(action==='level'&&LEVELS[button.dataset.level]) { if(guideState||currentUser.role==='parent')return;selectedLevel=button.dataset.level;if(clients.activeId){await api.request(`/children/${clients.activeId}/difficulty`,{method:'PATCH',body:{...gameOptions(),mode:'fixed',level:selectedLevel}});}return detail(selectedGame,false); }
+  if(action==='level'&&LEVELS[button.dataset.level]) { if(guideState||currentUser.role!=='admin')return;selectedLevel=button.dataset.level;if(clients.activeId){await api.request(`/children/${clients.activeId}/difficulty`,{method:'PATCH',body:{...gameOptions(),mode:'fixed',level:selectedLevel}});}return detail(selectedGame,false); }
   if(action==='theme'&&THEMES[button.dataset.theme]) { selectedTheme=button.dataset.theme; document.querySelectorAll('[data-action="theme"]').forEach(node=>{ const selected=node.dataset.theme===selectedTheme;node.classList.toggle('selected',selected);node.setAttribute('aria-pressed',String(selected)); }); return detail(selectedGame,false); }
   if(action==='hunt-mode'&&['standard','divided'].includes(button.dataset.mode)) { selectedHuntMode=button.dataset.mode;document.querySelectorAll('.hunt-mode').forEach(node=>{const selected=node.dataset.mode===selectedHuntMode;node.classList.toggle('selected',selected);node.setAttribute('aria-pressed',String(selected));});return detail(selectedGame,false); }
   if(action==='traffic-mode') { selectedTrafficMode=button.dataset.mode==='signs'?'signs':'circles'; return detail(selectedGame,false); }
@@ -531,7 +557,7 @@ document.addEventListener('keydown', event=>{
 });
 document.addEventListener('visibilitychange', ()=>{ if(document.hidden&&route==='play'&&engine&&(!engine.paused||playPhase==='countdown')) { if(modal.open) { engine.pause(); } else pause(); } });
 window.addEventListener('orientationchange',()=>{if(route==='play'&&engine&&!engine.paused&&!modal.open)pause();});
-window.addEventListener('popstate',()=>{if(pendingSave){notify('نتیجه هنوز در سرور ثبت نشده است.');return;}const id=location.hash.slice(1); if(id==='assessment')assessment();else if(id==='profiles')profiles();else if(id==='reports')dashboard();else if(GAME_MAP[id]) detail(id,false); else home(false); });
+window.addEventListener('popstate',()=>{if(pendingSave){notify('نتیجه هنوز در سرور ثبت نشده است.');return;}void navigate().catch(showError);});
 function gameOptions(){return {gameId:selectedGame,...(selectedGame==='search'?{pacedRounds:true}:{}),level:selectedLevel,theme:selectedTheme,material:selectedMaterial,layout:selectedLayout,trafficMode:selectedTrafficMode,targetCount:selectedGame==='search'?(selectedSearchMode==='dual'?2:1):(selectedHuntMode==='divided'?2:1)};}
 async function refreshClients(){
   const data=await api.request(`/bootstrap${clients.activeId?'?childId='+encodeURIComponent(clients.activeId):''}`);
@@ -541,15 +567,30 @@ function showLogin(invite=null){
   route='auth';engine=null;cancelAnimationFrame(frame);if(modal.open)modal.close();
   page(loginView({invite}), 'auth-main');
 }
+function publicReportMessage(title,message,retry=false){
+ publicReportData={};route='public-report-message';engine=null;if(modal.open)modal.close();document.title='گزارش خانواده — حواس';
+ page(`<section class="surface empty-state"><h1>${esc(title)}</h1><p>${esc(message)}</p>${retry?'<button class="button primary" data-action="retry-connect">تلاش دوباره</button>':''}</section>`,'auth-main');
+}
+async function navigate(){
+ const id=location.hash.slice(1),shared=id.match(/^report\/([a-f0-9]{64})$/);
+ if(id.startsWith('report/')){
+  publicReportMessage('در حال دریافت گزارش','لطفاً کمی صبر کنید.');
+  if(!shared)throw Error('لینک گزارش معتبر نیست؛ لینک کامل را از فرستنده دریافت کنید.');
+  Object.assign(reportState,{tab:'parents',game:'',level:'',variant:'',kind:'',recordId:null});publicReportData=await api.request('/public/report',{method:'POST',body:{token:shared[1]}});return renderPublicReport();
+ }
+ publicReportData=null;
+ if(!currentUser)return showLogin();if(currentUser.passwordChangeRequired)return forcedPassword();
+ if(currentUser.role==='admin'){const member=id.match(/^admin\/user\/([a-f0-9-]{36})$/);if(member)return inspectUser(member[1]);if(id==='profiles')return profiles();if(id==='account')return account();if(id==='report-links')return reportLinks();if(id==='reports')return dashboard();return adminPanel();}
+ inspectedUserId=null;
+ if(id==='assessment')return assessment();if(id==='reports')return dashboard();if(id==='account')return account();if(id==='report-links')return reportLinks();if(GAME_MAP[id])return detail(id,false);return home();
+}
 async function initialize(){
-  try {
-    const auth=await api.request('/auth/session');currentUser=auth.user;
-    const match=location.hash.match(/^#invite\/([a-f0-9]{64})$/);if(match)inviteToken=match[1];
-    if(inviteToken){inviteInfo=await api.request('/invitations/inspect',{method:'POST',body:{token:inviteToken}});return showLogin(inviteInfo);}
-    if(!currentUser)return showLogin();
-    await refreshClients();
-    const id=location.hash.slice(1);if(id==='assessment')return assessment();if(id==='profiles')return profiles();if(id==='reports')return dashboard();if(id==='account')return account();if(GAME_MAP[id])return detail(id,false);return home(false);
-  }catch(error){page(`<section class="surface empty-state"><h1>ارتباط با مرکز برقرار نشد</h1><p>${esc(error.message)}</p><button class="button primary" data-action="retry-connect">تلاش دوباره</button></section>`,'auth-main');}
+ try {const auth=await api.request('/auth/session');currentUser=auth.user;
+  const match=location.hash.match(/^#invite\/([a-f0-9]{64})$/);if(match)inviteToken=match[1];
+  if(inviteToken){inviteInfo=await api.request('/invitations/inspect',{method:'POST',body:{token:inviteToken}});return showLogin(inviteInfo);}
+  if(currentUser&&!currentUser.passwordChangeRequired&&!location.hash.startsWith('#report/'))await refreshClients();
+  return await navigate();
+ }catch(error){if(location.hash.startsWith('#report/'))return publicReportMessage('گزارش در دسترس نیست',error.message,true);page(`<section class="surface empty-state"><h1>ارتباط با مرکز برقرار نشد</h1><p>${esc(error.message)}</p><button class="button primary" data-action="retry-connect">تلاش دوباره</button></section>`,'auth-main');}
 }
 function notify(message){
   let node=document.querySelector('#account-status')||document.querySelector('#app-status');
@@ -557,6 +598,8 @@ function notify(message){
   if(node){node.hidden=false;node.textContent=message;}
 }
 function showError(error){
+  if(location.hash.startsWith('#report/'))return publicReportMessage('گزارش در دسترس نیست',error.message,true);
+  if(error.code==='PASSWORD_CHANGE_REQUIRED'&&currentUser){currentUser.passwordChangeRequired=true;return forcedPassword();}
   const node=document.querySelector('#account-error')||document.querySelector('#profile-error');
   if(node)node.textContent=error.message||'عملیات انجام نشد.';else notify(error.message||'عملیات انجام نشد.');
   if(error.status===401&&!pendingSave){currentUser=null;members=[];Object.assign(clients,{activeId:null,profiles:[],records:[],difficulties:[]});void api.request('/auth/session').then(()=>showLogin()).catch(()=>{});}
@@ -575,12 +618,41 @@ async function persistPending(){
   }
 }
 async function account(){
-  if(!currentUser)return showLogin();await refreshClients();let parents=[];
-  if(currentUser.role!=='parent'){members=(await api.request('/users')).users;if(clients.activeId)parents=(await api.request(`/children/${clients.activeId}/parents`)).users;}
-  guideState=null;engine=null;route='account';setHash('#account');if(modal.open)modal.close();page(accountView(currentUser,members,clients.profiles,parents,clients.activeId),'content-main account-main');
+ if(!currentUser)return showLogin();if(currentUser.passwordChangeRequired)return forcedPassword();await refreshClients();if(currentUser.role==='admin')members=(await api.request('/users')).users;
+ guideState=null;engine=null;route='account';setHash('#account');if(modal.open)modal.close();page(accountView(currentUser),'content-main account-main');
 }
 function showInvitation(data){
-  document.querySelector('#invitation-result').innerHTML=`<section class="surface invitation-card"><h2>لینک آماده است</h2><label>لینک یک‌بارمصرف<input id="invitation-url" readonly dir="ltr" value="${esc(data.url)}"></label><button class="button subtle" data-action="copy-invitation">کپی لینک</button><p>اعتبار تا ${new Intl.DateTimeFormat('fa-IR',{dateStyle:'medium',timeStyle:'short'}).format(new Date(data.expiresAt))}</p></section>`;
+ document.querySelector('#invitation-result').innerHTML=`<section class="surface invitation-card"><h2>لینک آماده است</h2><label>${data.expiresAt?'لینک یک‌بارمصرف':'لینک گزارش؛ دائمی تا لغو'}<input id="invitation-url" readonly dir="ltr" value="${esc(data.url)}"></label><button class="button subtle" data-action="copy-invitation">کپی لینک</button><p>${data.expiresAt?'اعتبار تا '+new Intl.DateTimeFormat('fa-IR',{dateStyle:'medium',timeStyle:'short'}).format(new Date(data.expiresAt)):'این آدرس فقط همین‌بار نمایش داده می‌شود؛ آن را کپی و نگهداری کنید.'}</p></section>`;
+}
+function forcedPassword(){route='password';engine=null;setHash('#change-password');page(`<div class="page-title"><h1>خوش آمدید، ${esc(currentUser.name)}</h1><p>نام کاربری: <b dir="ltr">${esc(currentUser.username)}</b></p></div>${passwordView(currentUser,true)}`,'content-main auth-main');}
+async function adminPanel(){
+ if(currentUser?.role!=='admin')return home();await refreshClients();members=(await api.request('/users')).users;inspectedUserId=null;reportState.tab='admin';engine=null;route='admin';if(modal.open)modal.close();setHash('#admin');document.title='مدیریت کاربران — حواس';page(adminView(currentUser,members,clients.profiles,adminState),'content-main admin-main');syncCreateControls();
+}
+async function inspectUser(id){
+ if(currentUser?.role!=='admin')return home();const data=await api.request(`/users/${id}`);inspectedUserId=id;clients.activeId=data.profile?.id||null;await refreshClients();let evaluation=null;
+ if(data.profile)evaluation=await api.request(`/children/${data.profile.id}/assessment`);
+ route='admin-user';engine=null;editingProfile=data.profile?.id||null;if(modal.open)modal.close();setHash(`#admin/user/${id}`);document.title=`بررسی ${data.user.name} — حواس`;
+ page(adminUserView(data.user,data.profile,evaluation,clients.difficulties)+(data.profile?reportsView(clients,reportState,currentUser):''),'content-main admin-main');syncPolicyControls();
+}
+async function reportLinks(){
+ if(!currentUser)return showLogin();await refreshClients();const profile=activeProfile(clients);if(!profile)return home();const data=await api.request(`/children/${profile.id}/report-links`);route='report-links';engine=null;if(modal.open)modal.close();setHash('#report-links');page(reportLinksView(data.links,profile),'content-main account-main');
+}
+function renderPublicReport(){
+ route='public-report';engine=null;const id='shared-report',data={activeId:id,profiles:[{id,firstName:publicReportData.displayName,lastName:''}],records:publicReportData.sessions.map(r=>({id:String(r.number),profileId:id,kind:r.kind,result:r.result}))};
+ page(reportsView(data,reportState,{role:'public'}),'content-main reports-main public-report');document.title='گزارش خانواده — حواس';
+}
+function syncCreateControls(){
+ const form=document.querySelector('#create-user-form');if(!form)return;const user=form.elements.role.value==='user',direct=form.elements.method.value==='direct',existing=Boolean(form.elements.childId.value);
+ document.querySelector('#new-user-child-label').hidden=!user;form.elements.childId.disabled=!user;
+ const fields=document.querySelector('#new-profile-fields');fields.hidden=!user||existing;fields.disabled=!user||existing;
+ const label=document.querySelector('#temporary-password-label');label.hidden=!direct;form.elements.password.disabled=!direct;form.elements.password.required=direct;
+}
+const policyVariants={hunt:['standard','divided'],traffic:['standard','signs'],nback:['standard','numbers','toys'],search:['standard','scattered','letters','letters-scattered','dual','letters-dual','scattered-dual','letters-scattered-dual']};
+function policyOptions(gameId,variant){return {gameId,targetCount:variant.includes('dual')||variant==='divided'?2:1,material:variant.includes('letters')?'letters':['numbers','toys'].includes(variant)?variant:'shapes',layout:variant.includes('scattered')?'scattered':'grid',trafficMode:variant==='signs'?'signs':'circles'};}
+function syncPolicyControls(reset=true){
+ const form=document.querySelector('#admin-difficulty-form');if(!form)return;const game=form.elements.gameId.value;
+ if(reset)form.elements.variant.innerHTML=(policyVariants[game]||['standard']).map(v=>`<option value="${v}">${variantLabel(v)}</option>`).join('');
+ const setting=clients.difficulties.find(d=>d.gameId===game&&d.variant===form.elements.variant.value&&d.protocolVersion===GAME_PROTOCOLS[game]);form.elements.mode.value=setting?.mode||'adaptive';form.elements.level.value=setting?.level||'easy';
 }
 async function previewLegacy(documentData){
   previewImport=await api.request('/imports/preview',{method:'POST',body:{document:documentData}});
@@ -588,7 +660,7 @@ async function previewLegacy(documentData){
 }
 async function commitLegacy(){
   if(!previewImport?.id)return;
-  const mapping=[...document.querySelectorAll('.import-mapping')].map(row=>({sourceId:row.dataset.source,targetId:row.querySelector('[name="targetId"]').value||null,therapistId:row.querySelector('[name="therapistId"]')?.value||null}));
+  const mapping=[...document.querySelectorAll('.import-mapping')].map(row=>({sourceId:row.dataset.source,targetId:row.querySelector('[name="targetId"]').value||null,ownerUserId:null}));
   const data=await api.request('/imports/commit',{method:'POST',body:{previewId:previewImport.id,mapping}});previewImport=null;await refreshClients();await account();notify(`${fa(data.createdProfiles)} پرونده و ${fa(data.importedRecords)} نتیجه منتقل شد.`);
 }
 window.addEventListener('beforeunload',event=>{if(pendingSave){event.preventDefault();event.returnValue='';}});

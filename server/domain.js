@@ -54,7 +54,7 @@ export function canonicalResult(run,payload) {
       check(o.atMs+tolerance>=revealAt,'پاسخ قبل از پایان نمایش نمونه ثبت شده است.');
       if(o.response)check(o.atMs<deadline+tolerance,'پاسخ پس از پایان زمان جست‌وجو ثبت شده است.');
       else check(o.atMs+tolerance>=deadline,'خطای حذف قبل از پایان زمان جست‌وجو معتبر نیست.');
-      const board=boards[o.round-1],choice=board.choices[o.choiceIndex];check(choice,'گزینهٔ جست‌وجو معتبر نیست.');
+      const board=boards[o.round-1];check(Number.isInteger(o.choiceIndex)&&o.choiceIndex>=0&&o.choiceIndex<board.choices.length,'گزینهٔ جست‌وجو معتبر نیست.');const choice=board.choices[o.choiceIndex];
       const key=`${o.round}:${o.choiceIndex}`;check(!chosen.has(key),'گزینه تکراری است.');chosen.set(key,true);
       check(o.response||choice.target,'حذف فقط برای هدف ثبت می‌شود.');target=choice.target;stimulus=choice;context={round:o.round,choiceIndex:o.choiceIndex};
       if(target)found.set(o.round,(found.get(o.round)||0)+1);
@@ -83,6 +83,11 @@ export function canonicalResult(run,payload) {
   if(game.kind==='adventure'){
     if(practice)check(records.length===5,'آموزش باید پنج تصمیم داشته باشد.');
     else {
+      const deadline=LEVELS[settings.level].seconds*1000;
+      for(const atMs of cleared.values()){
+        const priorWrong=records.filter(o=>!o.target&&o.response&&o.atMs<atMs-tolerance).length;
+        check(atMs+priorWrong*PROTOCOL.penaltyMs<deadline+tolerance,'مانع پس از پایان زمان مأموریت کنار زده شده است.');
+      }
       for(const item of engine.items.filter(i=>i.required))check(chosen.has(item.id),'همهٔ وسایل ضروری تعیین تکلیف نشده‌اند.');
       const hits=records.filter(o=>o.target&&o.response).length,wrong=records.filter(o=>!o.target&&o.response).length,limit=LEVELS[settings.level].seconds*1000;
       completed=departedAt!==null;

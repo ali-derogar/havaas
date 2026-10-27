@@ -12,7 +12,7 @@ let iteration=0;
 async function fixture({blockedStorage=false,withProfile=true,autoReady=true,autoReview=true,autoRound=true}={}) {
   const {window,document}=parseHTML(html);let now=0,next=0;const queue=new Map(),values=new Map();
   if(withProfile)values.set(CLIENTS_KEY,JSON.stringify({version:1,activeId:'child-1',profiles:[{id:'child-1',firstName:'سارا',lastName:'احمدی',birthDate:'2016-01-01',grade:'پایهٔ ۳',school:'امید',concerns:''}],records:[]}));
-  globalThis.fetch=mockRemote(values);
+  const remote=mockRemote(values);globalThis.fetch=remote;
   const flush=()=>new Promise(resolve=>setImmediate(resolve));
   const location=new URL('http://localhost:4173/');
   Object.assign(globalThis,{window,document,location,history:{pushState(_state,_unused,path){location.href=new URL(path,location).href;}},matchMedia:()=>({matches:false}),requestAnimationFrame:fn=>{queue.set(++next,fn);return next;},cancelAnimationFrame:id=>queue.delete(id)});
@@ -38,7 +38,8 @@ async function fixture({blockedStorage=false,withProfile=true,autoReady=true,aut
     Object.defineProperty(window.Element.prototype,'innerHTML',{...descriptor,set(value){now+=cost;descriptor.set.call(this,value);}});
     return ()=>Object.defineProperty(window.Element.prototype,'innerHTML',descriptor);
   };
-  return {document,window,click,advance,values,location,register,slowRendering};
+  const setPolicy=async level=>{const gameId=location.hash.slice(1);remote.setPolicy(gameId,level);await click('home');await click('open',`[data-game="${gameId}"]`);};
+  return {document,window,click,advance,values,location,register,slowRendering,setPolicy};
 }
 
 async function finishReaction(ui, practice, n=0) {
@@ -81,12 +82,12 @@ for(const game of GAMES) for(const level of Object.keys(LEVELS)) {
     const ui=await fixture();
     assert.equal(ui.document.querySelectorAll('.game-card').length,7);
     await ui.click('open',`[data-game="${game.id}"]`);assert.ok(ui.document.querySelector('h1').textContent.includes(game.title));
-    await ui.click('level',`[data-level="${level}"]`);assert.equal(ui.document.querySelector('.level-button.selected').dataset.level,level);
+    await ui.setPolicy(level);assert.equal(ui.document.querySelector('.level-button.selected').dataset.level,level);
     await ui.click('practice');
     if(game.kind==='reaction')await finishReaction(ui,true);else if(game.kind==='search')await finishSearch(ui,5);else await finishAdventure(ui,game.id,true,level);
     assert.equal(ui.values.has('havaas:v1'),false,'practice must not persist a result');
     const baseline=JSON.parse(ui.values.get(CLIENTS_KEY)).records;assert.equal(baseline.length,1);assert.equal(baseline[0].kind,'baseline');
-    await ui.click('detail');await ui.click('level',`[data-level="${level}"]`);await ui.click('main-game');
+    await ui.click('detail');await ui.setPolicy(level);await ui.click('main-game');
     if(game.kind==='reaction')await finishReaction(ui,false);else if(game.kind==='search')await finishSearch(ui,10);else await finishAdventure(ui,game.id,false,level);
     const saved=JSON.parse(ui.values.get(CLIENTS_KEY));assert.equal(saved.records.length,2);assert.equal(saved.records[1].kind,'training');assert.equal(saved.records[1].result.gameId,game.id);assert.equal(saved.records[1].result.level,level);
     await ui.click('replay');assert.ok(ui.document.querySelector('.play-panel'));await ui.click('pause');assert.ok(ui.document.querySelector('#modal').open);
@@ -109,7 +110,7 @@ test('interface: pause, restart and visibility change keep the session responsiv
 });
 test('interface: denied localStorage does not interrupt a full game',async()=>{
   const ui=await fixture({blockedStorage:true});await ui.click('open','[data-game="ark"]');await ui.click('practice');await finishAdventure(ui,'ark',true,'easy');
-  await ui.click('detail');await ui.click('level','[data-level="easy"]');await ui.click('main-game');await finishAdventure(ui,'ark',false,'easy');assert.ok(ui.document.querySelector('.local-note').textContent.includes('سرور مرکز'));assert.ok(ui.document.querySelector('.best-score').textContent.includes('۴ از ۴'));await ui.click('home');assert.equal(ui.document.querySelectorAll('.game-card').length,7);
+  await ui.click('detail');await ui.setPolicy('easy');await ui.click('main-game');await finishAdventure(ui,'ark',false,'easy');assert.ok(ui.document.querySelector('.local-note').textContent.includes('سرور مرکز'));assert.ok(ui.document.querySelector('.best-score').textContent.includes('۴ از ۴'));await ui.click('home');assert.equal(ui.document.querySelectorAll('.game-card').length,7);
 });
 test('interface: pause and restart also work at a Stroop rule transition',async()=>{
   const ui=await fixture();await ui.click('open','[data-game="stroop"]');await ui.click('practice');await finishReaction(ui,true);await ui.click('main-game');
@@ -119,19 +120,14 @@ test('interface: pause and restart also work at a Stroop rule transition',async(
   assert.equal(ui.document.querySelector('#position').textContent,'۱ از ۱۵۰');assert.ok(!ui.document.querySelector('[data-action="acknowledge"]'));
 });
 
-test('interface: registration is required, resumes the requested exercise, and escapes profile text',async()=>{
-  const ui=await fixture({withProfile:false});await ui.click('open','[data-game="traffic"]');await ui.click('practice');assert.ok(ui.document.querySelector('#profile-form'));
-  await ui.register('<script>سارا</script>','احمدی');assert.ok(ui.document.querySelector('.play-panel'));assert.equal(ui.document.querySelectorAll('#app script').length,0);
-  await finishReaction(ui,true);const saved=JSON.parse(ui.values.get(CLIENTS_KEY));assert.equal(saved.profiles.length,1);assert.equal(saved.records[0].kind,'baseline');
+test('interface: an unassigned user cannot register or edit a clinical profile',async()=>{
+ const ui=await fixture({withProfile:false});assert.ok(ui.document.querySelector('.profile-strip').textContent.includes('ادمین'));assert.equal(ui.document.querySelector('#profile-form'),null);assert.equal(ui.document.querySelector('[data-action="profiles"]'),null);
 });
-test('interface: reports expose baseline, parent summary, trial details, and a separate second child',async()=>{
-  const ui=await fixture();await ui.click('open','[data-game="ark"]');await ui.click('practice');await finishAdventure(ui,'ark',true,'easy');await ui.click('main-game');await finishAdventure(ui,'ark',false,'medium');
-  await ui.click('dashboard');assert.ok(ui.document.querySelector('.report-metrics'));assert.ok(ui.document.querySelector('.outcome-details'));assert.equal(ui.document.querySelectorAll('.session-history tbody tr').length,1);
-  await ui.click('report-tab','[data-tab="parents"]');assert.ok(ui.document.querySelector('h1').textContent.includes('والدین'));assert.equal(ui.document.querySelector('.outcome-details'),null);
-  await ui.click('profiles');await ui.register('علی','رضایی');await ui.click('dashboard');assert.ok(ui.document.querySelector('.empty-state'));assert.equal(ui.document.querySelector('.report-metrics'),null);
-  await ui.click('profiles');await ui.click('select-profile','[data-id="child-1"]');await ui.click('dashboard');assert.ok(ui.document.querySelector('.report-metrics'));await ui.click('profiles');
-  await ui.click('delete-profile','[data-id="child-1"]');assert.ok(ui.document.querySelector('#modal').open);await ui.click('close-modal');assert.equal(JSON.parse(ui.values.get(CLIENTS_KEY)).profiles.length,2);
-  await ui.click('delete-profile','[data-id="child-1"]');await ui.click('confirm-delete-profile');const saved=JSON.parse(ui.values.get(CLIENTS_KEY));assert.equal(saved.profiles.length,1);assert.equal(saved.records.length,0);
+test('interface: the user report offers a narrative, chart and own history without raw exports or clinical editing',async()=>{
+ const ui=await fixture();await ui.click('open','[data-game="ark"]');await ui.click('practice');await finishAdventure(ui,'ark',true,'easy');await ui.click('main-game');await finishAdventure(ui,'ark',false,'medium');
+ await ui.click('dashboard');assert.ok(ui.document.querySelector('.report-metrics'));assert.ok(ui.document.querySelector('.parent-narrative'));assert.ok(ui.document.querySelector('.progress-chart'));assert.equal(ui.document.querySelectorAll('.session-history tbody tr').length,1);
+ for(const selector of ['.outcome-details','[data-action="export-profile"]','[data-action="export-trials"]','#report-profile','[data-action="profiles"]'])assert.equal(ui.document.querySelector(selector),null,selector);
+ assert.ok(ui.document.querySelector('[data-action="report-links"]'));assert.equal(ui.document.querySelector('.report-tabs'),null);
 });
 test('interface: variants teach and complete through the real controls',async()=>{
   for(const [id,action,selector,variant] of [['traffic','traffic-mode','[data-mode="signs"]','signs'],['nback','material','[data-material="numbers"]','numbers'],['nback','material','[data-material="toys"]','toys'],['search','material','[data-material="letters"]','letters']]) {
@@ -161,12 +157,12 @@ test('interface: space explains the mission and reports mandatory obstacle clear
 test('interface: slow DOM rendering does not consume the 100ms stimulus exposure',async()=>{
   const ui=await fixture(),restore=ui.slowRendering(400);
   try {
-    await ui.click('open','[data-game="hunt"]');await ui.click('level','[data-level="hard"]');await ui.click('practice');
+    await ui.click('open','[data-game="hunt"]');await ui.click('practice');await finishReaction(ui,true);await ui.click('detail');await ui.setPolicy('hard');await ui.click('main-game');
     assert.equal(ui.document.querySelector('.stimulus-shell').style.visibility,'visible');
-    assert.equal(ui.document.querySelector('#position').textContent,'۱ از ۵');
+    assert.equal(ui.document.querySelector('#position').textContent,'۱ از ۱۵۰');
     await ui.advance(99);assert.equal(ui.document.querySelector('.stimulus-shell').style.visibility,'visible');
     await ui.advance(1);assert.equal(ui.document.querySelector('.stimulus-shell').style.visibility,'hidden');
-    await ui.advance(900);assert.equal(ui.document.querySelector('#position').textContent,'۲ از ۵');
+    await ui.advance(900);assert.equal(ui.document.querySelector('#position').textContent,'۲ از ۱۵۰');
     assert.equal(ui.document.querySelector('.stimulus-shell').style.visibility,'visible');
   } finally {restore();}
 });
@@ -175,7 +171,7 @@ test('interface: untimed Stroop and n-back lessons respond interactively without
   const ui=await fixture();await ui.click('open','[data-game="stroop"]');
   for(let i=0;i<8;i++) {await ui.click('lesson-answer',`[data-response="${i%2===0}"]`);assert.ok(ui.document.querySelector('.lesson-feedback.good'));await ui.click('lesson-next');}
   assert.equal(JSON.parse(ui.values.get(CLIENTS_KEY)).records.length,0);
-  await ui.click('home');await ui.click('open','[data-game="nback"]');await ui.click('level','[data-level="hard"]');assert.equal(ui.document.querySelectorAll('.lesson-token').length,4);
+  await ui.click('home');await ui.click('open','[data-game="nback"]');await ui.setPolicy('hard');assert.equal(ui.document.querySelectorAll('.lesson-token').length,4);
   await ui.click('lesson-answer','[data-response="false"]');assert.ok(ui.document.querySelector('.lesson-feedback.wrong'));await ui.click('lesson-next');await ui.click('lesson-answer','[data-response="false"]');assert.ok(ui.document.querySelector('.lesson-feedback.good'));
 });
 test('interface: the guided initial assessment completes all seven components and opens baseline reports',async()=>{
@@ -218,7 +214,7 @@ test('interface: slow search rendering preserves preview time and response timin
   } finally {restore();}
 });
 test('interface: packing all equipment without departing before timeout does not award completion stars',async()=>{
-  const ui=await fixture();await ui.click('open','[data-game="ark"]');await ui.click('practice');await finishAdventure(ui,'ark',true,'easy');await ui.click('detail');await ui.click('level','[data-level="easy"]');await ui.click('main-game');
+  const ui=await fixture();await ui.click('open','[data-game="ark"]');await ui.click('practice');await finishAdventure(ui,'ark',true,'easy');await ui.click('detail');await ui.setPolicy('easy');await ui.click('main-game');
   const required=EQUIPMENT.ark.slice(0,4).map(e=>e[1]);
   for(const name of required){const item=[...ui.document.querySelectorAll('.scene-object')].find(el=>el.querySelector('span').textContent===name);await ui.click('item',`[data-index="${item.dataset.index}"]`);}
   await ui.advance(60000);assert.ok(ui.document.querySelector('.result-card'));assert.equal(ui.document.querySelectorAll('.result-stars .earned').length,0);

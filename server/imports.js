@@ -24,14 +24,14 @@ export function inspectLegacy(input){
 }
 export function registerImports(app,pool,{role,childAccess}){
   app.post('/api/imports/preview',async(req,res)=>{
-    role(req,['admin','therapist']);const inspected=inspectLegacy(req.body.document);if(inspected.errors.length)return res.json({id:null,errors:inspected.errors});
+    role(req,['admin']);const inspected=inspectLegacy(req.body.document);if(inspected.errors.length)return res.json({id:null,errors:inspected.errors});
     const id=randomUUID();await pool.query('INSERT INTO import_previews(id,user_id,document,expires_at) VALUES($1,$2,$3,now()+interval \'1 hour\')',[id,req.user.id,inspected.document]);
     const profiles=[];
     for(const p of inspected.document.profiles){const key=digest(JSON.stringify(p)),known=(await pool.query('SELECT child_id FROM legacy_profiles WHERE source_key=$1',[key])).rows[0];let targetId=null;if(known){await childAccess(pool,req.user,known.child_id,true);targetId=known.child_id;}profiles.push({sourceId:p.id,profile:p,targetId,recordCount:inspected.document.records.filter(r=>r.profileId===p.id).length});}
     res.json({id,errors:[],profiles,totalRecords:inspected.document.records.length});
   });
   app.post('/api/imports/commit',async(req,res)=>{
-    role(req,['admin','therapist']);uuid(req.body.previewId);check(Array.isArray(req.body.mapping),'نگاشت پرونده‌ها لازم است.');
+    role(req,['admin']);uuid(req.body.previewId);check(Array.isArray(req.body.mapping)&&req.body.mapping.every(m=>m&&typeof m==='object'&&!Array.isArray(m)&&typeof m.sourceId==='string'&&(m.targetId===undefined||m.targetId===null||typeof m.targetId==='string')),'نگاشت پرونده‌ها باید شامل شناسهٔ منبع و مقصد معتبر باشد.');
     const response=await transaction(pool,async db=>{
       await db.query('SELECT pg_advisory_xact_lock(82004175)');
       const preview=(await db.query('SELECT * FROM import_previews WHERE id=$1 AND user_id=$2 FOR UPDATE',[req.body.previewId,req.user.id])).rows[0];check(preview&&new Date(preview.expires_at)>new Date(),'پیش‌نمایش منقضی یا نامعتبر است.');if(preview.committed_at)return preview.response;
@@ -42,8 +42,8 @@ export function registerImports(app,pool,{role,childAccess}){
         if(known&&m.targetId)check(m.targetId===known.child_id,'این پرونده قبلاً به مقصد دیگری منتقل شده است.',409);
         if(id)await childAccess(db,req.user,id,true);
         else {
-          const therapistId=req.user.role==='admin'?uuid(m.therapistId):req.user.id;check((await db.query("SELECT 1 FROM users WHERE id=$1 AND role='therapist' AND active=true",[therapistId])).rowCount,'درمانگر مقصد معتبر نیست.');id=randomUUID();
-          await db.query('INSERT INTO children(id,therapist_id,profile,created_at) VALUES($1,$2,$3,$4)',[id,therapistId,validateProfile(p).profile,Number.isFinite(Date.parse(p.createdAt))?p.createdAt:new Date()]);createdProfiles++;
+          check(!m.ownerUserId,'برای اتصال پروندهٔ جدید ابتدا حساب کاربر بسازید و مقصد موجود را انتخاب کنید.');id=randomUUID();
+          await db.query('INSERT INTO children(id,profile,created_at) VALUES($1,$2,$3)',[id,validateProfile(p).profile,Number.isFinite(Date.parse(p.createdAt))?p.createdAt:new Date()]);createdProfiles++;
         }
         await db.query('INSERT INTO legacy_profiles(source_key,child_id) VALUES($1,$2) ON CONFLICT DO NOTHING',[sourceKey,id]);targets.set(p.id,id);
       }
