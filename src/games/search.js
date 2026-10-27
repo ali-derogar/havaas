@@ -29,6 +29,7 @@ export function generateSearch(level, random = Math.random, layout = 'grid', mat
 export class SearchSession extends Session {
   constructor(options) {
     super({ ...options, gameId:'search', variant:searchVariant(options) });
+    this.stimulusVersion = options.material === 'letters' ? 2 : 1;
     this.material = options.material === 'letters' ? 'letters' : 'shapes';
     this.layout = options.layout === 'scattered' ? 'scattered' : 'grid';
     this.targetCount = options.targetCount === 2 ? 2 : 1;
@@ -45,7 +46,9 @@ export class SearchSession extends Session {
     this.revealAt = this.clock.elapsed + PROTOCOL.previewMs;
     this.deadline = this.revealAt + LEVELS[this.level].searchSeconds * 1000;
   }
-  next() { this.index++; if (this.index >= this.total) this.finish(); else this.newRound(); }
+  next() { if(this.reviewEnabled){this.beginReview({kind:'search',targets:this.current.targets,found:this.found.size,total:this.targetCount});return;}this.advanceRound(); }
+  advanceRound(){this.index++;if(this.index>=this.total)this.finish();else this.newRound();}
+  continueReview(){if(!this.review)return;this.review=null;this.clock.resume();this.advanceRound();}
   tick() {
     if (this.done || this.paused || this.clock.elapsed < this.deadline) return;
     for (const [index,stimulus] of this.current.choices.entries()) if (stimulus.target && !this.found.has(index)) this.record(true, false, null, { round: this.index + 1, stimulus, choiceIndex:index });

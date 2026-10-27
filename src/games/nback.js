@@ -9,7 +9,8 @@ export function generateNBack(n, count, targets, random = Math.random, material 
   for (const target of targetMask(count, targets, random)) {
     const reference = values[values.length - n];
     const shape = target ? reference : pick(alphabet.filter(value => value !== reference), random);
-    values.push(shape); trials.push({ target, phase: 0, stimulus: { shape, color: 'blue' } });
+    const history=values.slice(-n).map(shape=>({shape,color:'blue'}));
+    values.push(shape); trials.push({ target, phase: 0, history, stimulus: { shape, color: 'blue' } });
   }
   return trials;
 }

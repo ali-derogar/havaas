@@ -14,6 +14,11 @@ export const EQUIPMENT_REASONS = {
   suit: 'لباس فضایی برای بیرون‌رفتن از سفینه لازم است.', fuel: 'سفینه برای حرکت به سوخت نیاز دارد.',
   helmet: 'کلاه فضایی بخشی از تجهیزات محافظ سفر است.', map: 'نقشهٔ فضایی برای پیدا‌کردن مسیر به کار می‌آید.',
 };
+export const EQUIPMENT_NEEDS = {water:'رفع تشنگی',food:'انرژی سفر',medkit:'رسیدگی به آسیب',vest:'ایمنی روی آب',flashlight:'دیدن در تاریکی',compass:'جهت‌یابی',oxygen:'هوای قابل‌تنفس',suit:'محافظت بیرون سفینه',fuel:'حرکت سفینه',helmet:'محافظت از سر',map:'یافتن مسیر'};
+export const JOURNEYS = {
+  ark:{easy:'هوا روشن است. آب در حال بالا آمدن است؛ برای یک سفر کوتاه و امن آماده شو.',medium:'کشتی نزدیک غروب حرکت می‌کند. برای سفر و تاریکیِ پیش رو آماده شو.',hard:'سفری شبانه در مسیر ناآشنا در پیش است. هم ایمنی و هم پیدا‌کردن راه مهم‌اند.'},
+  space:{easy:'یک پرواز کوتاه مداری در پیش است. تجهیزات حرکت و محافظت در فضا را آماده کن.',medium:'پرواز طولانی‌تر شده است. علاوه بر تجهیزات پرواز، به انرژی برای ادامهٔ سفر نیاز داری.',hard:'مقصدی دور در مسیری ناآشنا منتظر توست. برای پرواز، ادامهٔ سفر و یافتن مسیر آماده شو.'},
+};
 export const MISSIONS = {
   ark: { title: 'نجات در ساحل امید', story: 'آب بالا می‌آید و کشتی به‌زودی حرکت می‌کند. از بین وسایل ساحل، وسایل ضروری سفر را انتخاب کن و به‌موقع سوار شو.', success: 'وسایل ضروری همراهت است و پیش از پایان زمان سوار کشتی شدی. سفر امنی داشته باشی!' },
   space: { title: 'آماده‌سازی سفر فضایی', story: 'فرصت پرتاب محدود است. تجهیزات سفر را پیدا کن؛ بعضی وسایل لازم پشت مانع هستند. مانع را کنار بزن، وسیله را بردار و سفینه را پرتاب کن.', success: 'موانع را کنار زدی، تجهیزات سفر را کامل کردی و به‌موقع به فضا رفتی!' },
@@ -22,7 +27,7 @@ export const DISTRACTORS = [['ball', 'توپ'], ['guitar', 'گیتار'], ['plan
 export class AdventureSession extends Session {
   constructor(options) {
     super(options); const settings = LEVELS[this.level];
-    this.mission = MISSIONS[this.gameId]; this.clearedObstacles = 0; this.events = [];
+    this.mission = {...MISSIONS[this.gameId],story:JOURNEYS[this.gameId][this.level]}; this.clearedObstacles = 0; this.events = [];
     this.decisionOnset=0;this.reactionMeasure='decision-interval';
     this.required = EQUIPMENT[this.gameId].slice(0, this.practice ? 3 : settings.required);
     const extras = shuffle(DISTRACTORS, this.random).slice(0, this.practice ? 2 : settings.items - settings.required);
@@ -60,7 +65,9 @@ export class AdventureSession extends Session {
     item.rejected = true; this.feedback = item.required ? `${item.name} لازم بود: ${EQUIPMENT_REASONS[item.icon]}` : 'درسته! این وسیله ضروری نیست.';
     this.feedbackKind = item.required ? 'wrong' : 'good'; this.advancePractice(); return !item.required;
   }
-  advancePractice() { this.judged++; if (this.judged === this.total) this.finish(); }
+  advancePractice() { if(this.reviewEnabled){this.beginReview({kind:'adventure',item:{...this.currentItem},outcome:this.outcomes.at(-1)});return;}this.advanceDecision(); }
+  advanceDecision(){this.judged++;if(this.judged===this.total)this.finish();}
+  continueReview(){if(!this.review)return;this.review=null;this.clock.resume();this.decisionOnset=this.clock.elapsed;this.advanceDecision();}
   get result() { return { ...super.result, events:this.events.map(event=>({...event})), mission: this.mission.title, obstaclesCleared: this.clearedObstacles, departed: !this.practice && this.completed, inventory: this.items.filter(item=>item.collected).map(item=>item.name) }; }
   depart() { this.tick(); if (this.done || this.paused || this.practice || !this.ready) return false; this.events.push({kind:'depart',atMs:Math.round(this.clock.elapsed)}); this.finish(true); return true; }
 }

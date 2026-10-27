@@ -34,8 +34,9 @@ export function symbol(stimulus, cls = '') {
   if (shape.startsWith('digit-')) return svg(`<text x="32" y="48" text-anchor="middle" font-size="48" font-weight="750" fill="${fill}">${shape.slice(6)}</text>`, '0 0 64 64', `symbol ${cls}`);
   if (shape.startsWith('toy-')) return equipment(shape.slice(4)).replace(/class="equipment[^"]*"/, `class="symbol ${cls}"`);
   if (shape.startsWith('letter-')) {
-    const mark = ['', '<path d="M40 15h9"/>', '<path d="M29 31h-9"/>', '<path d="M40 47h9"/>'][detail];
-    return svg(`<text x="32" y="49" text-anchor="middle" font-family="sans-serif" font-size="47" font-weight="600" fill="${fill}">${shape.slice(7)}</text><g stroke="${fill}" stroke-width="3" stroke-linecap="round">${mark}</g>`, '0 0 64 64', `symbol ${cls}`);
+    const letters={F:'M19 52V12H46M19 31H40',E:'M19 52V12H46M19 31H40M19 52H46',L:'M19 12V52H46',P:'M19 52V12H33C52 12 52 33 33 33H19',R:'M19 52V12H33C52 12 52 33 33 33H19M33 33L48 52'};
+    const y=[0,14,31,50][detail];
+    return svg(`<g fill="none" stroke="${fill}" stroke-width="5" stroke-linejoin="round" stroke-linecap="round"><path d="${letters[shape.slice(7)]||letters.F}"/>${detail?`<path class="letter-mark" d="M11 ${y}h8"/>`:''}</g>`, '0 0 64 64', `symbol ${cls}`);
   }
   if (shape === 'noentry') return svg('<circle cx="32" cy="32" r="28" fill="#d9504e" stroke="white" stroke-width="3"/><path d="M15 27h34v10H15z" fill="white"/>', '0 0 64 64', `symbol ${cls}`);
   if (shape === 'oneway') return svg('<rect x="5" y="5" width="54" height="54" rx="7" fill="#467aca" stroke="white" stroke-width="3"/><path d="M26 49V29H17l15-16 15 16h-9v20z" fill="white"/>', '0 0 64 64', `symbol ${cls}`);

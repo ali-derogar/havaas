@@ -19,7 +19,7 @@ export function recommendLevel(result) {
 export function comparableRecords(records) {
   if (!records.length) return [];
   const last = records.at(-1).result;
-  return records.filter(r => r.result.gameId === last.gameId && r.result.level === last.level && variantOf(r.result) === variantOf(last) && (r.result.protocolVersion || 2) === (last.protocolVersion || 2) && r.kind === records.at(-1).kind);
+  return records.filter(r => r.result.gameId === last.gameId && r.result.level === last.level && variantOf(r.result) === variantOf(last) && (r.result.feedbackMode||'continuous') === (last.feedbackMode||'continuous') && (r.result.stimulusVersion||1) === (last.stimulusVersion||1) && (r.result.protocolVersion || 2) === (last.protocolVersion || 2) && r.kind === records.at(-1).kind);
 }
 export function observations(result) {
   const p = performanceOf(result), strengths = [], practice = [];

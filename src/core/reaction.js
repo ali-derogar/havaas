@@ -20,11 +20,18 @@ export class ReactionSession extends Session {
       this.feedback = old.target ? 'هدف از دست رفت؛ در نوبت بعد با دقت نگاه کن.' : 'آفرین! به محرک غیرهدف پاسخ ندادی.';
       this.feedbackKind = old.target ? 'wrong' : 'good';
     }
-    this.index++; this.response = null;
-    if (this.index >= this.trials.length) { this.finish(); return; }
-    this.onset = this.clock.elapsed;
-    if (old.phase !== this.current.phase) { this.gate = true; this.clock.pause(); }
+    if (old.scored !== false && this.reviewEnabled) {
+      this.beginReview({kind:'reaction',trial:old,outcome:this.outcomes.at(-1)});return;
+    }
+    this.advanceTrial();
   }
+  advanceTrial() {
+    const old=this.current;this.index++;this.response=null;
+    if(this.index>=this.trials.length){this.finish();return;}
+    this.onset=this.clock.elapsed;
+    if(old.phase!==this.current.phase){this.gate=true;this.clock.pause();}
+  }
+  continueReview(){if(!this.review)return;this.review=null;this.clock.resume();this.advanceTrial();}
   respond(selectedTarget = this.current?.target, selectedStimulus = this.current?.stimulus) {
     if (this.done || this.paused || this.gate) return null;
     // Expired input belongs to the old display, never to an unseen next trial.
@@ -46,7 +53,7 @@ export class ReactionSession extends Session {
     return this.respond();
   }
   resume() {
-    if (this.gate) return;
+    if (this.gate || this.review) return;
     super.resume();
     // A replay is the same trial. Its previous response, if any, remains locked.
     if (!this.response) this.onset = this.clock.elapsed;
