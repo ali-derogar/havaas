@@ -26,7 +26,7 @@ export const MISSIONS = {
 export const DISTRACTORS = [['ball', 'توپ'], ['guitar', 'گیتار'], ['plant', 'گلدان'], ['notebook', 'دفتر نقاشی'], ['teddy', 'خرس عروسکی'], ['television', 'تلویزیون'], ['kite', 'بادبادک'], ['painting', 'تابلو'], ['chair', 'صندلی'], ['clock', 'ساعت دیواری'], ['skate', 'اسکیت'], ['duck', 'اردک اسباب‌بازی'], ['crown', 'تاج'], ['gift', 'جعبهٔ کادو'], ['lamp', 'آباژور'], ['gamepad', 'دستهٔ بازی'], ['vase', 'گلدان تزئینی'], ['racket', 'راکت']];
 export class AdventureSession extends Session {
   constructor(options) {
-    super(options);this.stimulusVersion=2; const settings = LEVELS[this.level];
+    super(options);this.clock.pause(); const settings = LEVELS[this.level];
     this.mission = {...MISSIONS[this.gameId],story:JOURNEYS[this.gameId][this.level]}; this.clearedObstacles = 0; this.events = [];
     this.decisionOnset=0;this.reactionMeasure='decision-interval';
     this.required = EQUIPMENT[this.gameId].slice(0, this.practice ? 3 : settings.required);
@@ -36,7 +36,7 @@ export class AdventureSession extends Session {
       const blocked = this.practice ? [this.items[0]] : shuffle(this.items.filter(item=>item.required),this.random).slice(0,settings.obstacles);
       for (const item of blocked) item.blocked = true;
     }
-    this.total = this.practice ? 5 : this.required.length; this.maxScore = this.required.length; this.judged = 0; this.penaltyMs = 0; this.limitMs = this.practice ? Infinity : settings.seconds * 1000;
+    this.total = this.practice ? 5 : this.required.length; this.maxScore = this.required.length; this.judged = 0; this.penaltyMs = 0; this.limitMs = this.practice ? Infinity : settings.seconds * 1000;this.clock.resume();
   }
   get currentItem() { return this.items[this.judged]; }
   get score() { return this.metrics.hits; }

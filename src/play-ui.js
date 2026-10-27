@@ -1,3 +1,4 @@
+import { gameArtwork } from './worlds.js';
 import { icon, art, symbol, equipment } from './visuals.js';
 import { escapeHTML as esc } from './core/clients.js';
 import { describeStimulus } from './stimuli.js';
@@ -38,9 +39,9 @@ export function preparationView(session) {
     title=session.targetCount===2?'دو نمونه را حفظ کن، هر دو را پیدا کن':'نمونه را حفظ کن، پیدایش کن';
     text=`در هر دور، ${session.targetCount===2?'هر دو نمونه':'نمونه'} فقط دو ثانیه دیده می‌شود. بعد از پنهان‌شدن، ${session.targetCount===2?'هر دو را':'آن را'} میان گزینه‌ها پیدا کن.`;
     // Illustrations here never reveal the actual first-round sample.
-    sample=art(id);tip=`رنگ، شکل و ${session.material==='letters'?'خط کوچک کنار حرف':'علامت داخل شکل'} را به خاطر بسپار. ${fa(LEVELS[session.level].searchSeconds)} ثانیه برای جست‌وجوی هر دور فرصت داری.`;
+    sample=gameArtwork(id);tip=`رنگ، شکل و ${session.material==='letters'?'خط کوچک کنار حرف':'علامت داخل شکل'} را به خاطر بسپار. ${fa(LEVELS[session.level].searchSeconds)} ثانیه برای جست‌وجوی هر دور فرصت داری.`;
   } else {
-    title=session.mission.title;text=session.mission.story;sample=art(id);
+    title=session.mission.title;text=session.mission.story;sample=gameArtwork(id);
     tip=session.practice?'پنج وسیله را یکی‌یکی بررسی کن؛ وسیلهٔ ضروری را بردار و برای بقیه «لازم نیست» را بزن.':`نیازهای این سفر را برطرف کن و قبل از پایان زمان ${id==='space'?'سفینه را پرتاب کن. مانع‌ها را اول کنار بزن.':'سوار کشتی شو.'}`;
   }
   return `<div class="game-preparation"><span class="section-kicker">اول آماده شو · زمان بازی هنوز شروع نشده</span><h2>${title}</h2><div class="preparation-samples">${sample}</div><p>${text}</p>${['ark','space'].includes(id)&&!session.practice?missionChecklist(session):''}<div class="preparation-tip">${icon('info')}<span>${tip}</span></div>${session.practice?'<small class="guided-note">بعد از هر تمرین، پاسخ را با هم مرور می‌کنیم. برای خواندن توضیح عجله نکن.</small>':''}</div>`;

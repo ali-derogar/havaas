@@ -1,3 +1,5 @@
+import { PRESENTATION_VERSION } from '../config.js';
+
 /** A monotonic clock which excludes every paused interval. */
 export class ActiveClock {
   constructor(now = () => performance.now()) { this.now = now; this.startedAt = now(); this.pauseAt = null; this.pausedMs = 0; }
@@ -12,7 +14,7 @@ export class Session {
     this.gameId = gameId; this.level = level; this.practice = practice; this.random = random;
     this.reviewEnabled = practice && reviewEnabled; this.review = null;
     this.outcomes = []; this.finishedAt = null; this.protocolVersion = protocolVersion;
-    this.variant = variant; this.reactionMeasure = 'stimulus-onset';
+    this.stimulusVersion=PRESENTATION_VERSION;this.variant = variant; this.reactionMeasure = 'stimulus-onset';
     this.clock = new ActiveClock(now); this.done = false; this.completed = false; this.feedback = ''; this.feedbackKind = '';
     this.metrics = { hits: 0, misses: 0, falseAlarms: 0, correctRejects: 0, streak: 0, maxStreak: 0, reactionTimes: [] };
   }

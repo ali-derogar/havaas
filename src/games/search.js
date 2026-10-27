@@ -29,7 +29,6 @@ export function generateSearch(level, random = Math.random, layout = 'grid', mat
 export class SearchSession extends Session {
   constructor(options) {
     super({ ...options, gameId:'search', variant:searchVariant(options) });
-    this.stimulusVersion = options.material === 'letters' ? 2 : 1;
     this.material = options.material === 'letters' ? 'letters' : 'shapes';
     this.layout = options.layout === 'scattered' ? 'scattered' : 'grid';
     this.targetCount = options.targetCount === 2 ? 2 : 1;
@@ -41,11 +40,13 @@ export class SearchSession extends Session {
   get preview() { return this.clock.elapsed < this.revealAt; }
   get remainingMs() { return Math.max(0, this.deadline - this.clock.elapsed); }
   newRound() {
+    const paused=this.clock.paused;this.clock.pause();
     this.current = generateSearch(this.level, this.random, this.layout, this.material, this.targetCount);
     this.roundTargets[this.index]=this.current.targets.map(target=>({...target}));
     this.rejected = new Set(); this.found = new Set();this.feedback='نمونهٔ تازه را به خاطر بسپار.';this.feedbackKind='';
     this.revealAt = this.clock.elapsed + PROTOCOL.previewMs;
     this.deadline = this.revealAt + LEVELS[this.level].searchSeconds * 1000;
+    if(!paused)this.clock.resume();
   }
   next() {
     if(this.reviewEnabled){this.beginReview({kind:'search',targets:this.current.targets,found:this.found.size,total:this.targetCount});return;}

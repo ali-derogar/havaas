@@ -7,6 +7,7 @@ export const LEVELS = {
   medium: { label: 'متوسط', caption: 'یک چالش حسابی', visibleMs: 200, items: 18, required: 5, seconds: 45, obstacles: 3, searchSeconds: 20, n: 2 },
   hard: { label: 'سخت', caption: 'آمادهٔ تمرکز بیشتر؟', visibleMs: 100, items: 24, required: 6, seconds: 30, obstacles: 4, searchSeconds: 15, n: 3 },
 };
+export const PRESENTATION_VERSION = 4;
 export const PROTOCOL = { trials: 150, targets: 30, intervalMs: 1000, practiceTrials: 5, previewMs: 2000, searchRounds: 10, penaltyMs: 2000, huntBlocks: [20,50,80] };
 export const HUNT_SETTINGS = {
   easy: { sceneItems: 3, nearRatio: 0, size: 86, positions: [{x:25,y:50},{x:50,y:50},{x:75,y:50}], background: 'garden' },

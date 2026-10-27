@@ -33,3 +33,20 @@ test('the server snapshots round pacing and computes the result label without tr
  const run={id:'paced-run',kind:'training',settings},payload=playSession(run);payload.roundFlow='continuous';const result=canonicalResult(run,payload);assert.equal(result.roundFlow,'ready');assert.equal(result.hits,10);assert.equal(summaryResult(result).roundFlow,'ready');
  const old={kind:'training',result:{...result,roundFlow:'continuous'}},current={kind:'training',result};assert.deepEqual(comparableRecords([old,current]),[current]);
 });
+
+test('generating a new search field excludes CPU work from preview, response time and active duration',()=>{
+ let now=0;const seeded=seededRandom(17),random=()=>{now+=7;return seeded();},s=FACTORIES.search({level:'hard',targetCount:2,pacedRounds:true,now:()=>now,random});
+ assert.equal(s.clock.elapsed,0);assert.equal(s.remainingMs,17000);
+ for(let round=0;round<10;round++){
+  now+=2150;const indices=s.current.choices.flatMap((c,i)=>c.target?[i]:[]);for(const i of indices)s.choose(i);
+  if(s.roundBreak){now+=60000;s.continueRound();assert.equal(s.clock.elapsed,(round+1)*2150);assert.equal(s.preview,true);}
+ }
+ assert.equal(s.result.durationMs,21500);assert.equal(s.result.meanReactionMs,150);assert.equal(s.result.hits,20);
+});
+test('generating mission objects never takes time out of the departure deadline',()=>{
+ for(const gameId of ['ark','space']){
+  let now=0;const seeded=seededRandom(12),s=FACTORIES[gameId]({gameId,level:'hard',now:()=>now,random:()=>{now+=9;return seeded();}});
+  assert.equal(s.clock.elapsed,0);assert.equal(s.remainingMs,30000);
+  for(const item of s.items.filter(i=>i.required)){now+=100;if(item.blocked)s.choose(item.id);s.choose(item.id);}assert.equal(s.depart(),true);assert.equal(s.result.durationMs,600);
+ }
+});

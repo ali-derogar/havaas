@@ -345,3 +345,13 @@ test('interface: device rotation pauses a timed reaction without recording extra
  ui.window.dispatchEvent(new ui.window.Event('orientationchange'));assert.ok(ui.document.querySelector('#modal').open);const before=ui.document.querySelector('#time').textContent;await ui.advance(90000);assert.equal(ui.document.querySelector('#time').textContent,before);
  await ui.click('resume');assert.equal(ui.document.querySelector('.stimulus-shell').style.visibility,'visible');await ui.advance(1000);assert.ok(ui.document.querySelector('.practice-review'));assert.equal(ui.document.querySelector('#position').textContent,'۱ از ۵');
 });
+
+test('interface: illustration decoding completes before the game clock is created',async()=>{
+ const ui=await fixture({autoReady:false}),original=globalThis.Image;let finishDecode;
+ class DeferredImage {set src(value){queueMicrotask(()=>this.onload());}decode(){return new Promise(resolve=>{finishDecode=resolve;});}}
+ globalThis.Image=DeferredImage;
+ try{
+  await ui.click('open','[data-game="ark"]');await ui.click('practice');assert.equal(ui.document.querySelector('.play-panel'),null);await ui.advance(90000);assert.equal(ui.document.querySelector('.play-panel'),null);
+  finishDecode();await ui.advance(0);assert.ok(ui.document.querySelector('.game-preparation'));await ui.click('begin-game');await ui.advance(3000);assert.equal(ui.document.querySelector('#time').textContent,'۰۰:۰۰');assert.ok(ui.document.querySelector('.adventure-scene .world-backdrop'));
+ }finally{if(original===undefined)delete globalThis.Image;else globalThis.Image=original;}
+});

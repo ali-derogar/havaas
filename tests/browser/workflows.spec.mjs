@@ -5,7 +5,7 @@ test.beforeAll(async()=>{seed=JSON.parse(await readFile('.local/e2e-credentials.
 async function clock(page){await page.addInitScript(()=>{let now=0,id=0;const callbacks=new Map();performance.now=()=>now;requestAnimationFrame=fn=>{callbacks.set(++id,fn);return id;};cancelAnimationFrame=id=>callbacks.delete(id);window.advanceGame=ms=>{now+=ms;const current=[...callbacks.values()];callbacks.clear();for(const fn of current)fn(now);};});}
 async function click(page,action,selector=''){
  const refresh=['open','material','search-mode','search-layout','hunt-mode','theme','level','adaptive-level','dashboard','account','assessment-reports','select-record'].includes(action)?page.waitForResponse(r=>r.url().includes('/api/bootstrap')&&r.status()===200):null;
- await page.locator(`[data-action="${action}"]${selector}`).first().click();
+ await page.locator(`[data-action="${action}"]${selector}:visible`).first().click();
  if(refresh){const response=await refresh;await response.finished();await page.evaluate(()=>new Promise(resolve=>setTimeout(resolve,0)));}
  if(['practice','main-game','replay'].includes(action)){await expect(page.locator('.game-preparation')).toBeVisible();await click(page,'begin-game');await advance(page,3000);}
 }
@@ -16,7 +16,7 @@ async function finishReaction(page,game){let guard=0;while(await page.locator('.
  }else await page.keyboard.press('Space');await advance(page,950);}expect(guard).toBeLessThan(180);await expect(page.locator('.local-note')).toContainText('ذخیره شد');}
 const required={ark:['آب آشامیدنی','خوراک','کمک‌های اولیه','جلیقهٔ نجات','چراغ‌قوه','قطب‌نما'],space:['اکسیژن','لباس فضایی','سوخت','کلاه فضایی','خوراک','نقشهٔ فضایی']};
 async function finishAdventure(page,game,practice=true){for(let i=0;i<60;i++){if(await page.locator('.result-card').count())break;if(await page.locator('[data-action=continue-review]').count()){await click(page,'continue-review');continue;}const items=await page.locator('.scene-object:not(.collected):not(.rejected)').evaluateAll(elements=>elements.map(el=>({index:el.dataset.index,name:el.querySelector('span').textContent,blocked:el.classList.contains('blocked')})));const blocked=items.find(i=>i.blocked),target=items.find(i=>required[game].includes(i.name));await advance(page,100);if(blocked)await click(page,'item',`[data-index="${blocked.index}"]`);else if(target)await click(page,'item',`[data-index="${target.index}"]`);else {if(!practice)await expect(page.locator('[data-action=depart]')).toBeInViewport();await click(page,practice?'reject-item':'depart');}}await expect(page.locator('.local-note')).toContainText('ذخیره شد');}
-async function finishSearch(page,rounds){for(let i=0;i<rounds;i++){if(await page.locator('[data-action=next-round]').count())await click(page,'next-round');await expect(page.locator('.search-preview')).toBeVisible();const targets=await page.locator('.preview-target .symbol').evaluateAll(elements=>elements.map(el=>el.outerHTML));await advance(page,2000);const indices=await page.locator('.search-choice').evaluateAll((elements,targets)=>elements.filter(el=>targets.includes(el.querySelector('.symbol').outerHTML)).map(el=>el.dataset.index),targets);for(const index of indices){await advance(page,150);if(i===0){await page.locator(`[data-action="search-choice"][data-index="${index}"]`).focus();await page.keyboard.press('Space');}else await click(page,'search-choice',`[data-index="${index}"]`);}if(await page.locator('[data-action=continue-review]').count())await click(page,'continue-review');}await expect(page.locator('.local-note')).toContainText('ذخیره شد');}
+async function finishSearch(page,rounds){for(let i=0;i<rounds;i++){if(await page.locator('[data-action=next-round]').count()){if(i===1){await advance(page,45000);await expect(page.locator('.round-intermission')).toBeVisible();await expect(page.locator('.search-preview')).toHaveCount(0);}await click(page,'next-round');}await expect(page.locator('.search-preview')).toBeVisible();const targets=await page.locator('.preview-target .symbol').evaluateAll(elements=>elements.map(el=>el.outerHTML));await advance(page,2000);const indices=await page.locator('.search-choice').evaluateAll((elements,targets)=>elements.filter(el=>targets.includes(el.querySelector('.symbol').outerHTML)).map(el=>el.dataset.index),targets);for(const index of indices){await advance(page,150);if(i===0){await page.locator(`[data-action="search-choice"][data-index="${index}"]`).focus();await page.keyboard.press('Space');}else await click(page,'search-choice',`[data-index="${index}"]`);}if(await page.locator('[data-action=continue-review]').count())await click(page,'continue-review');}await expect(page.locator('.local-note')).toContainText('ذخیره شد');}
 async function noOverflow(page){expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);}
 
 test('administrator creates a therapist invitation and the invited account can sign in',async({page,browser})=>{
@@ -97,4 +97,21 @@ test.describe('touch gameplay',()=>{
   const button=page.locator('.response-button');await expect(button).toBeInViewport();await advance(page,100);const bounds=await button.boundingBox();await page.touchscreen.tap(bounds.x+bounds.width/2,bounds.y+bounds.height/2);await expect(button).toBeDisabled();
   await advance(page,900);await advance(page,1000);await finishReaction(page,'traffic');expect(submitted.outcomes[0].reactionMs).toBe(100);expect(submitted.outcomes[0].response).toBe(true);expect(submitted.outcomes[1].response).toBe(false);expect(submitted.outcomes).toHaveLength(150);
  });
+});
+
+test('hunt hit areas stay separate and the response remains reachable on short portrait and landscape screens',async({page})=>{
+ const {playSession}=await import('../helpers/play-session.mjs');await clock(page);await login(page);
+ const {csrfToken}=await (await page.request.get('/api/auth/session')).json(),headers={'X-CSRF-Token':csrfToken};
+ const run=await (await page.request.post(`/api/children/${seed.children[0].id}/sessions`,{headers,data:{gameId:'hunt',kind:'baseline'}})).json();expect((await page.request.post(`/api/children/${seed.children[0].id}/sessions/${run.id}/complete`,{headers,data:{result:playSession(run)}})).ok()).toBe(true);
+ for(const level of ['easy','medium','hard']){
+  await click(page,'open','[data-game="hunt"]');await click(page,'level',`[data-level="${level}"]`);await click(page,'main-game');
+  for(const viewport of [{width:360,height:600},{width:800,height:360}]){
+   await page.setViewportSize(viewport);await page.evaluate(()=>new Promise(resolve=>setTimeout(resolve,0)));if(await page.locator('#modal[open]').count())await click(page,'resume');await advance(page,0);
+   const boxes=await page.locator('.hunt-choice').evaluateAll(elements=>elements.map(el=>{const b=el.getBoundingClientRect();return {left:b.left,right:b.right,top:b.top,bottom:b.bottom,width:b.width,height:b.height};}));
+   for(const [i,a] of boxes.entries()){expect(a.width).toBeGreaterThanOrEqual(44);expect(a.height).toBeGreaterThanOrEqual(44);expect(a.top).toBeGreaterThanOrEqual(0);expect(a.bottom).toBeLessThanOrEqual(viewport.height+1);for(const b of boxes.slice(i+1))expect(Math.min(a.right,b.right)-Math.max(a.left,b.left)>.5&&Math.min(a.bottom,b.bottom)-Math.max(a.top,b.top)>.5).toBe(false);}
+   const button=await page.locator('.response-button').boundingBox();expect(button.y).toBeGreaterThanOrEqual(0);expect(button.y+button.height).toBeLessThanOrEqual(viewport.height+1);await noOverflow(page);
+   await page.screenshot({path:`.local/verification/hunt-${level}-${viewport.width}x${viewport.height}.png`,fullPage:true});
+  }
+  await click(page,'pause');await click(page,'home');
+ }
 });

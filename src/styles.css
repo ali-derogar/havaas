@@ -64,57 +64,63 @@ body[data-screen=play]{background:#f1f4e9}body[data-screen=play] .site-header,bo
 @media(max-width:700px){.round-intermission{min-height:320px;padding:25px 18px;gap:15px}.round-intermission h2{font-size:20px}.round-intermission p{font-size:11px}.round-intermission small{font-size:9px}}
 /* In phone landscape, the response control sits beside the stimulus field. */
 @media(max-height:520px) and (min-width:640px){
- .play-main:has(.reaction[data-phase=playing]:not(:has(.rule-transition))){max-width:1200px;padding:8px 12px}
- .play-main:has(.reaction[data-phase=playing]:not(:has(.rule-transition))) .play-heading{height:0;margin:0}
- .play-main:has(.reaction[data-phase=playing]:not(:has(.rule-transition))) .play-heading>div:first-child{position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%)}
- .play-main:has(.reaction[data-phase=playing]:not(:has(.rule-transition))) .play-heading-actions{position:fixed;bottom:15px;left:34px;z-index:5;gap:10px}
- .play-main:has(.reaction[data-phase=playing]:not(:has(.rule-transition)))>.play-footnote{display:none}
- .reaction[data-phase=playing]:not(:has(.rule-transition)){display:grid;grid-template-columns:minmax(0,1fr) 200px}
- .reaction[data-phase=playing]:not(:has(.rule-transition))>.play-hud{grid-column:1/-1;padding:5px 18px;min-height:40px}
- .reaction[data-phase=playing]:not(:has(.rule-transition)) .play-hud span{font-size:8px;margin:0}
- .reaction[data-phase=playing]:not(:has(.rule-transition)) .play-hud b{font-size:14px}
- .reaction[data-phase=playing]:not(:has(.rule-transition))>.progress-track{grid-column:1/-1}
- .reaction[data-phase=playing]:not(:has(.rule-transition))>.instruction-strip{grid-column:1/-1;min-height:37px;padding:4px 14px;font-size:10px}
- .reaction[data-phase=playing]:not(:has(.rule-transition))>.arena{grid-column:1;grid-row:4;min-height:240px}
- .reaction[data-phase=playing]:not(:has(.rule-transition))>.play-controls{grid-column:2;grid-row:4;align-self:center;min-height:0;padding:8px 12px 42px;gap:13px}
- .reaction[data-phase=playing]:not(:has(.rule-transition))>.feedback{display:none}
- .reaction[data-phase=playing]:not(:has(.rule-transition)) .response-button{width:100%;min-width:0;min-height:58px;padding:10px;font-size:14px;gap:9px}
- .reaction[data-phase=playing]:not(:has(.rule-transition)) .keyboard-hint{font-size:8px}
- .reaction[data-phase=playing]:not(:has(.rule-transition)) .reaction-stage:not(.hunt-stage){height:240px}
- .reaction[data-phase=playing]:not(:has(.rule-transition)) .stage-caption,.reaction[data-phase=playing]:not(:has(.rule-transition)) .stage-dots{display:none}
- .reaction[data-phase=playing]:not(:has(.rule-transition)) .focus-corners{width:140px;height:140px}
- .reaction[data-phase=playing]:not(:has(.rule-transition)) .memory-status{margin:0 0 10px;gap:6px}
- .reaction[data-phase=playing]:not(:has(.rule-transition)) .memory-status>small{font-size:8px}
- .reaction[data-phase=playing]:not(:has(.rule-transition)) .hunt-stage{height:250px;min-height:250px;padding:4px 0 0}
- .reaction[data-phase=playing]:not(:has(.rule-transition)) .hunt-blocks{margin:0 0 5px;gap:7px}
- .reaction[data-phase=playing]:not(:has(.rule-transition)) .hunt-blocks>span{padding:2px 9px;font-size:8px}
- .reaction[data-phase=playing]:not(:has(.rule-transition)) .hunt-surface{width:calc(100% - 24px);height:220px;min-height:220px}
- .reaction[data-phase=playing]:not(:has(.rule-transition)) .stroop-stages{margin:5px 6px 0;gap:4px}
- .reaction[data-phase=playing]:not(:has(.rule-transition)) .stroop-stages>span{font-size:8px;padding:3px 8px}
- .reaction[data-phase=playing]:not(:has(.rule-transition)) .stroop-stages+.reaction-stage{height:212px}
- .reaction[data-phase=playing]:not(:has(.rule-transition)) .traffic-road{height:60px;margin:10px auto -8px}
+ .play-main:has(.reaction[data-phase=playing]){max-width:1200px;padding:8px 12px}
+ .play-main:has(.reaction[data-phase=playing]) .play-heading{height:0;margin:0}
+ .play-main:has(.reaction[data-phase=playing]) .play-heading>div:first-child{position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%)}
+ .play-main:has(.reaction[data-phase=playing]) .play-heading-actions{position:fixed;bottom:15px;left:34px;z-index:5;gap:10px}
+ .play-main:has(.reaction[data-phase=playing])>.play-footnote{display:none}
+ .reaction[data-phase=playing]{display:grid;grid-template-columns:minmax(0,1fr) 200px}
+ .reaction[data-phase=playing]>.play-hud{grid-column:1/-1;padding:5px 18px;min-height:40px}
+ .reaction[data-phase=playing] .play-hud span{font-size:8px;margin:0}
+ .reaction[data-phase=playing] .play-hud b{font-size:14px}
+ .reaction[data-phase=playing]>.progress-track{grid-column:1/-1}
+ .reaction[data-phase=playing]>.instruction-strip{grid-column:1/-1;min-height:37px;padding:4px 14px;font-size:10px}
+ .reaction[data-phase=playing]>.arena{grid-column:1;grid-row:4;min-height:240px}
+ .reaction[data-phase=playing]>.play-controls{grid-column:2;grid-row:4;align-self:center;min-height:0;padding:8px 12px 42px;gap:13px}
+ .reaction[data-phase=playing]>.feedback{display:none}
+ .reaction[data-phase=playing] .response-button{width:100%;min-width:0;min-height:58px;padding:10px;font-size:14px;gap:9px}
+ .reaction[data-phase=playing] .keyboard-hint{font-size:8px}
+ .reaction[data-phase=playing] .reaction-stage:not(.hunt-stage){height:240px}
+ .reaction[data-phase=playing] .stage-caption,.reaction[data-phase=playing] .stage-dots{display:none}
+ .reaction[data-phase=playing] .focus-corners{width:140px;height:140px}
+ .reaction[data-phase=playing] .memory-status{margin:0 0 10px;gap:6px}
+ .reaction[data-phase=playing] .memory-status>small{font-size:8px}
+ .reaction[data-phase=playing] .hunt-stage{height:250px;min-height:250px;padding:4px 0 0}
+ .reaction[data-phase=playing] .hunt-blocks{margin:0 0 5px;gap:7px}
+ .reaction[data-phase=playing] .hunt-blocks>span{padding:2px 9px;font-size:8px}
+ .reaction[data-phase=playing] .hunt-surface{width:calc(100% - 24px);height:220px;min-height:220px}
+ .reaction[data-phase=playing] .stroop-stages{margin:5px 6px 0;gap:4px}
+ .reaction[data-phase=playing] .stroop-stages>span{font-size:8px;padding:3px 8px}
+ .reaction[data-phase=playing] .stroop-stages+.reaction-stage{height:212px}
+ .reaction[data-phase=playing] .traffic-road{height:60px;margin:10px auto -8px}
 }
 @media(max-height:740px) and (max-width:639px){
- .play-main:has(.reaction[data-phase=playing]:not(:has(.rule-transition))){padding:10px 12px}
- .play-main:has(.reaction[data-phase=playing]:not(:has(.rule-transition))) .play-heading{margin-bottom:8px}
- .play-main:has(.reaction[data-phase=playing]:not(:has(.rule-transition))) .play-heading h1{font-size:21px;margin:0}
- .play-main:has(.reaction[data-phase=playing]:not(:has(.rule-transition))) .play-heading .section-kicker{display:none}
- .play-main:has(.reaction[data-phase=playing]:not(:has(.rule-transition)))>.play-footnote{display:none}
- .reaction[data-phase=playing]:not(:has(.rule-transition))>.play-hud{padding:7px 15px}
- .reaction[data-phase=playing]:not(:has(.rule-transition)) .play-hud span{position:absolute;width:1px;height:1px;clip-path:inset(50%);overflow:hidden}
- .reaction[data-phase=playing]:not(:has(.rule-transition)) .play-hud b{font-size:14px}
- .reaction[data-phase=playing]:not(:has(.rule-transition))>.instruction-strip{min-height:45px;padding:6px 12px;font-size:10px}
- .reaction[data-phase=playing]:not(:has(.rule-transition)) .stage-caption,.reaction[data-phase=playing]:not(:has(.rule-transition)) .stage-dots{display:none}
- .reaction[data-phase=playing]:not(:has(.rule-transition)) .hunt-stage{padding:6px 0;min-height:0}
- .reaction[data-phase=playing]:not(:has(.rule-transition)) .hunt-blocks{margin:0 0 7px;gap:6px}
- .reaction[data-phase=playing]:not(:has(.rule-transition)) .hunt-blocks>span{font-size:8px;padding:2px 8px}
- .reaction[data-phase=playing]:not(:has(.rule-transition)) .hunt-surface{height:220px;min-height:220px}
- .reaction[data-phase=playing]:not(:has(.rule-transition)) .reaction-stage:not(.hunt-stage){height:255px}
- .reaction[data-phase=playing]:not(:has(.rule-transition)) .focus-corners{width:140px;height:140px}
- .reaction[data-phase=playing]:not(:has(.rule-transition)) .memory-status{margin-bottom:10px}
- .reaction[data-phase=playing]:not(:has(.rule-transition))>.play-controls{min-height:0;padding:8px 15px 12px}
- .reaction[data-phase=playing]:not(:has(.rule-transition)) .response-button{min-height:58px}
- .reaction[data-phase=playing]:not(:has(.rule-transition)) .keyboard-hint,.reaction[data-phase=playing]:not(:has(.rule-transition))>.feedback{display:none}
+ .play-main:has(.reaction[data-phase=playing]){padding:10px 12px}
+ .play-main:has(.reaction[data-phase=playing]) .play-heading{margin-bottom:8px}
+ .play-main:has(.reaction[data-phase=playing]) .play-heading h1{font-size:21px;margin:0}
+ .play-main:has(.reaction[data-phase=playing]) .play-heading .section-kicker{display:none}
+ .play-main:has(.reaction[data-phase=playing])>.play-footnote{display:none}
+ .reaction[data-phase=playing]>.play-hud{padding:7px 15px}
+ .reaction[data-phase=playing] .play-hud span{position:absolute;width:1px;height:1px;clip-path:inset(50%);overflow:hidden}
+ .reaction[data-phase=playing] .play-hud b{font-size:14px}
+ .reaction[data-phase=playing]>.instruction-strip{min-height:45px;padding:6px 12px;font-size:10px}
+ .reaction[data-phase=playing] .stage-caption,.reaction[data-phase=playing] .stage-dots{display:none}
+ .reaction[data-phase=playing] .hunt-stage{padding:6px 0;min-height:0}
+ .reaction[data-phase=playing] .hunt-blocks{margin:0 0 7px;gap:6px}
+ .reaction[data-phase=playing] .hunt-blocks>span{font-size:8px;padding:2px 8px}
+ .reaction[data-phase=playing] .hunt-surface{height:220px;min-height:220px}
+ .reaction[data-phase=playing] .reaction-stage:not(.hunt-stage){height:255px}
+ .reaction[data-phase=playing] .focus-corners{width:140px;height:140px}
+ .reaction[data-phase=playing] .memory-status{margin-bottom:10px}
+ .reaction[data-phase=playing]>.play-controls{min-height:0;padding:8px 15px 12px}
+ .reaction[data-phase=playing] .response-button{min-height:58px}
+ .reaction[data-phase=playing] .keyboard-hint,.reaction[data-phase=playing]>.feedback{display:none}
  .reaction[data-game=stroop][data-phase=playing]:not(:has(.rule-transition)) .reaction-stage{height:220px}
- .reaction[data-phase=playing]:not(:has(.rule-transition)) .stroop-stages{margin-top:7px}
+ .reaction[data-phase=playing] .stroop-stages{margin-top:7px}
 }
+/* Illustrated environments are decoded before the scored clock starts. */
+.illustrated-cover{position:relative;width:100%;height:100%;isolation:isolate;overflow:hidden;background:#e9eedb}.illustrated-cover>img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;z-index:-2}.world-motif{position:absolute;inset:12% 8% 0;filter:drop-shadow(0 5px 5px #263e2d1a)}.illustrated-ark .world-motif{inset:17% 3% -7%;transform:scale(.92)}.illustrated-space .world-motif{inset:8% 8% -7%;transform:scale(.91)}.illustrated-hunt .world-motif{inset:6% 8% -3%}.card-picture>.illustrated-cover{height:100%}.card-picture>.native-cover{width:100%;height:100%;display:grid;place-items:center}.card-picture .illustrated-cover .game-art{height:100%;width:100%;margin:0}.native-cover{width:100%;height:100%;display:grid;place-items:center}.intro-art-bubble>.illustrated-cover{border-radius:25px}.intro-art-bubble{overflow:hidden}.preparation-samples>.illustrated-cover{height:175px;max-width:440px;border-radius:20px;border:1px solid #dce3d1}.preparation-samples>.illustrated-space{border-color:#ded5e9}.world-backdrop{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;pointer-events:none;user-select:none}.adventure-scene>.world-backdrop{z-index:-2}.hunt-surface>.world-backdrop{z-index:0;opacity:.8}.hunt-surface>.hunt-array{z-index:1}.illustrated-world .scene-object{background:#fffdf3cf;border:1px solid #fffdf3c2;box-shadow:0 3px 8px #35453d0b}.illustrated-world.space .scene-object{background:#fffdf9d9;border-color:#fefcffb8}.illustrated-world .scene-object>span{color:#50604a;font-weight:550}.illustrated-world .scene-heading{color:#4d664a;text-shadow:0 1px 6px #fffdf5}.illustrated-world.space .scene-heading{color:#66527b;text-shadow:0 1px 7px #fffaff}.illustrated-world.ark.medium>.world-backdrop{filter:sepia(.12) saturate(.8)}.illustrated-world.ark.hard>.world-backdrop{filter:brightness(.73) saturate(.65) hue-rotate(12deg)}.illustrated-world.ark.hard .scene-heading{color:#f5f3e2;text-shadow:0 1px 5px #253c48}.illustrated-world .scene-object.collected{background:#eff6dfc9;border:1px dashed #9db97e}.illustrated-world .scene-object.blocked{background:#f2edf7c9;border-color:#d6c8e7}.play-panel[data-game=nback] .focus-corners:before,.play-panel[data-game=nback] .focus-corners:after{content:'';position:absolute;border:1px solid #ddcfb6;border-radius:20px;background:#f3ecdd;inset:8px -6px -8px;z-index:-1;transform:rotate(-4deg)}.play-panel[data-game=nback] .focus-corners:after{inset:13px -10px -13px;transform:rotate(4deg);background:#eee4d0;z-index:-2}.play-panel[data-game=nback] .focus-corners{isolation:isolate}.play-panel[data-game=search] .search-grid{background:linear-gradient(145deg,#f3f8f2,#edf4ee);border-radius:19px;border:1px solid #dce8dc;margin:12px auto 18px;max-width:calc(100% - 44px);box-shadow:inset 0 0 0 5px #fafcf7}.play-panel[data-game=search] .search-choice{background:#fffef8;border-color:#d7e1cf;box-shadow:0 2px 0 #dfe9d7}.play-panel[data-game=search] .preview-symbol{background:#fffdf5;border:2px solid #bdcec0;box-shadow:0 5px 0 #dce8dc;transform:rotate(-2deg)}.play-panel[data-game=search] .preview-target:nth-child(2) .preview-symbol{transform:rotate(2deg)}.play-panel[data-game=stroop] .focus-corners{box-shadow:0 6px 0 #eadfe6,0 10px 20px #8c64800b}.play-panel[data-game=traffic] .focus-corners{background:#f6f6ee;border:1px solid #d7ddcd;border-radius:50%;box-shadow:0 5px 0 #e6e9df}.play-panel[data-game=traffic] .focus-corners>i{display:none}
+@media(max-width:700px){.preparation-samples>.illustrated-cover{height:155px;border-radius:16px}.world-motif{inset:9% 3% 0}.intro-art-bubble>.illustrated-cover{border-radius:20px}.play-panel[data-game=search] .search-grid{max-width:calc(100% - 24px);margin-top:10px;margin-bottom:15px;border-radius:15px;box-shadow:inset 0 0 0 3px #fafcf7}.illustrated-world .scene-object>span{font-size:8px}}
+.world-motif .vehicle-art{height:100%;width:100%}.illustrated-ark .world-motif{inset:38% 9% 0;transform:none}.illustrated-space .world-motif{inset:12% 20% -2%;transform:rotate(12deg)}.scene-vehicle>.vehicle-art{width:100%;height:100%;filter:drop-shadow(0 4px 3px #25372d20)}.scene-vehicle .launch-flame{display:none}.scene-vehicle.vehicle-ready .launch-flame{display:initial}.illustrated-world .scene-vehicle{opacity:1}.focus-corners .symbol{filter:drop-shadow(0 4px 1px #33452e12)}
+.reaction-stage{position:relative;isolation:isolate;overflow:hidden}.reaction-stage>.world-backdrop{z-index:-2;opacity:.55}.reaction-stage>.memory-status,.reaction-stage>.focus-corners,.reaction-stage>.stage-caption,.reaction-stage>.stage-dots,.reaction-stage>.traffic-road{position:relative;z-index:1}.play-panel[data-game=nback] .reaction-stage>.world-backdrop,.play-panel[data-game=stroop] .reaction-stage>.world-backdrop{opacity:.7}.search-preview{position:relative;isolation:isolate;overflow:hidden}.search-preview>.world-backdrop{z-index:-1;opacity:.55}.search-grid{position:relative;isolation:isolate;overflow:hidden}.search-grid>.world-backdrop{z-index:-1;opacity:.45}.illustrated-nback .world-motif,.illustrated-search .world-motif,.illustrated-stroop .world-motif,.illustrated-traffic .world-motif{inset:7% 3% -3%}.preparation-samples>.illustrated-cover .world-motif{inset:12% 7% -2%}.preparation-samples>.illustrated-ark .world-motif{inset:40% 12% 1%}.preparation-samples>.illustrated-space .world-motif{inset:6% 25% -1%}
+dialog{max-height:calc(100dvh - 28px);overflow-y:auto;overscroll-behavior:contain}@media(max-height:520px){dialog{padding:22px}.pause-emblem{width:44px;height:44px;border-radius:14px}dialog h2{font-size:21px;margin:9px 0}.modal-buttons{margin-top:18px;gap:10px}}
