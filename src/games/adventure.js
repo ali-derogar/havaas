@@ -20,14 +20,14 @@ export class AdventureSession extends Session {
   get score() { return this.metrics.hits; }
   get remainingMs() { return Math.max(0, this.limitMs - this.clock.elapsed - this.penaltyMs); }
   get ready() { return this.metrics.hits === this.required.length; }
-  tick() { if (this.done || this.paused) return; if (this.remainingMs <= 0) { this.metrics.misses = this.required.length - this.metrics.hits; this.finish(false); } }
+  tick() { if (this.done || this.paused) return; if (this.remainingMs <= 0) { for (const item of this.items.filter(item => item.required && !item.collected)) this.record(true, false, null, { item: item.name }); this.finish(false); } }
   choose(id) {
     if (this.done || this.paused) return null;
     this.tick(); if (this.done) return null;
     const item = this.items.find(value => value.id === id);
     if (!item || item.collected || item.rejected || this.practice && item !== this.currentItem) return null;
     if (item.blocked) { item.blocked = false; this.decisionOnset=this.clock.elapsed;this.feedback = 'مانع کنار رفت! حالا وسیله رو بررسی کن.'; this.feedbackKind = 'good'; return 'cleared'; }
-    this.record(item.required, true, item.required?this.clock.elapsed-this.decisionOnset:null);
+    this.record(item.required, true, item.required?this.clock.elapsed-this.decisionOnset:null, { item: item.name });
     this.decisionOnset=this.clock.elapsed;
     if (item.required) item.collected = true;
     else { item.rejected = true; if (!this.practice) this.penaltyMs += PROTOCOL.penaltyMs; }
@@ -38,7 +38,7 @@ export class AdventureSession extends Session {
   }
   reject() {
     if (!this.practice || this.done || this.paused || this.currentItem.blocked) return null;
-    const item = this.currentItem; this.record(item.required, false);
+    const item = this.currentItem; this.record(item.required, false, null, { item: item.name });
     this.decisionOnset=this.clock.elapsed;
     item.rejected = true; this.feedback = item.required ? `${item.name} برای این سفر لازم بود.` : 'درسته! این وسیله ضروری نیست.';
     this.feedbackKind = item.required ? 'wrong' : 'good'; this.advancePractice(); return !item.required;

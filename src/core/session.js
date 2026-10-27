@@ -10,6 +10,7 @@ export class ActiveClock {
 export class Session {
   constructor({ gameId, level = 'easy', practice = false, variant = 'standard', now, random = Math.random }) {
     this.gameId = gameId; this.level = level; this.practice = practice; this.random = random;
+    this.outcomes = []; this.finishedAt = null;
     this.variant = variant; this.reactionMeasure = 'stimulus-onset';
     this.clock = new ActiveClock(now); this.done = false; this.completed = false; this.feedback = ''; this.feedbackKind = '';
     this.metrics = { hits: 0, misses: 0, falseAlarms: 0, correctRejects: 0, streak: 0, maxStreak: 0, reactionTimes: [] };
@@ -17,7 +18,8 @@ export class Session {
   get paused() { return this.clock.paused; }
   pause() { this.tick(); if (!this.done) this.clock.pause(); }
   resume() { this.clock.resume(); }
-  record(target, response, reactionMs = null) {
+  record(target, response, reactionMs = null, context = {}) {
+    this.outcomes.push({ number: this.outcomes.length + 1, target, response, correct: target === response, reactionMs, atMs: Math.round(this.clock.elapsed), ...context });
     const m = this.metrics;
     if (target && response) { m.hits++; if (reactionMs !== null) m.reactionTimes.push(Math.max(0, reactionMs)); }
     else if (target) m.misses++;
@@ -25,14 +27,14 @@ export class Session {
     else m.correctRejects++;
     if (target === response) { m.streak++; m.maxStreak = Math.max(m.maxStreak, m.streak); } else m.streak = 0;
   }
-  finish(completed = true) { this.completed = completed; this.done = true; this.clock.pause(); }
+  finish(completed = true) { if (this.done) return; this.finishedAt = new Date().toISOString(); this.completed = completed; this.done = true; this.clock.pause(); }
   get result() {
     const m = this.metrics, times = m.reactionTimes;
     return {
       version: 1, protocolVersion: 2, gameId: this.gameId, level: this.level, variant: this.variant, score: this.score, maxScore: this.maxScore,
       hits: m.hits, correctResponses: m.hits + m.correctRejects, correctRejections: m.correctRejects, omissions: m.misses, falseSelections: m.falseAlarms,
       meanReactionMs: times.length ? Math.round(times.reduce((a, b) => a + b, 0) / times.length) : null, reactionMeasure: this.reactionMeasure,
-      longestStreak: m.maxStreak, durationMs: Math.round(this.clock.elapsed), completed: this.completed, finishedAt: new Date().toISOString(),
+      longestStreak: m.maxStreak, durationMs: Math.round(this.clock.elapsed), completed: this.completed, finishedAt: this.finishedAt || new Date().toISOString(), outcomes: this.outcomes.map(outcome => ({ ...outcome })),
     };
   }
 }

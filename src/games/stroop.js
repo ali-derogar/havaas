@@ -9,8 +9,8 @@ export const STROOP_RULES = [
 ];
 export const isStroopTarget = (phase, stimulus) => phase <= 1 ? stimulus.color === 'yellow' : phase === 2 ? stimulus.word === 'yellow' : stimulus.color === 'yellow' && stimulus.word === 'yellow';
 export function generateStroop(practice = false, random = Math.random) {
-  const colors = ['green', 'red', 'yellow', 'blue'], counts = practice ? [5] : [40, 40, 40, 30];
-  return counts.flatMap((count, phase) => targetMask(count, practice ? 2 : count / 5, random).map(target => {
+  const colors = ['green', 'red', 'yellow', 'blue'], counts = practice ? [2, 1, 1, 1] : [40, 40, 40, 30];
+  return counts.flatMap((count, phase) => targetMask(count, practice ? (phase === 0 || phase === 3 ? 1 : 0) : count / 5, random).map(target => {
     const choices = phase === 0 ? colors.map(color => ({ shape: 'circle', color })) : colors.flatMap(color => colors.map(word => ({ shape: 'word', color, word })));
     return { phase, target, stimulus: pick(choices.filter(stimulus => isStroopTarget(phase, stimulus) === target), random) };
   }));

@@ -15,7 +15,7 @@ export class ReactionSession extends Session {
   tick() {
     if (this.done || this.paused || this.gate || this.clock.elapsed - this.onset < PROTOCOL.intervalMs) return;
     const old = this.current;
-    if (old.scored !== false) this.record(old.target, !!this.response, this.response?.reactionMs ?? null);
+    if (old.scored !== false) this.record(old.target, !!this.response, this.response?.reactionMs ?? null, { phase: old.phase, stimulus: old.stimulus });
     this.index++; this.response = null;
     if (this.index >= this.trials.length) { this.finish(); return; }
     this.onset = this.clock.elapsed;
