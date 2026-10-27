@@ -22,7 +22,7 @@ export const DISTRACTORS = [['ball', 'توپ'], ['guitar', 'گیتار'], ['plan
 export class AdventureSession extends Session {
   constructor(options) {
     super(options); const settings = LEVELS[this.level];
-    this.mission = MISSIONS[this.gameId]; this.clearedObstacles = 0;
+    this.mission = MISSIONS[this.gameId]; this.clearedObstacles = 0; this.events = [];
     this.decisionOnset=0;this.reactionMeasure='decision-interval';
     this.required = EQUIPMENT[this.gameId].slice(0, this.practice ? 3 : settings.required);
     const extras = shuffle(DISTRACTORS, this.random).slice(0, this.practice ? 2 : settings.items - settings.required);
@@ -37,14 +37,14 @@ export class AdventureSession extends Session {
   get score() { return this.metrics.hits; }
   get remainingMs() { return Math.max(0, this.limitMs - this.clock.elapsed - this.penaltyMs); }
   get ready() { return this.metrics.hits === this.required.length; }
-  tick() { if (this.done || this.paused) return; if (this.remainingMs <= 0) { for (const item of this.items.filter(item => item.required && !item.collected)) this.record(true, false, null, { item: item.name }); this.finish(false); } }
+  tick() { if (this.done || this.paused) return; if (this.remainingMs <= 0) { for (const item of this.items.filter(item => item.required && !item.collected)) this.record(true, false, null, { item: item.name, itemId:item.id }); this.finish(false); } }
   choose(id) {
     if (this.done || this.paused) return null;
     this.tick(); if (this.done) return null;
     const item = this.items.find(value => value.id === id);
     if (!item || item.collected || item.rejected || this.practice && item !== this.currentItem) return null;
-    if (item.blocked) { item.blocked = false; this.clearedObstacles++; this.decisionOnset=this.clock.elapsed;this.feedback = 'مانع کنار رفت! حالا وسیله رو بررسی کن.'; this.feedbackKind = 'good'; return 'cleared'; }
-    this.record(item.required, true, item.required?this.clock.elapsed-this.decisionOnset:null, { item: item.name });
+    if (item.blocked) { item.blocked = false; this.events.push({kind:'clear',itemId:item.id,atMs:Math.round(this.clock.elapsed)}); this.clearedObstacles++; this.decisionOnset=this.clock.elapsed;this.feedback = 'مانع کنار رفت! حالا وسیله رو بررسی کن.'; this.feedbackKind = 'good'; return 'cleared'; }
+    this.record(item.required, true, item.required?this.clock.elapsed-this.decisionOnset:null, { item: item.name, itemId:item.id });
     this.decisionOnset=this.clock.elapsed;
     if (item.required) item.collected = true;
     else { item.rejected = true; if (!this.practice) this.penaltyMs += PROTOCOL.penaltyMs; }
@@ -55,12 +55,12 @@ export class AdventureSession extends Session {
   }
   reject() {
     if (!this.practice || this.done || this.paused || this.currentItem.blocked) return null;
-    const item = this.currentItem; this.record(item.required, false, null, { item: item.name });
+    const item = this.currentItem; this.record(item.required, false, null, { item: item.name, itemId:item.id });
     this.decisionOnset=this.clock.elapsed;
     item.rejected = true; this.feedback = item.required ? `${item.name} لازم بود: ${EQUIPMENT_REASONS[item.icon]}` : 'درسته! این وسیله ضروری نیست.';
     this.feedbackKind = item.required ? 'wrong' : 'good'; this.advancePractice(); return !item.required;
   }
   advancePractice() { this.judged++; if (this.judged === this.total) this.finish(); }
-  get result() { return { ...super.result, mission: this.mission.title, obstaclesCleared: this.clearedObstacles, departed: !this.practice && this.completed, inventory: this.items.filter(item=>item.collected).map(item=>item.name) }; }
-  depart() { this.tick(); if (this.done || this.paused || this.practice || !this.ready) return false; this.finish(true); return true; }
+  get result() { return { ...super.result, events:this.events.map(event=>({...event})), mission: this.mission.title, obstaclesCleared: this.clearedObstacles, departed: !this.practice && this.completed, inventory: this.items.filter(item=>item.collected).map(item=>item.name) }; }
+  depart() { this.tick(); if (this.done || this.paused || this.practice || !this.ready) return false; this.events.push({kind:'depart',atMs:Math.round(this.clock.elapsed)}); this.finish(true); return true; }
 }

@@ -1,0 +1,51 @@
+import { test,expect } from '@playwright/test';
+import { readFile,writeFile } from 'node:fs/promises';
+let seed;
+test.beforeAll(async()=>{seed=JSON.parse(await readFile('.local/e2e-credentials.json','utf8'));});
+async function clock(page){await page.addInitScript(()=>{let now=0,id=0;const callbacks=new Map();performance.now=()=>now;requestAnimationFrame=fn=>{callbacks.set(++id,fn);return id;};cancelAnimationFrame=id=>callbacks.delete(id);window.advanceGame=ms=>{now+=ms;const current=[...callbacks.values()];callbacks.clear();for(const fn of current)fn(now);};});}
+async function click(page,action,selector=''){
+ const refresh=['open','material','search-mode','search-layout','hunt-mode','theme','level','adaptive-level','dashboard','account','assessment-reports'].includes(action)?page.waitForResponse(r=>r.url().includes('/api/bootstrap')&&r.status()===200):null;
+ await page.locator(`[data-action="${action}"]${selector}`).first().click();
+ if(refresh){const response=await refresh;await response.finished();await page.evaluate(()=>new Promise(resolve=>setTimeout(resolve,0)));}
+ if(['practice','main-game','replay'].includes(action))await expect(page.locator('.play-panel')).toBeVisible();
+}
+async function login(page,key='therapist'){await page.goto('/');await page.locator('#login-form [name=email]').fill(seed.users[key].email);await page.locator('#login-form [name=password]').fill(seed.password);await page.locator('#login-form button[type=submit]').click();await expect(page.locator('.hero')).toBeVisible();}
+async function advance(page,ms){await page.evaluate(ms=>window.advanceGame(ms),ms);}
+async function finishReaction(page,game){let guard=0;while(await page.locator('.result-card').count()===0&&guard++<180){if(await page.locator('[data-action=acknowledge]').count())await click(page,'acknowledge');await advance(page,50);if(game==='hunt'){
+ const index=await page.evaluate(()=>{const targets=[...document.querySelectorAll('.target-mini .symbol')].map(el=>el.outerHTML);return [...document.querySelectorAll('.hunt-choice')].findIndex(el=>targets.includes(el.querySelector('.symbol').outerHTML));});if(index>=0)await click(page,'stimulus-response',`[data-choice="${index}"]`);
+ }else await page.keyboard.press('Space');await advance(page,950);}expect(guard).toBeLessThan(180);await expect(page.locator('.local-note')).toContainText('ذخیره شد');}
+const required={ark:['آب آشامیدنی','خوراک','کمک‌های اولیه','جلیقهٔ نجات','چراغ‌قوه','قطب‌نما'],space:['اکسیژن','لباس فضایی','سوخت','کلاه فضایی','خوراک','نقشهٔ فضایی']};
+async function finishAdventure(page,game,practice=true){for(let i=0;i<60;i++){if(await page.locator('.result-card').count())break;const items=await page.locator('.scene-object:not(.collected):not(.rejected)').evaluateAll(elements=>elements.map(el=>({index:el.dataset.index,name:el.querySelector('span').textContent,blocked:el.classList.contains('blocked')})));const blocked=items.find(i=>i.blocked),target=items.find(i=>required[game].includes(i.name));await advance(page,100);if(blocked)await click(page,'item',`[data-index="${blocked.index}"]`);else if(target)await click(page,'item',`[data-index="${target.index}"]`);else await click(page,practice?'reject-item':'depart');}await expect(page.locator('.local-note')).toContainText('ذخیره شد');}
+async function finishSearch(page,rounds){for(let i=0;i<rounds;i++){await expect(page.locator('.search-preview')).toBeVisible();const targets=await page.locator('.preview-target .symbol').evaluateAll(elements=>elements.map(el=>el.outerHTML));await advance(page,2000);const indices=await page.locator('.search-choice').evaluateAll((elements,targets)=>elements.filter(el=>targets.includes(el.querySelector('.symbol').outerHTML)).map(el=>el.dataset.index),targets);for(const index of indices){await advance(page,150);await click(page,'search-choice',`[data-index="${index}"]`);}}await expect(page.locator('.local-note')).toContainText('ذخیره شد');}
+async function noOverflow(page){expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);}
+
+test('administrator creates a therapist invitation and the invited account can sign in',async({page,browser})=>{
+ await login(page,'admin');await click(page,'account');await page.locator('#invitation-form [name=email]').fill('invited-therapist@example.test');await page.locator('#invitation-form [name=role]').selectOption('therapist');await page.locator('#invitation-form button[type=submit]').click();const url=await page.locator('#invitation-url').inputValue();expect(url).toContain('#invite/');
+ const context=await browser.newContext(),invited=await context.newPage();await invited.goto(url);await invited.locator('#accept-form [name=name]').fill('درمانگر دعوت‌شده');await invited.locator('#accept-form [name=password]').fill('Invited-test-password-2026!');await invited.locator('#accept-form button[type=submit]').click();await expect(invited.locator('.hero')).toBeVisible();await expect(invited.locator('.profile-strip')).toContainText('آشنا');await context.close();
+ await page.locator('#invitation-form [name=email]').fill(seed.users.therapist.email);await click(page,'reset-link',`[data-email="${seed.users.otherTherapist.email}"]`);await expect(page.locator('#invitation-url')).toHaveValue(/#invite\//);
+});
+
+test('all seven baselines sync across accounts and devices; role-specific reports and dual search work',async({page,browser})=>{
+ await clock(page);await login(page);await click(page,'assessment');await click(page,'assessment-next');
+ for(const [i,game] of ['hunt','ark','space','traffic','search','nback','stroop'].entries()){
+  await expect(page.locator('.guided-banner')).toBeVisible();await click(page,'practice');if(required[game])await finishAdventure(page,game);else if(game==='search')await finishSearch(page,5);else await finishReaction(page,game);
+  if(i<6)await click(page,'assessment-next');
+ }
+ await click(page,'assessment');await expect(page.locator('.assessment-state.done')).toHaveCount(7);await page.reload();await expect(page.locator('.assessment-state.done')).toHaveCount(7);await click(page,'assessment-reports');await expect(page.locator('.session-history tbody tr')).toHaveCount(7);
+ const family=await browser.newContext(),parent=await family.newPage();await clock(parent);await login(parent,'parent');await click(parent,'assessment');await expect(parent.locator('.assessment-state.done')).toHaveCount(7);await click(parent,'assessment-reports');await expect(parent.locator('[data-action=export-profile]')).toHaveCount(0);await expect(parent.locator('[data-action=export-trials]')).toHaveCount(0);expect(await parent.locator('body').textContent()).not.toContain('clinical-secret');
+ for(const width of [360,768,1440]){await parent.setViewportSize({width,height:1000});await noOverflow(parent);await parent.screenshot({path:`.local/verification/server-parent-${width}.png`,fullPage:true});}
+ await parent.emulateMedia({media:'print'});const pdf=await parent.pdf({printBackground:true});expect(pdf.subarray(0,4).toString()).toBe('%PDF');expect(pdf.length).toBeGreaterThan(2000);await writeFile('.local/verification/server-parent-report.pdf',pdf);await parent.emulateMedia({media:'screen'});
+ const colleague=await browser.newContext(),colleaguePage=await colleague.newPage();await login(colleaguePage,'otherTherapist');await expect(colleaguePage.locator('.profile-strip')).toContainText('علی');expect((await colleague.request.get(`/api/children/${seed.children[0].id}/reports`)).status()).toBe(404);await colleague.close();
+ const other=await browser.newContext(),otherPage=await other.newPage();await login(otherPage,'otherParent');await expect(otherPage.locator('.profile-strip')).toContainText('علی');expect(await otherPage.locator('body').textContent()).not.toContain('سارا');await other.close();
+ await click(page,'home');await click(page,'open','[data-game="search"]');await click(page,'search-mode','[data-mode="dual"]');await click(page,'material','[data-material="letters"]');await click(page,'search-layout','[data-layout="scattered"]');await click(page,'level','[data-level="hard"]');await click(page,'practice');await finishSearch(page,5);
+ await click(parent,'home');await click(parent,'open','[data-game="search"]');await click(parent,'search-mode','[data-mode="dual"]');await click(parent,'material','[data-material="letters"]');await click(parent,'search-layout','[data-layout="scattered"]');await expect(parent.locator('[data-action=level]').first()).toBeDisabled();await click(parent,'main-game');await expect(parent.locator('.level-pill')).toContainText('سخت');await finishSearch(parent,10);await expect(parent.locator('.result-main-score')).toContainText('۲۰');await click(parent,'dashboard');await expect(parent.locator('.report-focus')).toContainText('دو حرف');
+ await click(page,'home');await click(page,'open','[data-game="ark"]');await click(page,'main-game');await finishAdventure(page,'ark',false);await click(page,'dashboard');const download=page.waitForEvent('download');await click(page,'export-profile');expect((await download).suggestedFilename()).toBe('havaas-profile.json');await family.close();
+});
+
+test('a failed completion stays pending and can be saved after reauthentication without duplication',async({page})=>{
+ await clock(page);await login(page,'parent');await click(page,'open','[data-game="traffic"]');await click(page,'main-game');
+ await page.route('**/api/children/*/sessions/*/complete',route=>route.abort('failed'));
+ for(let i=0;i<150;i++){await advance(page,100);await page.keyboard.press('Space');await advance(page,900);}
+ await expect(page.locator('[data-action=retry-save]')).toBeVisible();await expect(page.locator('.result-actions button').first()).toBeDisabled();
+ await page.unroute('**/api/children/*/sessions/*/complete');await page.context().clearCookies();await click(page,'reauth');await page.locator('#modal #login-form [name=email]').fill(seed.users.parent.email);await page.locator('#modal #login-form [name=password]').fill(seed.password);await page.locator('#modal #login-form button[type=submit]').click();await expect(page.locator('.local-note')).toContainText('ذخیره شد');await expect(page.locator('.result-actions button').first()).toBeEnabled();await click(page,'dashboard');await expect(page.locator('.report-metrics')).toBeVisible();
+});

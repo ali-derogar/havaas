@@ -3,3 +3,9 @@ node_modules/
 .DS_Store
 *.tar.gz
 .local/
+.env
+.env.*
+!.env.example
+test-results/
+playwright-report/
+backups/

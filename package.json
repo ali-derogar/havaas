@@ -5,15 +5,32 @@
   "type": "module",
   "description": "هفت ماجراجویی فارسی برای تمرین توجه و حافظه",
   "scripts": {
-    "dev": "node scripts/serve.mjs",
-    "start": "node scripts/serve.mjs",
+    "dev": "node --env-file-if-exists=.env --watch server/start.js",
+    "start": "node --env-file-if-exists=.env server/start.js",
     "build": "node scripts/build.mjs",
-    "test": "node --test tests/*.test.mjs"
+    "test": "node --test tests/*.test.mjs",
+    "static": "node scripts/serve.mjs",
+    "db:migrate": "node --env-file-if-exists=.env scripts/migrate.mjs",
+    "admin:create": "node --env-file-if-exists=.env scripts/admin-create.mjs",
+    "test:api": "node --env-file-if-exists=.env --test tests/server.test.mjs",
+    "test:e2e": "playwright test",
+    "setup:env": "node scripts/setup-env.mjs",
+    "admin:reset-link": "node --env-file-if-exists=.env scripts/admin-reset-link.mjs",
+    "test:docker": "node scripts/smoke-docker.mjs"
   },
   "engines": {
-    "node": ">=22"
+    "node": ">=24"
   },
   "devDependencies": {
+    "@playwright/test": "^1.64.1",
     "linkedom": "^0.18.14"
+  },
+  "dependencies": {
+    "connect-pg-simple": "^10.0.0",
+    "express": "^5.3.0",
+    "express-rate-limit": "^8.7.1",
+    "express-session": "^1.19.0",
+    "helmet": "^8.3.0",
+    "pg": "^8.23.1"
   }
 }

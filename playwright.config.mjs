@@ -1,0 +1,3 @@
+import { defineConfig } from '@playwright/test';
+process.env.NO_PROXY=[process.env.NO_PROXY,'127.0.0.1','localhost'].filter(Boolean).join(',');
+export default defineConfig({testDir:'./tests/browser',fullyParallel:false,workers:1,timeout:180000,expect:{timeout:10000},use:{baseURL:'http://127.0.0.1:4181',headless:true,launchOptions:{executablePath:process.env.CHROME_BIN||'/usr/bin/google-chrome',args:['--no-sandbox']},trace:'retain-on-failure',screenshot:'only-on-failure'},webServer:{command:'node --env-file-if-exists=.env scripts/e2e-server.mjs',url:'http://127.0.0.1:4181/health',reuseExistingServer:false,timeout:30000},reporter:'list'});

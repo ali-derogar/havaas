@@ -1,0 +1,25 @@
+services:
+  app:
+    environment:
+      NODE_ENV: production
+      TRUST_PROXY: 1
+      APP_ORIGIN: https://${DOMAIN:?Set DOMAIN}
+    ports: !reset []
+  proxy:
+    image: caddy:2
+    environment:
+      DOMAIN: ${DOMAIN:?Set DOMAIN}
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy-data:/data
+      - caddy-config:/config
+    depends_on:
+      app:
+        condition: service_healthy
+    restart: unless-stopped
+volumes:
+  caddy-data:
+  caddy-config:

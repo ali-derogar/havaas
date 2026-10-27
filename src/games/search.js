@@ -48,7 +48,7 @@ export class SearchSession extends Session {
   next() { this.index++; if (this.index >= this.total) this.finish(); else this.newRound(); }
   tick() {
     if (this.done || this.paused || this.clock.elapsed < this.deadline) return;
-    for (const [index,stimulus] of this.current.choices.entries()) if (stimulus.target && !this.found.has(index)) this.record(true, false, null, { round: this.index + 1, stimulus });
+    for (const [index,stimulus] of this.current.choices.entries()) if (stimulus.target && !this.found.has(index)) this.record(true, false, null, { round: this.index + 1, stimulus, choiceIndex:index });
     this.feedback = 'وقت این دور تموم شد؛ نمونهٔ بعدی رو به خاطر بسپار.'; this.feedbackKind = 'wrong'; this.next();
   }
   choose(index) {
@@ -56,7 +56,7 @@ export class SearchSession extends Session {
     if (this.clock.elapsed >= this.deadline) { this.tick(); return null; }
     if (this.rejected.has(index) || this.found.has(index) || !this.current.choices[index]) return null;
     const stimulus = this.current.choices[index], target = stimulus.target;
-    this.record(target, true, target ? this.clock.elapsed - this.revealAt : null, { round: this.index + 1, stimulus });
+    this.record(target, true, target ? this.clock.elapsed - this.revealAt : null, { round: this.index + 1, stimulus, choiceIndex:index });
     this.feedback = target ? 'دقیقاً همون بود! آفرین.' : 'شبیهشه، ولی همون نیست. دوباره نگاه کن!'; this.feedbackKind = target ? 'good' : 'wrong';
     if (target) {
       this.found.add(index);
