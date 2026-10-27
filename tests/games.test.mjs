@@ -233,3 +233,119 @@ test('variant records remain separate and legacy standard records keep their key
   saveResult(p,normal);saveResult(p,{...normal,variant:'divided',score:30});
   assert.equal(p.games['hunt:easy'].best.score,10);assert.equal(p.games['hunt:easy:divided'].best.score,30);assert.equal(resultKey({...normal,variant:'standard'}),'hunt:easy');
 });
+
+test('traffic signs obey the go/no-go rule with exactly thirty targets',()=>{
+  for(const level of Object.keys(LEVELS)) {
+    const s=FACTORIES.traffic({level,trafficMode:'signs',random:seededRandom(7)});
+    assert.equal(s.variant,'signs');assert.equal(s.trials.filter(t=>t.target).length,30);
+    for(const t of s.trials){assert.equal(t.target,t.stimulus.shape==='oneway');assert.ok(['noentry','oneway'].includes(t.stimulus.shape));assert.ok(symbol(t.stimulus).includes('<svg'));}
+  }
+});
+test('number and toy n-back never introduce accidental matches',()=>{
+  for(const material of ['numbers','toys'])for(const level of Object.keys(LEVELS))for(let seed=0;seed<20;seed++) {
+    const s=FACTORIES.nback({level,material,random:seededRandom(seed)});
+    assert.equal(s.variant,material);assert.equal(s.trials.filter(t=>t.target).length,30);
+    for(let i=s.n;i<s.trials.length;i++)assert.equal(s.trials[i].target,s.trials[i].stimulus.shape===s.trials[i-s.n].stimulus.shape);
+    assert.ok(symbol(s.current.stimulus).includes('symbol'));
+  }
+});
+test('letter search has exactly one matching letter and mark in both layouts',()=>{
+  for(const level of Object.keys(LEVELS))for(const layout of ['grid','scattered'])for(let seed=0;seed<30;seed++) {
+    const s=FACTORIES.search({level,material:'letters',layout,random:seededRandom(seed)}),{target,choices}=s.current;
+    assert.equal(s.variant,layout==='grid'?'letters':'letters-scattered');assert.ok(target.shape.startsWith('letter-'));
+    assert.equal(choices.filter(c=>c.shape===target.shape&&c.color===target.color&&c.detail===target.detail).length,1);
+    assert.ok(symbol(target).includes('<text'));
+  }
+});
+test('five Stroop tutorial trials teach all four rules',()=>{
+  const trials=generateStroop(true,seededRandom(8));assert.equal(trials.length,5);assert.equal(trials.filter(t=>t.target).length,2);assert.deepEqual([...new Set(trials.map(t=>t.phase))],[0,1,2,3]);
+  for(const t of trials)assert.equal(t.target,isStroopTarget(t.phase,t.stimulus));
+});
+test('outcome history distinguishes omissions, errors, correct rejection and response time',()=>{
+  const t=clock(),s=new ReactionSession({gameId:'traffic',now:t.now},[true,false,true,false].map(target=>({target,phase:0,stimulus:{shape:'circle',color:target?'green':'red'}})));
+  t.advance(100);s.respond();t.advance(900);s.tick();t.advance(200);s.respond();t.advance(800);s.tick();t.advance(1000);s.tick();t.advance(1000);s.tick();
+  assert.equal(s.result.outcomes.length,4);assert.deepEqual(s.result.outcomes.map(o=>[o.target,o.response,o.correct]),[[true,true,true],[false,true,false],[true,false,false],[false,false,true]]);
+  assert.equal(s.result.outcomes[0].reactionMs,100);assert.equal(s.result.outcomes[1].reactionMs,200);assert.equal(s.result.outcomes[2].reactionMs,null);
+  assert.equal(s.result.outcomes.filter(o=>o.correct).length,s.result.correctResponses);
+  const finished=s.result.finishedAt;t.advance(10000);assert.equal(s.result.finishedAt,finished);
+});
+
+test('hunt displays multiple simultaneous distractors with exactly one target in target scenes',()=>{
+  for(const level of Object.keys(LEVELS))for(const targetCount of [1,2])for(let seed=0;seed<20;seed++) {
+    const s=FACTORIES.hunt({level,targetCount,random:seededRandom(seed)});
+    assert.equal(s.result.protocolVersion,3);assert.equal(s.trials.length,150);assert.equal(s.trials.filter(t=>t.target).length,30);
+    for(const trial of s.trials){
+      assert.equal(trial.choices.length,HUNT_SETTINGS[level].sceneItems);
+      assert.equal(trial.choices.filter(c=>c.target).length,Number(trial.target));
+      assert.equal(new Set(trial.choices.map(c=>`${c.position.x}:${c.position.y}`)).size,trial.choices.length);
+      for(const c of trial.choices)assert.equal(c.target,s.targets.some(target=>JSON.stringify(target)===JSON.stringify(c.stimulus)));
+      const size=Math.min(trial.size,360*.18),width=300,height=220;
+      for(let i=0;i<trial.choices.length;i++)for(let j=i+1;j<trial.choices.length;j++) {
+        const a=trial.choices[i].position,b=trial.choices[j].position;
+        assert.ok(Math.abs(a.x-b.x)*width/100>=size || Math.abs(a.y-b.y)*height/100>=size,'touch targets overlap');
+      }
+    }
+  }
+});
+test('clicking a hunt distractor during a target scene is one wrong selection, never a hit',()=>{
+  const {session:s,timer:t}=create('hunt');
+  while(!s.current.target){t.advance(1000);s.tick();if(s.gate)s.acknowledge();}
+  const wrong=s.current.choices.findIndex(c=>!c.target),target=s.current.choices.findIndex(c=>c.target),prior=s.metrics.correctRejects;
+  t.advance(50);assert.equal(s.respondToStimulus(s.index,wrong),false);assert.equal(s.respondToStimulus(s.index,target),null);t.advance(950);s.tick();
+  assert.equal(s.metrics.hits,0);assert.equal(s.metrics.misses,0);assert.equal(s.metrics.falseAlarms,1);
+  assert.equal(s.metrics.correctRejects,prior);assert.equal(s.result.meanReactionMs,null);
+  const outcome=s.result.outcomes.at(-1);assert.equal(outcome.target,true);assert.equal(outcome.response,true);assert.equal(outcome.correct,false);assert.equal(outcome.selectedTarget,false);
+});
+test('all hunt levels complete with direct selection of the target among distractors',()=>{
+  for(const level of Object.keys(LEVELS))for(const targetCount of [1,2]) {
+    const t=clock(),s=FACTORIES.hunt({level,targetCount,now:t.now,random:seededRandom(1)});
+    while(!s.done){if(s.gate)s.acknowledge();t.advance(50);if(s.current.target)assert.equal(s.respondToStimulus(s.index,s.current.choices.findIndex(c=>c.target)),true);t.advance(950);s.tick();}
+    assert.equal(s.result.hits,30);assert.equal(s.result.omissions,0);assert.equal(s.result.falseSelections,0);assert.equal(s.result.outcomes.length,150);
+  }
+});
+test('space always requires clearing obstacles to collect all required equipment',()=>{
+  for(const level of Object.keys(LEVELS))for(let seed=0;seed<40;seed++) {
+    const s=FACTORIES.space({level,random:seededRandom(seed)});
+    assert.equal(s.items.filter(i=>i.blocked && i.required).length,LEVELS[level].obstacles);
+    for(const item of s.items.filter(i=>i.required && !i.blocked))s.choose(item.id);
+    assert.equal(s.ready,false);assert.equal(s.depart(),false);
+    for(const item of s.items.filter(i=>i.blocked)){assert.equal(s.choose(item.id),'cleared');assert.equal(s.choose(item.id),true);}
+    assert.ok(s.depart());assert.equal(s.result.obstaclesCleared,LEVELS[level].obstacles);assert.equal(s.result.departed,true);assert.equal(s.result.inventory.length,LEVELS[level].required);
+  }
+});
+test('practice feedback explains why essential equipment is needed',()=>{
+  for(const id of ['ark','space']) {
+    const {session:s}=create(id);
+    const item=s.items.find(i=>i.required);if(item.blocked)s.choose(item.id);s.choose(item.id);
+    assert.ok(s.feedback.includes(item.name));assert.ok(s.feedback.length>item.name.length+25);
+  }
+});
+
+test('dual search creates two distinct exact targets among distractors for each level and layout',()=>{
+  for(const level of Object.keys(LEVELS))for(const material of ['shapes','letters'])for(const layout of ['grid','scattered'])for(let seed=0;seed<40;seed++) {
+    const board=generateSearch(level,seededRandom(seed),layout,material,2);assert.equal(board.targets.length,2);assert.equal(board.choices.length,LEVELS[level].items);
+    assert.equal(board.choices.filter(c=>c.target).length,2);
+    assert.notDeepEqual(board.targets[0],board.targets[1]);
+    for(const target of board.targets)assert.equal(board.choices.filter(c=>c.shape===target.shape&&c.color===target.color&&c.detail===target.detail).length,1);
+    if(level==='hard')assert.ok(board.choices.every(c=>c.shape===board.target.shape&&c.color===board.target.color));
+  }
+});
+test('dual search keeps the round active after one discovery, ignores duplicate choices and scores each target once',()=>{
+  const t=clock(),s=FACTORIES.search({targetCount:2,now:t.now,random:seededRandom(12)});
+  t.advance(2000);const targets=s.current.choices.flatMap((c,i)=>c.target?[i]:[]);
+  t.advance(150);assert.equal(s.choose(targets[0]),true);assert.equal(s.index,0);assert.equal(s.found.size,1);assert.equal(s.choose(targets[0]),null);
+  t.advance(250);assert.equal(s.choose(targets[1]),true);assert.equal(s.index,1);assert.equal(s.metrics.hits,2);assert.equal(s.result.meanReactionMs,275);assert.ok(s.preview);
+});
+test('dual search timeout records only remaining targets and pause preserves the timer and partial discoveries',()=>{
+  const t=clock(),s=FACTORIES.search({targetCount:2,now:t.now,random:seededRandom(3)});
+  t.advance(2100);s.choose(s.current.choices.findIndex(c=>c.target));s.pause();t.advance(50000);assert.equal(s.found.size,1);assert.equal(s.remainingMs,29900);
+  s.resume();t.advance(29900);s.tick();assert.equal(s.index,1);assert.equal(s.metrics.hits,1);assert.equal(s.metrics.misses,1);
+  t.advance(32000);s.tick();assert.equal(s.metrics.misses,3);
+});
+test('dual search finishes all ten rounds in every level, material and layout with separate variant records',()=>{
+  for(const level of Object.keys(LEVELS))for(const material of ['shapes','letters'])for(const layout of ['grid','scattered']) {
+    const t=clock(),s=FACTORIES.search({level,material,layout,targetCount:2,now:t.now,random:seededRandom(5)});
+    while(!s.done){t.advance(2100);const indices=s.current.choices.flatMap((c,i)=>c.target?[i]:[]);for(const i of indices)s.choose(i);}
+    assert.equal(s.result.score,20);assert.equal(s.result.maxScore,20);assert.equal(s.result.hits,20);assert.equal(s.result.outcomes.length,20);assert.equal(s.result.targetsPerRound,2);assert.ok(s.result.variant.endsWith('dual'));
+  }
+});

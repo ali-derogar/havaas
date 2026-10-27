@@ -15,24 +15,34 @@ export class ReactionSession extends Session {
   tick() {
     if (this.done || this.paused || this.gate || this.clock.elapsed - this.onset < PROTOCOL.intervalMs) return;
     const old = this.current;
-    if (old.scored !== false) this.record(old.target, !!this.response, this.response?.reactionMs ?? null, { phase: old.phase, stimulus: old.stimulus });
+    if (old.scored !== false) this.record(old.target, !!this.response, this.response?.reactionMs ?? null, { phase: old.phase, stimulus: old.stimulus, ...(this.response ? { selectedTarget: this.response.selectedTarget, selectedStimulus: this.response.selectedStimulus } : {}) });
+    if (old.scored !== false && !this.response) {
+      this.feedback = old.target ? 'هدف از دست رفت؛ در نوبت بعد با دقت نگاه کن.' : 'آفرین! به محرک غیرهدف پاسخ ندادی.';
+      this.feedbackKind = old.target ? 'wrong' : 'good';
+    }
     this.index++; this.response = null;
     if (this.index >= this.trials.length) { this.finish(); return; }
     this.onset = this.clock.elapsed;
     if (old.phase !== this.current.phase) { this.gate = true; this.clock.pause(); }
   }
-  respond() {
+  respond(selectedTarget = this.current?.target, selectedStimulus = this.current?.stimulus) {
     if (this.done || this.paused || this.gate) return null;
     // Expired input belongs to the old display, never to an unseen next trial.
     if (this.clock.elapsed - this.onset >= PROTOCOL.intervalMs) { this.tick(); return null; }
     if (this.response || this.current.scored === false) return null;
-    this.response = { reactionMs: this.clock.elapsed - this.onset };
-    this.feedback = this.current.target ? 'آفرین، درست بود!' : 'این یکی هدف نبود؛ با دقت ادامه بده.';
-    this.feedbackKind = this.current.target ? 'good' : 'wrong';
-    return this.current.target;
+    this.response = { reactionMs: this.clock.elapsed - this.onset, selectedTarget, selectedStimulus };
+    const correct = this.current.target && selectedTarget;
+    this.feedback = correct ? 'آفرین، درست بود!' : 'این یکی هدف نبود؛ با دقت ادامه بده.';
+    this.feedbackKind = correct ? 'good' : 'wrong';
+    return correct;
   }
-  respondToStimulus(index) {
+  respondToStimulus(index, choiceIndex = null) {
     if (index !== this.index || !this.visible) return null;
+    if (choiceIndex !== null) {
+      const choice = Number.isInteger(choiceIndex) ? this.current.choices?.[choiceIndex] : null;
+      if (!choice) return null;
+      return this.respond(choice.target, choice.stimulus);
+    }
     return this.respond();
   }
   resume() {

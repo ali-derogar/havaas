@@ -4,7 +4,7 @@ import { variantOf } from './clients.js';
 export function performanceOf(result) {
   const hits = result.hits || 0, misses = result.omissions || 0, wrong = result.falseSelections || 0, correct = result.correctResponses || 0;
   const count = correct + misses + wrong;
-  return { count, accuracy: count ? correct / count : 0, recall: hits + misses ? hits / (hits + misses) : 0, errorRate: count ? wrong / count : 0 };
+  return { count, accuracy: count ? correct / count : 0, recall: result.maxScore > 0 ? hits / result.maxScore : hits + misses ? hits / (hits + misses) : 0, errorRate: count ? wrong / count : 0 };
 }
 export function recommendLevel(result) {
   const levels = ['easy','medium','hard'], index = Math.max(0, levels.indexOf(result.level));
@@ -19,7 +19,7 @@ export function recommendLevel(result) {
 export function comparableRecords(records) {
   if (!records.length) return [];
   const last = records.at(-1).result;
-  return records.filter(r => r.result.gameId === last.gameId && r.result.level === last.level && variantOf(r.result) === variantOf(last) && r.kind === records.at(-1).kind);
+  return records.filter(r => r.result.gameId === last.gameId && r.result.level === last.level && variantOf(r.result) === variantOf(last) && (r.result.protocolVersion || 2) === (last.protocolVersion || 2) && r.kind === records.at(-1).kind);
 }
 export function observations(result) {
   const p = performanceOf(result), strengths = [], practice = [];

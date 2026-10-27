@@ -1,4 +1,4 @@
-import { GAME_MAP, LEVELS } from '../config.js';
+import { GAME_MAP, GAME_PROTOCOLS, LEVELS } from '../config.js';
 
 export const CLIENTS_KEY = 'havaas:clients:v1';
 const blank = () => ({ version: 1, activeId: null, profiles: [], records: [] });
@@ -19,8 +19,8 @@ export function writeClients(clients, storage) {
 export const activeProfile = clients => clients.profiles.find(p => p.id === clients.activeId) ?? null;
 export const profileRecords = (clients, id = clients.activeId) => clients.records.filter(r => r.profileId === id);
 export const variantOf = result => result.variant || 'standard';
-export function latestBaseline(clients, gameId, variant = 'standard') {
-  return profileRecords(clients).filter(r => r.kind === 'baseline' && r.result.gameId === gameId && variantOf(r.result) === variant).at(-1)?.result ?? null;
+export function latestBaseline(clients, gameId, variant = 'standard', level = null) {
+  return profileRecords(clients).filter(r => r.kind === 'baseline' && (!level || r.result.level === level) && r.result.gameId === gameId && (r.result.protocolVersion || 2) === GAME_PROTOCOLS[gameId] && variantOf(r.result) === variant).at(-1)?.result ?? null;
 }
 export function validateProfile(input, today = new Date()) {
   const profile = Object.fromEntries(['firstName','lastName','birthDate','grade','school','concerns'].map(key => [key, String(input[key] ?? '').trim()]));

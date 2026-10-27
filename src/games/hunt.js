@@ -19,6 +19,13 @@ export function createHunt(options) {
     target:isTarget, stimulus:isTarget?targetOrder[targetIndex++]:pick(nearMask[distractorIndex++]?near:far,random), phase,
     position:pick(settings.positions,random),size:settings.size,
   })));
-  const session = new ReactionSession({ ...options, gameId:'hunt', variant:targetCount===2?'divided':'standard' },trials);
+  for (const trial of trials) {
+    const positions = shuffle(settings.positions, random).slice(0, settings.sceneItems);
+    const extra = Array.from({length: settings.sceneItems - 1}, () => ({
+      stimulus: { ...pick(random() < settings.nearRatio ? near : far, random) }, target: false,
+    }));
+    trial.choices = shuffle([{ stimulus: trial.stimulus, target: trial.target }, ...extra], random).map((choice,index)=>({ ...choice, position: positions[index] }));
+  }
+  const session = new ReactionSession({ ...options, gameId:'hunt', protocolVersion:3, variant:targetCount===2?'divided':'standard' },trials);
   session.targets=targets;session.target=targets[0];session.theme=theme;session.background=settings.background;session.blockLengths=blockLengths;return session;
 }

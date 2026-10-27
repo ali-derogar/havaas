@@ -32,7 +32,7 @@ export function symbol(stimulus, cls = '') {
   const fill = COLORS[color] || color;
   if (shape === 'word') return `<span class="word-stimulus ${cls}" style="color:${fill}">${COLOR_NAMES[word]}</span>`;
   if (shape.startsWith('digit-')) return svg(`<text x="32" y="48" text-anchor="middle" font-size="48" font-weight="750" fill="${fill}">${shape.slice(6)}</text>`, '0 0 64 64', `symbol ${cls}`);
-  if (shape.startsWith('toy-')) return equipment(shape.slice(4)).replace('class="equipment"', `class="symbol ${cls}"`);
+  if (shape.startsWith('toy-')) return equipment(shape.slice(4)).replace(/class="equipment[^"]*"/, `class="symbol ${cls}"`);
   if (shape.startsWith('letter-')) {
     const mark = ['', '<path d="M40 15h9"/>', '<path d="M29 31h-9"/>', '<path d="M40 47h9"/>'][detail];
     return svg(`<text x="32" y="49" text-anchor="middle" font-family="sans-serif" font-size="47" font-weight="600" fill="${fill}">${shape.slice(7)}</text><g stroke="${fill}" stroke-width="3" stroke-linecap="round">${mark}</g>`, '0 0 64 64', `symbol ${cls}`);
