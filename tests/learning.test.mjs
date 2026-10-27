@@ -34,3 +34,20 @@ test('completing all seven baseline tasks offers a recommendation per game',()=>
   const c=clients();for(const game of GAMES)addRecord(c,baseline(game.id),'baseline');
   assert.equal(nextAssessmentGame(c),null);assert.ok(assessmentSteps(c).every(step=>step.baseline&&step.recommendation.level==='medium'));
 });
+
+test('divided hunt lessons teach both goal colours and reject marked lookalikes in every family',()=>{
+  for(const theme of ['star','shape','fish','butterfly','bird']){
+    const steps=createLesson('hunt',{theme,targetCount:2});assert.equal(steps.length,4);
+    assert.deepEqual(steps.filter(s=>s.expected).map(s=>s.stimuli[0].color),['blue','red']);
+    for(const step of steps)assert.equal(step.expected,step.stimuli[0].detail===0);
+  }
+});
+test('interactive search lessons require each exact sample and include similar wrong choices',()=>{
+  for(const material of ['shapes','letters'])for(const targetCount of [1,2])for(const step of createLesson('search',{material,targetCount})){
+    assert.equal(step.kind,'search');assert.equal(step.samples.length,targetCount);
+    const same=(a,b)=>['shape','color','detail'].every(key=>a[key]===b[key]);
+    for(const sample of step.samples)assert.equal(step.choices.filter(choice=>same(choice,sample)).length,1);
+    assert.ok(step.choices.filter(choice=>!step.samples.some(sample=>same(sample,choice))).length>=2);
+    assert.ok(step.explanation.includes(material==='letters'?'خط کوتاه':'علامت'));
+  }
+});

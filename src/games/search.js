@@ -33,20 +33,29 @@ export class SearchSession extends Session {
     this.material = options.material === 'letters' ? 'letters' : 'shapes';
     this.layout = options.layout === 'scattered' ? 'scattered' : 'grid';
     this.targetCount = options.targetCount === 2 ? 2 : 1;
-    this.reactionMeasure = 'search-onset'; this.index = 0;
+    this.reactionMeasure = 'search-onset'; this.index = 0;this.pacedRounds=options.pacedRounds===true;this.roundBreak=null;
     this.total = options.practice ? PROTOCOL.practiceTrials : PROTOCOL.searchRounds;
-    this.maxScore = this.total * this.targetCount; this.newRound();
+    this.maxScore = this.total * this.targetCount; this.roundTargets=[];this.newRound();
   }
   get score() { return this.metrics.hits; }
   get preview() { return this.clock.elapsed < this.revealAt; }
   get remainingMs() { return Math.max(0, this.deadline - this.clock.elapsed); }
   newRound() {
     this.current = generateSearch(this.level, this.random, this.layout, this.material, this.targetCount);
-    this.rejected = new Set(); this.found = new Set();
+    this.roundTargets[this.index]=this.current.targets.map(target=>({...target}));
+    this.rejected = new Set(); this.found = new Set();this.feedback='نمونهٔ تازه را به خاطر بسپار.';this.feedbackKind='';
     this.revealAt = this.clock.elapsed + PROTOCOL.previewMs;
     this.deadline = this.revealAt + LEVELS[this.level].searchSeconds * 1000;
   }
-  next() { if(this.reviewEnabled){this.beginReview({kind:'search',targets:this.current.targets,found:this.found.size,total:this.targetCount});return;}this.advanceRound(); }
+  next() {
+    if(this.reviewEnabled){this.beginReview({kind:'search',targets:this.current.targets,found:this.found.size,total:this.targetCount});return;}
+    if(this.pacedRounds&&!this.practice&&this.index+1<this.total){
+      this.roundBreak={round:this.index+1,found:this.found.size,total:this.targetCount};this.clock.pause();return;
+    }
+    this.advanceRound();
+  }
+  continueRound(){if(!this.roundBreak)return false;this.roundBreak=null;this.clock.resume();this.advanceRound();return true;}
+  resume(){if(!this.roundBreak)super.resume();}
   advanceRound(){this.index++;if(this.index>=this.total)this.finish();else this.newRound();}
   continueReview(){if(!this.review)return;this.review=null;this.clock.resume();this.advanceRound();}
   tick() {
@@ -68,5 +77,5 @@ export class SearchSession extends Session {
     } else this.rejected.add(index);
     return target;
   }
-  get result() { return { ...super.result, targetsPerRound: this.targetCount, rounds: this.total }; }
+  get result() { return { ...super.result, targetsPerRound: this.targetCount, rounds: this.total,roundFlow:!this.practice&&this.pacedRounds?'ready':'continuous' }; }
 }

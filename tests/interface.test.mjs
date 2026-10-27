@@ -9,7 +9,7 @@ import { EQUIPMENT } from '../src/games/adventure.js';
 
 const html=await readFile(new URL('../index.html',import.meta.url),'utf8');
 let iteration=0;
-async function fixture({blockedStorage=false,withProfile=true,autoReady=true,autoReview=true}={}) {
+async function fixture({blockedStorage=false,withProfile=true,autoReady=true,autoReview=true,autoRound=true}={}) {
   const {window,document}=parseHTML(html);let now=0,next=0;const queue=new Map(),values=new Map();
   if(withProfile)values.set(CLIENTS_KEY,JSON.stringify({version:1,activeId:'child-1',profiles:[{id:'child-1',firstName:'سارا',lastName:'احمدی',birthDate:'2016-01-01',grade:'پایهٔ ۳',school:'امید',concerns:''}],records:[]}));
   globalThis.fetch=mockRemote(values);
@@ -26,11 +26,12 @@ async function fixture({blockedStorage=false,withProfile=true,autoReady=true,aut
   await import(`../src/app.js?fixture=${iteration++}`);
   const click=async(action,selector='')=>{
     const el=document.querySelector(`[data-action="${action}"]${selector}`);assert.ok(el,`missing ${action}${selector}`);assert.ok(!el.hasAttribute('disabled'),`disabled ${action}`);
-    el.dispatchEvent(new window.Event('click',{bubbles:true}));await flush();await prepare();await review();return el;
+    el.dispatchEvent(new window.Event('click',{bubbles:true}));await flush();await prepare();await review();await round();return el;
   };
-  const advance=async ms=>{now+=ms;const callbacks=[...queue.values()];queue.clear();for(const fn of callbacks)fn(now);await flush();await review();};
+  const advance=async ms=>{now+=ms;const callbacks=[...queue.values()];queue.clear();for(const fn of callbacks)fn(now);await flush();await review();await round();};
   const prepare=async()=>{if(autoReady&&document.querySelector('[data-action="begin-game"]')){await click('begin-game');await advance(3000);}};
   const review=async()=>{if(autoReview&&document.querySelector('[data-action="continue-review"]'))await click('continue-review');};
+  const round=async()=>{if(autoRound&&document.querySelector('[data-action="next-round"]'))await click('next-round');};
   const register=async(firstName='سارا',lastName='احمدی')=>{const form=document.querySelector('#profile-form');for(const [name,value] of Object.entries({firstName,lastName,birthDate:'2016-01-01',grade:'پایهٔ ۳',school:'امید',concerns:''})){const el=form.querySelector(`[name="${name}"]`);if(name==='grade')Object.defineProperty(el,'value',{configurable:true,value});else el.value=value;}form.dispatchEvent(new window.Event('submit',{bubbles:true,cancelable:true}));await flush();await prepare();};
   const slowRendering=cost=>{
     const descriptor=Object.getOwnPropertyDescriptor(window.Element.prototype,'innerHTML');
@@ -299,4 +300,48 @@ test('interface: a session waits for the server and runs its authoritative setti
   await ui.click('home');assert.ok(ui.document.querySelector('.intro-layout'));release();await ui.advance(0);
   assert.ok(ui.document.querySelector('.game-preparation'));assert.ok(ui.document.querySelector('.game-preparation h2').textContent.includes('با نشانهٔ درست'));
   await ui.click('begin-game');await ui.advance(3000);assert.ok(ui.document.querySelector('#instruction').textContent.includes('یک‌طرفه'));
+});
+
+test('interface: untimed dual search teaches exact matching, retries mistakes and records nothing',async()=>{
+ const ui=await fixture();await ui.click('open','[data-game="search"]');await ui.click('material','[data-material="letters"]');await ui.click('search-mode','[data-mode="dual"]');
+ const targets=[...ui.document.querySelectorAll('.lesson-search-samples .symbol')].map(el=>el.outerHTML),choices=[...ui.document.querySelectorAll('.lesson-choice')];assert.equal(targets.length,2);
+ const correct=choices.filter(el=>targets.includes(el.querySelector('.symbol').outerHTML)),wrong=choices.find(el=>!targets.includes(el.querySelector('.symbol').outerHTML));
+ await ui.click('lesson-choice',`[data-index="${wrong.dataset.index}"]`);assert.ok(ui.document.querySelector('.lesson-feedback.wrong'));assert.equal(ui.document.querySelector('[data-action="lesson-next"]'),null);
+ await ui.click('lesson-choice',`[data-index="${correct[0].dataset.index}"]`);assert.equal(ui.document.querySelectorAll('.lesson-choice.found').length,1);assert.equal(ui.document.querySelector('[data-action="lesson-next"]'),null);
+ await ui.click('lesson-choice',`[data-index="${correct[1].dataset.index}"]`);assert.ok(ui.document.querySelector('[data-action="lesson-next"]'));await ui.click('lesson-next');assert.equal(ui.document.querySelectorAll('.lesson-choice').length,0);assert.equal(ui.document.querySelectorAll('.lesson-search-samples .symbol').length,2);
+ await ui.click('lesson-hide');assert.equal(ui.document.querySelectorAll('.lesson-search-samples .symbol').length,0);assert.equal(ui.document.querySelectorAll('.lesson-choice').length,4);await ui.click('lesson-show');assert.equal(ui.document.querySelectorAll('.lesson-search-samples .symbol').length,2);assert.equal(ui.document.querySelectorAll('.lesson-choice').length,0);
+ assert.equal(JSON.parse(ui.values.get(CLIENTS_KEY)).records.length,0);
+});
+test('interface: divided hunt correctly teaches responding to the red target',async()=>{
+ const ui=await fixture();await ui.click('open','[data-game="hunt"]');await ui.click('hunt-mode','[data-mode="divided"]');
+ await ui.click('lesson-answer','[data-response="true"]');await ui.click('lesson-next');await ui.click('lesson-answer','[data-response="false"]');await ui.click('lesson-next');
+ assert.ok(ui.document.querySelector('#lesson-box>p').textContent.includes('قرمز'));await ui.click('lesson-answer','[data-response="true"]');assert.ok(ui.document.querySelector('.lesson-feedback.good'));
+});
+test('interface: response is timed at pointer-down and a late pointer click never answers the next trial',async()=>{
+ const ui=await fixture();await ui.click('open','[data-game="traffic"]');await ui.click('practice');await finishReaction(ui,true);await ui.click('main-game');
+ assert.equal(ui.document.body.dataset.screen,'play');await ui.advance(100);
+ const pointer=new ui.window.Event('pointerdown',{bubbles:true,cancelable:true});Object.defineProperties(pointer,{button:{value:0},isPrimary:{value:true}});ui.document.querySelector('[data-action="respond"]').dispatchEvent(pointer);
+ assert.ok(ui.document.querySelector('[data-action="respond"]').disabled);await ui.advance(900);
+ const release=new ui.window.Event('click',{bubbles:true,cancelable:true});Object.defineProperty(release,'detail',{value:1});ui.document.querySelector('[data-action="respond"]').dispatchEvent(release);
+ await ui.advance(1000);await finishReaction(ui,false);
+ const result=JSON.parse(ui.values.get(CLIENTS_KEY)).records.at(-1).result;assert.equal(result.outcomes[0].reactionMs,100);assert.equal(result.outcomes[0].response,true);assert.equal(result.outcomes[1].response,false);assert.equal(ui.document.body.dataset.screen,'result');
+});
+test('interface: optional result recap uses actual n-back references after gameplay ends',async()=>{
+ const ui=await fixture();await ui.click('open','[data-game="nback"]');await ui.click('practice');await finishReaction(ui,true);
+ assert.ok(ui.document.querySelector('.result-learning'));assert.ok(ui.document.querySelector('.result-learning .memory-token.reference'));
+ const result=JSON.parse(ui.values.get(CLIENTS_KEY)).records.at(-1).result;const before=result.durationMs;await ui.advance(60000);assert.equal(JSON.parse(ui.values.get(CLIENTS_KEY)).records.at(-1).result.durationMs,before);
+});
+
+test('interface: main search waits for readiness and keeps every next sample visible for two full seconds',async()=>{
+ const ui=await fixture({autoRound:false});await ui.click('open','[data-game="search"]');await ui.click('practice');await finishSearch(ui,5);await ui.click('main-game');
+ const target=ui.document.querySelector('.preview-target .symbol').outerHTML;await ui.advance(2000);await ui.advance(150);
+ const option=[...ui.document.querySelectorAll('.search-choice')].find(el=>el.querySelector('.symbol').outerHTML===target);await ui.click('search-choice',`[data-index="${option.dataset.index}"]`);
+ assert.ok(ui.document.querySelector('.round-intermission'));assert.equal(ui.document.querySelector('.search-preview'),null);assert.equal(ui.document.querySelectorAll('.round-intermission .symbol').length,0);
+ await ui.advance(90000);assert.ok(ui.document.querySelector('.round-intermission'));await ui.click('pause');await ui.click('resume');await ui.advance(90000);assert.ok(ui.document.querySelector('.round-intermission'));
+ await ui.click('next-round');assert.equal(ui.document.querySelector('#position').textContent,'۲ از ۱۰');await ui.advance(1999);assert.ok(ui.document.querySelector('.search-preview'));await ui.advance(1);assert.ok(ui.document.querySelector('.search-grid'));
+});
+test('interface: device rotation pauses a timed reaction without recording extra responses',async()=>{
+ const ui=await fixture({autoReview:false});await ui.click('open','[data-game="traffic"]');await ui.click('practice');await ui.advance(100);
+ ui.window.dispatchEvent(new ui.window.Event('orientationchange'));assert.ok(ui.document.querySelector('#modal').open);const before=ui.document.querySelector('#time').textContent;await ui.advance(90000);assert.equal(ui.document.querySelector('#time').textContent,before);
+ await ui.click('resume');assert.equal(ui.document.querySelector('.stimulus-shell').style.visibility,'visible');await ui.advance(1000);assert.ok(ui.document.querySelector('.practice-review'));assert.equal(ui.document.querySelector('#position').textContent,'۱ از ۵');
 });

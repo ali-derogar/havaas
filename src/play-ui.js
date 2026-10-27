@@ -87,3 +87,41 @@ export function stroopStages(phase) {
 export function trafficRoad() {
   return `<svg class="traffic-road" viewBox="0 0 620 100" aria-hidden="true"><rect y="22" width="620" height="66" rx="16" fill="#dce2dc"/><path d="M20 55h580" stroke="#faf9f2" stroke-width="3" stroke-dasharray="24 18"/><g fill="#faf9f2">${[0,1,2,3,4].map(i=>`<rect x="${365+i*18}" y="25" width="10" height="60"/>`).join('')}</g><g class="road-car" stroke="#34443d" stroke-width="2"><path d="m90 43 16-18h40l20 18 13 5v25H78V51z" fill="#c8b9d5"/><path d="m110 30-10 13h53l-12-13z" fill="#eef2ef"/><circle cx="99" cy="72" r="10" fill="#506359"/><circle cx="158" cy="72" r="10" fill="#506359"/></g></svg>`;
 }
+
+export function searchTargetStatus(session) {
+  return `<div class="search-target-status" aria-label="هدف‌های پیدا‌شدهٔ این دور">${session.current.targets.map((_target,i)=>{
+    const found=[...session.found].map(index=>session.current.choices[index]).find(choice=>choice.targetIndex===i);
+    return `<span class="target-status ${found?'discovered':''}">${found?symbol(found):'<b aria-hidden="true">؟</b>'}<small>${found?'پیدا شد':`هدف ${fa(i+1)}`}</small>${found?icon('check'):''}</span>`;
+  }).join('')}</div>`;
+}
+export function searchRounds(session) {
+  return `<div class="search-rounds" aria-label="مسیر دورهای جست‌وجو">${Array.from({length:session.total},(_,i)=>{
+    const outcomes=session.outcomes.filter(o=>o.round===i+1),complete=i<session.index,success=complete&&outcomes.filter(o=>o.target&&o.response).length===session.targetCount;
+    return `<span class="${complete?success?'round-done':'round-retry':i===session.index?'round-current':''}" ${i===session.index?'aria-current="step"':''} aria-label="دور ${fa(i+1)}${complete?success?'، پیدا شد':'، فرصت بعدی':''}">${complete&&success?icon('check'):fa(i+1)}</span>`;
+  }).join('')}</div>`;
+}
+export function huntBlocks(session) {
+  return `<div class="hunt-blocks" aria-label="مدت دوره‌های توجه پیوسته">${session.blockLengths.map((length,i)=>`<span class="${i<session.current.phase?'block-done':i===session.current.phase?'block-active':''}" ${i===session.current.phase?'aria-current="step"':''}><b>${fa(length)}</b> ثانیه</span>`).join('')}</div>`;
+}
+export function learningRecap(session) {
+  const mistakes=session.outcomes.map((outcome,i)=>({outcome,i})).filter(({outcome})=>!outcome.correct);
+  if(!mistakes.length)return '';
+  const scored=session.trials?.filter(trial=>trial.scored!==false);
+  const examples=mistakes.filter((entry,i)=>session.gameId!=='search'||!mistakes.slice(0,i).some(previous=>previous.outcome.round===entry.outcome.round)).slice(0,4);
+  const cards=examples.map(({outcome,i})=>{
+    let review,index=session.index;
+    if(scored)review={kind:'reaction',trial:scored[i],outcome};
+    else if(session.gameId==='search'){
+      index=outcome.round-1;
+      review={kind:'search',targets:session.roundTargets[index],found:session.outcomes.filter(o=>o.round===outcome.round&&o.target&&o.response).length,total:session.targetCount};
+    }else review={kind:'adventure',item:session.items.find(item=>item.id===outcome.itemId),outcome};
+    return `<article class="recap-step"><span class="section-kicker">${outcome.round?`دور ${fa(outcome.round)}`:`تصمیم ${fa(i+1)}`}</span>${reviewView({...session,index,review})}</article>`;
+  });
+
+  return `<details class="result-learning"><summary>${icon('info')} با هم مرور کنیم <span>${fa(mistakes.length)} تصمیم برای تمرین</span>${icon('chevron')}</summary><div class="recap-intro">بازی پایان یافته است؛ این مرور امتیاز را تغییر نمی‌دهد. برای نوبت بعد، به این نکته‌ها توجه کن.</div><div class="recap-steps">${cards.join('')}</div>${mistakes.length>4?'<p class="recap-more">چند نمونه برای مرور نشان داده شده است. می‌توانی از راهنمای بازی، نمونه‌های بدون زمان را دوباره تمرین کنی.</p>':''}</details>`;
+}
+
+export function roundBreakView(session) {
+  const {round,found,total}=session.roundBreak,complete=found===total;
+  return `<div class="round-intermission"><span class="section-kicker">دور ${fa(round)} از ${fa(session.total)} تمام شد</span><span class="round-emblem ${complete?'complete':''}">${icon(complete?'check':'spark')}</span><h2>${complete?'هدف‌ها را پیدا کردی!':'دور بعد، یک فرصت تازه است'}</h2><p>${fa(found)} از ${fa(total)} هدف این دور پیدا شد. یک نفس تازه کن؛ هر وقت آماده‌ای، نمونهٔ دور بعد را ببین.</p>${searchRounds({...session,index:session.index+1})}<small>زمان متوقف است؛ دور بعد با درخواست تو شروع می‌شود.</small></div>`;
+}

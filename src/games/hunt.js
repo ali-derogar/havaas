@@ -27,5 +27,5 @@ export function createHunt(options) {
     trial.choices = shuffle([{ stimulus: trial.stimulus, target: trial.target }, ...extra], random).map((choice,index)=>({ ...choice, position: positions[index] }));
   }
   const session = new ReactionSession({ ...options, gameId:'hunt', protocolVersion:3, variant:targetCount===2?'divided':'standard' },trials);
-  session.targets=targets;session.target=targets[0];session.theme=theme;session.background=settings.background;session.blockLengths=blockLengths;return session;
+  session.stimulusVersion=2;session.targets=targets;session.target=targets[0];session.theme=theme;session.background=settings.background;session.blockLengths=blockLengths;return session;
 }

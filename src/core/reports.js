@@ -20,7 +20,7 @@ export const stimulusFamilyOf = result => result.gameId==='hunt' ? result.stimul
 export function comparableRecords(records, reference = records.at(-1)) {
   if (!reference) return [];
   const last = reference.result;
-  return records.filter(r => r.result.gameId === last.gameId && r.result.level === last.level && variantOf(r.result) === variantOf(last) && stimulusFamilyOf(r.result) === stimulusFamilyOf(last) && (r.result.feedbackMode||'continuous') === (last.feedbackMode||'continuous') && (r.result.stimulusVersion||1) === (last.stimulusVersion||1) && (r.result.protocolVersion || 2) === (last.protocolVersion || 2) && r.kind === reference.kind);
+  return records.filter(r => r.result.gameId === last.gameId && r.result.level === last.level && variantOf(r.result) === variantOf(last) && stimulusFamilyOf(r.result) === stimulusFamilyOf(last) && (r.result.feedbackMode||'continuous') === (last.feedbackMode||'continuous') && (r.result.roundFlow||'continuous') === (last.roundFlow||'continuous') && (r.result.stimulusVersion||1) === (last.stimulusVersion||1) && (r.result.protocolVersion || 2) === (last.protocolVersion || 2) && r.kind === reference.kind);
 }
 export function observations(result) {
   const p = performanceOf(result), strengths = [], practice = [];

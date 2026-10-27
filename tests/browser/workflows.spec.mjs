@@ -16,7 +16,7 @@ async function finishReaction(page,game){let guard=0;while(await page.locator('.
  }else await page.keyboard.press('Space');await advance(page,950);}expect(guard).toBeLessThan(180);await expect(page.locator('.local-note')).toContainText('ذخیره شد');}
 const required={ark:['آب آشامیدنی','خوراک','کمک‌های اولیه','جلیقهٔ نجات','چراغ‌قوه','قطب‌نما'],space:['اکسیژن','لباس فضایی','سوخت','کلاه فضایی','خوراک','نقشهٔ فضایی']};
 async function finishAdventure(page,game,practice=true){for(let i=0;i<60;i++){if(await page.locator('.result-card').count())break;if(await page.locator('[data-action=continue-review]').count()){await click(page,'continue-review');continue;}const items=await page.locator('.scene-object:not(.collected):not(.rejected)').evaluateAll(elements=>elements.map(el=>({index:el.dataset.index,name:el.querySelector('span').textContent,blocked:el.classList.contains('blocked')})));const blocked=items.find(i=>i.blocked),target=items.find(i=>required[game].includes(i.name));await advance(page,100);if(blocked)await click(page,'item',`[data-index="${blocked.index}"]`);else if(target)await click(page,'item',`[data-index="${target.index}"]`);else {if(!practice)await expect(page.locator('[data-action=depart]')).toBeInViewport();await click(page,practice?'reject-item':'depart');}}await expect(page.locator('.local-note')).toContainText('ذخیره شد');}
-async function finishSearch(page,rounds){for(let i=0;i<rounds;i++){await expect(page.locator('.search-preview')).toBeVisible();const targets=await page.locator('.preview-target .symbol').evaluateAll(elements=>elements.map(el=>el.outerHTML));await advance(page,2000);const indices=await page.locator('.search-choice').evaluateAll((elements,targets)=>elements.filter(el=>targets.includes(el.querySelector('.symbol').outerHTML)).map(el=>el.dataset.index),targets);for(const index of indices){await advance(page,150);if(i===0){await page.locator(`[data-action="search-choice"][data-index="${index}"]`).focus();await page.keyboard.press('Space');}else await click(page,'search-choice',`[data-index="${index}"]`);}if(await page.locator('[data-action=continue-review]').count())await click(page,'continue-review');}await expect(page.locator('.local-note')).toContainText('ذخیره شد');}
+async function finishSearch(page,rounds){for(let i=0;i<rounds;i++){if(await page.locator('[data-action=next-round]').count())await click(page,'next-round');await expect(page.locator('.search-preview')).toBeVisible();const targets=await page.locator('.preview-target .symbol').evaluateAll(elements=>elements.map(el=>el.outerHTML));await advance(page,2000);const indices=await page.locator('.search-choice').evaluateAll((elements,targets)=>elements.filter(el=>targets.includes(el.querySelector('.symbol').outerHTML)).map(el=>el.dataset.index),targets);for(const index of indices){await advance(page,150);if(i===0){await page.locator(`[data-action="search-choice"][data-index="${index}"]`).focus();await page.keyboard.press('Space');}else await click(page,'search-choice',`[data-index="${index}"]`);}if(await page.locator('[data-action=continue-review]').count())await click(page,'continue-review');}await expect(page.locator('.local-note')).toContainText('ذخیره شد');}
 async function noOverflow(page){expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);}
 
 test('administrator creates a therapist invitation and the invited account can sign in',async({page,browser})=>{
@@ -65,10 +65,36 @@ test('every main game completes and its preparation and arena fit mobile, tablet
   await click(page,'home');await click(page,'open',`[data-game="${game}"]`);
   await page.locator('[data-action="main-game"]').first().click();await expect(page.locator('.game-preparation')).toBeVisible();
   for(const width of [360,768,1440]){await page.setViewportSize({width,height:900});await noOverflow(page);await page.screenshot({path:`.local/verification/game-${game}-ready-${width}.png`,fullPage:true});}
-  await page.setViewportSize({width:360,height:900});await click(page,'begin-game');await advance(page,3000);
+  await page.setViewportSize({width:360,height:780});await expect(page.locator('.site-header')).toBeHidden();await click(page,'begin-game');await advance(page,3000);
   for(const width of [360,768,1440]){await page.setViewportSize({width,height:900});await noOverflow(page);await page.screenshot({path:`.local/verification/game-${game}-play-${width}.png`,fullPage:true});}
-  await page.setViewportSize({width:360,height:900});
+  await page.setViewportSize({width:360,height:780});if(!required[game]&&game!=='search')await expect(page.locator('.response-button')).toBeInViewport();
   if(required[game])await finishAdventure(page,game,false);else if(game==='search')await finishSearch(page,10);else await finishReaction(page,game);
-  await expect(page.locator('.result-card')).toBeVisible();await noOverflow(page);
+  await expect(page.locator('.result-card')).toBeVisible();await expect(page.locator('.site-header')).toBeVisible();await noOverflow(page);
+  if(await page.locator('.result-learning').count()){await page.locator('.result-learning>summary').click();await expect(page.locator('.recap-step').first()).toBeVisible();await noOverflow(page);}
+  if(required[game]){await expect(page.locator('.mission-outcome-art.departed')).toBeVisible();await page.emulateMedia({reducedMotion:'reduce'});expect(await page.locator('.outcome-vehicle').evaluate(el=>getComputedStyle(el).animationName)).toBe('none');await page.emulateMedia({reducedMotion:'no-preference'});}
+  await page.screenshot({path:`.local/verification/game-${game}-result-360.png`,fullPage:true,animations:'disabled'});
  }
+});
+
+
+test('interactive search lessons work by keyboard, allow retry, and finish without recording a game',async({page})=>{
+ await clock(page);await login(page);await click(page,'open','[data-game="search"]');await click(page,'search-mode','[data-mode="dual"]');await click(page,'material','[data-material="letters"]');
+ const indices=await page.locator('#lesson-box').evaluate(box=>{const targets=[...box.querySelectorAll('.lesson-search-samples .symbol')].map(el=>el.outerHTML);return [...box.querySelectorAll('.lesson-choice')].map(el=>({index:el.dataset.index,correct:targets.includes(el.querySelector('.symbol').outerHTML)}));});
+ await click(page,'lesson-choice',`[data-index="${indices.find(i=>!i.correct).index}"]`);await expect(page.locator('.lesson-feedback.wrong')).toBeVisible();
+ for(const target of indices.filter(i=>i.correct)){await page.locator(`[data-action=lesson-choice][data-index="${target.index}"]`).focus();await page.keyboard.press('Space');}
+ await expect(page.locator('.lesson-choice.found')).toHaveCount(2);await expect(page.locator('[data-action=lesson-next]')).toBeVisible();await click(page,'lesson-next');await expect(page.locator('.lesson-choice')).toHaveCount(0);await click(page,'lesson-hide');await expect(page.locator('.lesson-search-samples .symbol')).toHaveCount(0);await expect(page.locator('.lesson-choice')).toHaveCount(4);
+ await page.setViewportSize({width:360,height:780});await noOverflow(page);await page.locator('#lesson-box').screenshot({path:'.local/verification/search-interactive-lesson-360.png'});
+});
+
+test.describe('touch gameplay',()=>{
+ test.use({hasTouch:true,viewport:{width:360,height:780}});
+ test('a real touch on the response button records one onset response and leaves the next trial unanswered',async({page})=>{
+  const {playSession}=await import('../helpers/play-session.mjs');await clock(page);await login(page,'parent');
+  const {csrfToken}=await (await page.request.get('/api/auth/session')).json(),headers={'X-CSRF-Token':csrfToken};
+  const run=await (await page.request.post(`/api/children/${seed.children[0].id}/sessions`,{headers,data:{gameId:'traffic',kind:'baseline'}})).json();expect((await page.request.post(`/api/children/${seed.children[0].id}/sessions/${run.id}/complete`,{headers,data:{result:playSession(run)}})).ok()).toBe(true);
+  await click(page,'open','[data-game="traffic"]');await click(page,'main-game');let submitted;
+  page.on('request',request=>{if(request.url().endsWith('/complete'))submitted=request.postDataJSON().result;});
+  const button=page.locator('.response-button');await expect(button).toBeInViewport();await advance(page,100);const bounds=await button.boundingBox();await page.touchscreen.tap(bounds.x+bounds.width/2,bounds.y+bounds.height/2);await expect(button).toBeDisabled();
+  await advance(page,900);await advance(page,1000);await finishReaction(page,'traffic');expect(submitted.outcomes[0].reactionMs).toBe(100);expect(submitted.outcomes[0].response).toBe(true);expect(submitted.outcomes[1].response).toBe(false);expect(submitted.outcomes).toHaveLength(150);
+ });
 });

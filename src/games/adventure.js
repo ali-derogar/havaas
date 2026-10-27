@@ -26,7 +26,7 @@ export const MISSIONS = {
 export const DISTRACTORS = [['ball', 'توپ'], ['guitar', 'گیتار'], ['plant', 'گلدان'], ['notebook', 'دفتر نقاشی'], ['teddy', 'خرس عروسکی'], ['television', 'تلویزیون'], ['kite', 'بادبادک'], ['painting', 'تابلو'], ['chair', 'صندلی'], ['clock', 'ساعت دیواری'], ['skate', 'اسکیت'], ['duck', 'اردک اسباب‌بازی'], ['crown', 'تاج'], ['gift', 'جعبهٔ کادو'], ['lamp', 'آباژور'], ['gamepad', 'دستهٔ بازی'], ['vase', 'گلدان تزئینی'], ['racket', 'راکت']];
 export class AdventureSession extends Session {
   constructor(options) {
-    super(options); const settings = LEVELS[this.level];
+    super(options);this.stimulusVersion=2; const settings = LEVELS[this.level];
     this.mission = {...MISSIONS[this.gameId],story:JOURNEYS[this.gameId][this.level]}; this.clearedObstacles = 0; this.events = [];
     this.decisionOnset=0;this.reactionMeasure='decision-interval';
     this.required = EQUIPMENT[this.gameId].slice(0, this.practice ? 3 : settings.required);

@@ -78,7 +78,7 @@ test('canonical results derive guidance and stimulus revision from the authorita
   for(const gameId of ['hunt','ark','space','traffic','search','nback','stroop']){
     const run={id:'run-guided',kind:'baseline',settings:{gameId,level:'easy',seed:42,reviewEnabled:true,protocolVersion:gameId==='hunt'?3:2,material:gameId==='search'?'letters':'shapes',targetCount:1}};
     const payload=playSession(run);payload.feedbackMode='continuous';payload.stimulusVersion=999;
-    const result=canonicalResult(run,payload);assert.equal(result.feedbackMode,'guided');assert.equal(result.stimulusVersion,gameId==='search'?2:1);assert.equal(result.correctResponses,5);
+    const result=canonicalResult(run,payload);assert.equal(result.feedbackMode,'guided');assert.equal(result.stimulusVersion,['search','hunt','ark','space'].includes(gameId)?2:1);assert.equal(result.correctResponses,5);
   }
 });
 
