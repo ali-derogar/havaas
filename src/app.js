@@ -36,9 +36,10 @@ const describe = describeStimulus;
 let route = 'home', selectedGame = 'hunt', selectedLevel = 'easy', selectedTheme = 'star', selectedHuntMode = 'standard', selectedLayout = 'grid', selectedSearchMode = 'single', selectedTrafficMode = 'circles', selectedMaterial = 'shapes', filter = 'all';
 let engine = null, frame = 0, arenaKey = '', modalKind = '', audioContext;
 let playPhase='ready', preparationClock=null, reactionPointerInput=false, loadedWorld=null;
+const guestScreen=()=>['registration','invitation','connecting','connection-error'].includes(route);
 
 function header() {
- if(publicReportData||!currentUser||route==='registration')return `<header class="site-header"><div class="header-inner"><span class="brand">${logo()} حواس</span><span>${publicReportData?'گزارش خانواده':'همراه رشد و توجه'}</span></div></header>`;
+ if(publicReportData||!currentUser||guestScreen())return `<header class="site-header"><div class="header-inner"><span class="brand">${logo()} حواس</span><span>${publicReportData?'گزارش خانواده':'همراه رشد و توجه'}</span></div></header>`;
  if(currentUser.passwordChangeRequired)return `<header class="site-header"><div class="header-inner"><span class="brand">${logo()} حواس</span><button class="text-button" data-action="logout">خروج</button></div></header>`;
  if(currentUser.role==='admin')return adminShell(currentUser,route==='admin'?'overview':route==='invitations'?'invitations':route==='account'?'settings':'users');
  const nav=[['home','home','خانه'],['games','grid','بازی‌ها'],['dashboard','activity','پیشرفت من'],['account','user','حساب']];
@@ -50,7 +51,7 @@ function page(content, className = '') {
   if(launchAttempt){launchAttempt=null;starting=false;}
   cancelAnimationFrame(frame);
   document.body.dataset.screen=route;reactionPointerInput=false;
-  document.body.dataset.panel=currentUser?.role==='admin'&&!publicReportData&&route!=='registration'&&!currentUser.passwordChangeRequired?'admin':currentUser&&!publicReportData&&route!=='registration'?'client':'guest';
+  document.body.dataset.panel=currentUser?.role==='admin'&&!publicReportData&&!guestScreen()&&!currentUser.passwordChangeRequired?'admin':currentUser&&!publicReportData&&!guestScreen()?'client':'guest';
   document.body.classList.remove('admin-menu-open');
   app.innerHTML = `${header()}<main id="main" class="${className}" tabindex="-1">${content}</main>${footer()}`;
   syncSidebarAccess();
@@ -433,14 +434,14 @@ async function processForm(form){
     currentUser=auth.user;
     if(pendingSave){if(modal.open)modal.close();return persistPending();}
     if(inviteToken){inviteInfo=await request('/invitations/inspect',{method:'POST',body:{token:inviteToken}});return showLogin(inviteInfo);}
-    if(currentUser.passwordChangeRequired)return forcedPassword();if(currentUser.role!=='admin')await refreshClients();return home();
+    return openSignedInHome(auth);
   }
   if(form.id==='accept-form'){
-    const auth=await request('/invitations/accept',{method:'POST',body:{...values,token:inviteToken}});currentUser=auth.user;inviteToken=null;inviteInfo=null;history.replaceState?.({},'',location.pathname);if(currentUser.passwordChangeRequired)return forcedPassword();if(currentUser.role!=='admin')await refreshClients();return home();
+    const auth=await request('/invitations/accept',{method:'POST',body:{...values,token:inviteToken}});history.replaceState?.({},'',location.pathname);return openSignedInHome(auth);
   }
-  if(form.id==='password-form'){const wasForced=currentUser.passwordChangeRequired;const data=await request('/auth/change-password',{method:'POST',body:values});currentUser=data.user;form.reset?.();if(wasForced){if(currentUser.role!=='admin')await refreshClients();await home();}return notify('رمز تغییر کرد؛ نشست‌های دیگر نیاز به ورود دوباره دارند.');}
+  if(form.id==='password-form'){const wasForced=currentUser.passwordChangeRequired;const data=await request('/auth/change-password',{method:'POST',body:values});currentUser=data.user;form.reset?.();if(wasForced)return openSignedInHome(data);return notify('رمز تغییر کرد؛ نشست‌های دیگر نیاز به ورود دوباره دارند.');}
   if(form.id==='registration-form'){
-    const auth=await request('/public/registration/complete',{method:'POST',body:{token:registrationToken,username:values.username,password:values.password,email:values.email,profile:values}});currentUser=auth.user;registrationToken=null;publicReportData=null;history.replaceState?.({},'',location.pathname);await refreshClients();return home();
+    const auth=await request('/public/registration/complete',{method:'POST',body:{token:registrationToken,username:values.username,password:values.password,email:values.email,profile:values}});history.replaceState?.({},'',location.pathname);return openSignedInHome(auth);
   }
   if(form.id==='registration-link-form'){const data=await request('/registration-links',{method:'POST',body:values});if(form.isConnected)return showInvitation(data);return;}
   if(form.id==='user-filter-form'){Object.assign(adminState,values,{page:1});return adminUsers();}
@@ -610,12 +611,28 @@ async function refreshClients(view=null){
  currentUser=data.user;Object.assign(clients,data);return true;
 }
 function showLogin(invite=null){
-  route='auth';engine=null;cancelAnimationFrame(frame);if(modal.open)modal.close();
+  route=invite?'invitation':'auth';engine=null;cancelAnimationFrame(frame);if(modal.open)modal.close();
   page(loginView({invite}), 'auth-main');
 }
+function clearPrivateData(){
+ members=[];inspectedUserId=null;publicReportData=null;previewImport=null;importAttempt=null;remoteRun=null;
+ pendingStart=null;guideState=null;lessonState=null;editingProfile=null;sessionRecordId=null;engine=null;launchAttempt=null;starting=false;userTab='overview';
+ Object.assign(clients,{activeId:null,profiles:[],records:[],difficulties:[]});Object.assign(reportState,{tab:'admin',game:'',level:'',variant:'',kind:'training',recordId:null});
+}
+function connectionError(error){
+ route='connection-error';engine=null;if(modal.open)modal.close();document.title='تلاش دوباره برای اتصال — حواس';
+ page(`<section class="surface empty-state"><h1>ارتباط با مرکز برقرار نشد</h1><p>${esc(error.message||'دریافت اطلاعات حساب ممکن نشد.')}</p><p>پس از برقراری ارتباط، بدون تکرار ثبت‌نام یا تعیین رمز ادامه دهید.</p><button class="button primary" data-action="retry-connect">تلاش دوباره</button></section>`,'auth-main');
+}
+async function openSignedInHome(auth){
+ currentUser=auth.user;clearPrivateData();inviteToken=null;inviteInfo=null;registrationToken=null;
+ if(currentUser.passwordChangeRequired)return forcedPassword();
+ route='connecting';document.title='ورود به حواس';page('<section class="surface empty-state"><h1>در حال دریافت اطلاعات حساب…</h1></section>','auth-main');
+ if(currentUser.role==='admin')return adminPanel();
+ const view={version:viewVersion,userId:currentUser.id,role:currentUser.role};
+ try{if(await refreshClients(view))return home();}catch(error){if(currentView(view))showError(error);}
+}
 async function prepareLogin(message=''){
- currentUser=null;members=[];inspectedUserId=null;publicReportData=null;inviteToken=null;inviteInfo=null;previewImport=null;importAttempt=null;remoteRun=null;
- Object.assign(clients,{activeId:null,profiles:[],records:[],difficulties:[]});api.csrfToken=null;showLogin();
+ currentUser=null;clearPrivateData();inviteToken=null;inviteInfo=null;registrationToken=null;api.csrfToken=null;showLogin();
  const form=document.querySelector('#login-form');form.querySelector('#account-error').textContent=message;
  form.dataset.waiting='true';form.querySelectorAll('input,button').forEach(control=>control.disabled=true);
  try{await request('/auth/session');}finally{delete form.dataset.waiting;form.querySelectorAll('input,button').forEach(control=>control.disabled=false);}
@@ -626,7 +643,10 @@ function publicReportMessage(title,message,retry=false){
 }
 async function navigate(){
  const id=location.hash.slice(1),shared=id.match(/^report\/([a-f0-9]{64})$/);
+ if(id.startsWith('invite/'))return showAccountInvitation(id.slice(7));
+ inviteToken=null;inviteInfo=null;
  if(id.startsWith('register/'))return showRegistration(id.slice(9));
+ registrationToken=null;
  if(id.startsWith('report/')){
   publicReportMessage('در حال دریافت گزارش','لطفاً کمی صبر کنید.');
   if(!shared)throw Error('لینک گزارش معتبر نیست؛ لینک کامل را از فرستنده دریافت کنید.');
@@ -635,17 +655,16 @@ async function navigate(){
  publicReportData=null;
  if(!currentUser)return showLogin();if(currentUser.passwordChangeRequired)return forcedPassword();
  if(currentUser.role==='admin'){const member=id.match(/^admin\/users?\/([a-f0-9-]{36})$/);if(member)return inspectUser(member[1]);if(['profiles','admin/users'].includes(id))return adminUsers();if(id==='admin/invitations')return adminInvitations();if(['account','admin/settings'].includes(id))return account();if(id==='report-links')return reportLinks();if(id==='reports')return dashboard();return adminPanel();}
+ if(!clients.activeId){const view=beginView();if(!await refreshClients(view))return;}
  inspectedUserId=null;
  if(id==='assessment')return assessment();if(id==='reports')return dashboard();if(id==='account')return account();if(id==='report-links')return reportLinks();if(GAME_MAP[id])return detail(id,false);return home();
 }
 async function initialize(){
- try {const auth=await request('/auth/session');currentUser=auth.user;
-  if(location.hash.startsWith('#register/'))return await showRegistration(location.hash.slice(10));
-  const match=location.hash.match(/^#invite\/([a-f0-9]{64})$/);if(match)inviteToken=match[1];
-  if(inviteToken){inviteInfo=await request('/invitations/inspect',{method:'POST',body:{token:inviteToken}});return showLogin(inviteInfo);}
+ try {const auth=await request('/auth/session');if(currentUser?.id!==auth.user?.id||currentUser?.role!==auth.user?.role)clearPrivateData();currentUser=auth.user;
+  if(/^#(?:register|invite)\//.test(location.hash))return await navigate();
   if(currentUser?.role==='user'&&!currentUser.passwordChangeRequired&&!location.hash.startsWith('#report/'))await refreshClients();
   return await navigate();
- }catch(error){if(location.hash.startsWith('#report/'))return publicReportMessage('گزارش در دسترس نیست',error.message,true);page(`<section class="surface empty-state"><h1>ارتباط با مرکز برقرار نشد</h1><p>${esc(error.message)}</p><button class="button primary" data-action="retry-connect">تلاش دوباره</button></section>`,'auth-main');}
+ }catch(error){if(location.hash.startsWith('#report/'))return publicReportMessage('گزارش در دسترس نیست',error.message,true);connectionError(error);}
 }
 function notify(message){
   let node=document.querySelector('#account-status')||document.querySelector('#app-status');
@@ -657,6 +676,7 @@ function showError(error){
   if(location.hash.startsWith('#report/'))return publicReportMessage('گزارش در دسترس نیست',error.message,true);
   if(error.code==='PASSWORD_CHANGE_REQUIRED'&&currentUser){currentUser.passwordChangeRequired=true;return forcedPassword();}
   if(error.status===401&&!pendingSave&&currentUser){void prepareLogin(error.message).catch(showError);return;}
+  if(['connecting','connection-error'].includes(route))return connectionError(error);
   const node=(modal.open?modal.querySelector('#account-error')||modal.querySelector('#profile-error'):null)||document.querySelector('#account-error')||document.querySelector('#profile-error');
   if(node)node.textContent=error.message||'عملیات انجام نشد.';else notify(error.message||'عملیات انجام نشد.');
 }
@@ -707,6 +727,11 @@ function toggleAdminMenu(force){
 }
 function syncSidebarAccess(){const sidebar=document.querySelector('.admin-sidebar');if(sidebar){const small=matchMedia('(max-width:1023px)').matches;if(!small){document.body.classList.remove('admin-menu-open');document.querySelector('.sidebar-shade')?.setAttribute('hidden','');document.querySelector('.menu-toggle')?.setAttribute('aria-expanded','false');}const hidden=small&&!document.body.classList.contains('admin-menu-open');sidebar.inert=hidden;sidebar.setAttribute('aria-hidden',String(hidden));}}
 window.addEventListener('resize',syncSidebarAccess);
+async function showAccountInvitation(raw){
+ inviteToken=raw;inviteInfo=null;registrationToken=null;publicReportData=null;route='invitation';engine=null;if(modal.open)modal.close();document.title='پذیرش دعوت — حواس';page('<section class="surface empty-state"><h1>در حال بررسی لینک…</h1></section>','auth-main');const view=beginView();
+ try{if(!/^[a-f0-9]{64}$/.test(raw))throw Error('لینک دعوت یا بازیابی کامل نیست.');const data=await viewRequest(view,'/invitations/inspect',{method:'POST',body:{token:raw}});if(!currentView(view))return;inviteInfo=data;showLogin(data);}
+ catch(error){if(currentView(view))page(`<section class="surface empty-state"><h1>دعوت در دسترس نیست</h1><p>${esc(error.message)}</p><p>لینک کامل یا یک لینک تازه از ادمین دریافت کنید.</p></section>`,'auth-main');}
+}
 async function showRegistration(raw){
  registrationToken=raw;publicReportData=null;route='registration';engine=null;if(modal.open)modal.close();document.title='ثبت‌نام در حواس';page('<section class="surface dashboard-empty"><h1>در حال بررسی دعوت…</h1></section>','auth-main');const view=beginView();
  try{if(!/^[a-f0-9]{64}$/.test(raw))throw Error('لینک ثبت‌نام معتبر نیست.');await viewRequest(view,'/public/registration/inspect',{method:'POST',body:{token:raw}});if(currentView(view))page(registrationView(),'auth-main registration-main');}
