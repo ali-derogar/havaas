@@ -433,23 +433,24 @@ async function processForm(form){
     currentUser=auth.user;
     if(pendingSave){if(modal.open)modal.close();return persistPending();}
     if(inviteToken){inviteInfo=await request('/invitations/inspect',{method:'POST',body:{token:inviteToken}});return showLogin(inviteInfo);}
-    if(currentUser.passwordChangeRequired)return forcedPassword();await refreshClients();return home();
+    if(currentUser.passwordChangeRequired)return forcedPassword();if(currentUser.role!=='admin')await refreshClients();return home();
   }
   if(form.id==='accept-form'){
-    const auth=await request('/invitations/accept',{method:'POST',body:{...values,token:inviteToken}});currentUser=auth.user;inviteToken=null;inviteInfo=null;history.replaceState?.({},'',location.pathname);if(currentUser.passwordChangeRequired)return forcedPassword();await refreshClients();return home();
+    const auth=await request('/invitations/accept',{method:'POST',body:{...values,token:inviteToken}});currentUser=auth.user;inviteToken=null;inviteInfo=null;history.replaceState?.({},'',location.pathname);if(currentUser.passwordChangeRequired)return forcedPassword();if(currentUser.role!=='admin')await refreshClients();return home();
   }
-  if(form.id==='password-form'){const wasForced=currentUser.passwordChangeRequired;const data=await request('/auth/change-password',{method:'POST',body:values});currentUser=data.user;form.reset?.();if(wasForced){await refreshClients();await home();}return notify('رمز تغییر کرد؛ نشست‌های دیگر نیاز به ورود دوباره دارند.');}
+  if(form.id==='password-form'){const wasForced=currentUser.passwordChangeRequired;const data=await request('/auth/change-password',{method:'POST',body:values});currentUser=data.user;form.reset?.();if(wasForced){if(currentUser.role!=='admin')await refreshClients();await home();}return notify('رمز تغییر کرد؛ نشست‌های دیگر نیاز به ورود دوباره دارند.');}
   if(form.id==='registration-form'){
     const auth=await request('/public/registration/complete',{method:'POST',body:{token:registrationToken,username:values.username,password:values.password,email:values.email,profile:values}});currentUser=auth.user;registrationToken=null;publicReportData=null;history.replaceState?.({},'',location.pathname);await refreshClients();return home();
   }
-  if(form.id==='registration-link-form'){const data=await request('/registration-links',{method:'POST',body:values});return showInvitation(data);}
+  if(form.id==='registration-link-form'){const data=await request('/registration-links',{method:'POST',body:values});if(form.isConnected)return showInvitation(data);return;}
   if(form.id==='user-filter-form'){Object.assign(adminState,values,{page:1});return adminUsers();}
   if(form.id==='create-user-form'){
     const data=await request('/users',{method:'POST',body:{...values,profile:values}});
+    if(!form.isConnected)return;
     if(form.dataset.importSource&&previewImport){const source=form.dataset.importSource;const choices=new Map([...document.querySelectorAll('.import-mapping')].map(row=>[row.dataset.source,row.querySelector('[name=targetId]').value]));previewImport.profiles.forEach(p=>p.targetId=p.sourceId===source?data.profile.id:choices.get(p.sourceId)||p.targetId);await refreshClients();if(modal.open)modal.close();const target=document.querySelector('#import-preview');if(target)target.innerHTML=importPreviewView(previewImport,clients.profiles);return notify('کاربر ساخته شد؛ انتقال سوابق را تأیید کنید.');}
     if(modal.open)modal.close();await adminUsers();if(data.url){openModal('<h2 id="modal-title">دعوت ادمین</h2><div id="invitation-result"></div><button class="button subtle" data-action="close-modal">بستن</button>','invitation');showInvitation(data);}return notify('کاربر با موفقیت ساخته شد.');
   }
-  if(form.id==='edit-user-form'){const body={username:values.username,...(form.dataset.role==='user'?{profile:values}:{name:values.name})};const data=await request(`/users/${form.dataset.user}`,{method:'PATCH',body});if(data.user.id===currentUser.id)currentUser=data.user;await inspectUser(data.user.id);return notify('اطلاعات کاربر ذخیره شد.');}
+  if(form.id==='edit-user-form'){const body={username:values.username,...(form.dataset.role==='user'?{profile:values}:{name:values.name})};const data=await request(`/users/${form.dataset.user}`,{method:'PATCH',body});if(data.user.id===currentUser.id)currentUser=data.user;if(!form.isConnected)return;await inspectUser(data.user.id);return notify('اطلاعات کاربر ذخیره شد.');}
   if(form.id==='report-link-form'){const childId=clients.activeId,version=viewVersion;const data=await request(`/children/${childId}/report-links`,{method:'POST',body:values});if(version!==viewVersion||childId!==clients.activeId)return;await reportLinks();if(route==='report-links'&&childId===clients.activeId)return showInvitation(data);return;}
   if(form.id==='admin-difficulty-form'){await request(`/children/${clients.activeId}/difficulty`,{method:'PATCH',body:{...policyOptions(values.gameId,values.variant),mode:values.mode,level:values.level}});await refreshClients();syncPolicyControls(false);return notify('تنظیم سطح برای جلسهٔ بعد ذخیره شد.');}
   if(form.id==='invitation-form'){const data=await request('/invitations',{method:'POST',body:values});return showInvitation(data);}
@@ -642,7 +643,7 @@ async function initialize(){
   if(location.hash.startsWith('#register/'))return await showRegistration(location.hash.slice(10));
   const match=location.hash.match(/^#invite\/([a-f0-9]{64})$/);if(match)inviteToken=match[1];
   if(inviteToken){inviteInfo=await request('/invitations/inspect',{method:'POST',body:{token:inviteToken}});return showLogin(inviteInfo);}
-  if(currentUser&&!currentUser.passwordChangeRequired&&!location.hash.startsWith('#report/'))await refreshClients();
+  if(currentUser?.role==='user'&&!currentUser.passwordChangeRequired&&!location.hash.startsWith('#report/'))await refreshClients();
   return await navigate();
  }catch(error){if(location.hash.startsWith('#report/'))return publicReportMessage('گزارش در دسترس نیست',error.message,true);page(`<section class="surface empty-state"><h1>ارتباط با مرکز برقرار نشد</h1><p>${esc(error.message)}</p><button class="button primary" data-action="retry-connect">تلاش دوباره</button></section>`,'auth-main');}
 }
@@ -704,7 +705,7 @@ function toggleAdminMenu(force){
  const open=force??!document.body.classList.contains('admin-menu-open');document.body.classList.toggle('admin-menu-open',open);document.querySelector('.menu-toggle')?.setAttribute('aria-expanded',String(open));const shade=document.querySelector('.sidebar-shade');if(shade)shade.hidden=!open;
  syncSidebarAccess();if(open)document.querySelector('.admin-sidebar .sidebar-link')?.focus();else document.querySelector('.menu-toggle')?.focus();
 }
-function syncSidebarAccess(){const sidebar=document.querySelector('.admin-sidebar');if(sidebar){const hidden=matchMedia('(max-width:1023px)').matches&&!document.body.classList.contains('admin-menu-open');sidebar.inert=hidden;sidebar.setAttribute('aria-hidden',String(hidden));}}
+function syncSidebarAccess(){const sidebar=document.querySelector('.admin-sidebar');if(sidebar){const small=matchMedia('(max-width:1023px)').matches;if(!small){document.body.classList.remove('admin-menu-open');document.querySelector('.sidebar-shade')?.setAttribute('hidden','');document.querySelector('.menu-toggle')?.setAttribute('aria-expanded','false');}const hidden=small&&!document.body.classList.contains('admin-menu-open');sidebar.inert=hidden;sidebar.setAttribute('aria-hidden',String(hidden));}}
 window.addEventListener('resize',syncSidebarAccess);
 async function showRegistration(raw){
  registrationToken=raw;publicReportData=null;route='registration';engine=null;if(modal.open)modal.close();document.title='ثبت‌نام در حواس';page('<section class="surface dashboard-empty"><h1>در حال بررسی دعوت…</h1></section>','auth-main');const view=beginView();
