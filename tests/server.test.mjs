@@ -273,3 +273,43 @@ apiTest('server: mixed explicit and omitted standard variants seed difficulty fr
  const saved=(await db.pool.query('SELECT result,finished_at FROM game_sessions WHERE child_id=$1 AND legacy_id=$2',[id,'latest-no-variant'])).rows[0];assert.equal(saved.result.finishedAt,latest.finishedAt);assert.equal(saved.finished_at.toISOString(),'2026-01-02T12:00:00.000Z');assert.equal((await db.pool.query('SELECT created_at FROM children WHERE id=$1',[id])).rows[0].created_at.toISOString(),'2025-12-01T08:30:00.000Z');
  const reordered={...document,profile:Object.fromEntries(Object.entries(profile).reverse())};const again=await admin.call('/imports/preview',{method:'POST',body:{document:reordered}});assert.equal(again.data.profiles[0].targetId,id);const repeat=await admin.call('/imports/commit',{method:'POST',body:{previewId:again.data.id,mapping:[{sourceId:profile.id,targetId:id}]}});assert.equal(repeat.status,200);assert.equal(repeat.data.createdProfiles,0);assert.equal(repeat.data.importedRecords,0);
 });
+
+apiTest('server: registration links create an active user atomically, hide tokens, and reject elevated roles',async()=>{
+ user=await new Client().login(seed.users.user,'A-brand-new-password-2026!');
+ assert.equal((await user.call('/registration-links',{method:'POST',body:{label:'forbidden'}})).status,403);
+ const issued=await admin.call('/registration-links',{method:'POST',body:{label:'ثبت‌نام آزمون'}});assert.equal(issued.status,201);const raw=issued.data.url.split('/').at(-1),guest=new Client();await guest.call('/auth/session');
+ assert.equal((await guest.call('/public/registration/inspect',{method:'POST',body:{token:raw}})).status,200);
+ const profile={firstName:'ثبت‌نام',lastName:'جدید',birthDate:'2016-01-01',grade:'پایهٔ ۳',school:'امید',concerns:'injected-note'},body={token:raw,username:'self-registered',password:testPassword,profile};
+ assert.equal((await guest.call('/public/registration/complete',{method:'POST',body:{...body,role:'admin'}})).status,400);
+ const accepted=await guest.call('/public/registration/complete',{method:'POST',body});assert.equal(accepted.status,201);assert.equal(accepted.data.user.role,'user');assert.equal(accepted.data.user.passwordChangeRequired,false);assert.equal(accepted.data.user.name,'ثبت‌نام جدید');
+ const own=(await guest.call('/bootstrap')).data;assert.equal(own.profiles.length,1);assert.equal(own.profiles[0].concerns,undefined);assert.ok(!JSON.stringify(own).includes('injected-note'));assert.equal((await guest.call('/public/registration/complete',{method:'POST',body})).status,404);
+ const links=await admin.call('/registration-links'),link=links.data.links.find(l=>l.id===issued.data.id);assert.equal(link.status,'used');assert.equal(link.userId,accepted.data.user.id);assert.ok(!JSON.stringify(links.data).includes(raw));
+});
+
+apiTest('server: registration failures preserve the invitation and simultaneous acceptance creates exactly one account',async()=>{
+ const issued=await admin.call('/registration-links',{method:'POST',body:{label:'race'}}),raw=issued.data.url.split('/').at(-1),a=new Client(),b=new Client();await a.call('/auth/session');await b.call('/auth/session');
+ const body={token:raw,username:seed.users.user.username,password:testPassword,profile:{firstName:'رقابت',lastName:'ثبت‌نام',birthDate:'2016-01-01',grade:'پایهٔ ۳',school:'امید'}};
+ assert.equal((await a.call('/public/registration/complete',{method:'POST',body})).status,409);assert.equal((await a.call('/public/registration/complete',{method:'POST',body:{...body,username:'bad-profile',profile:{}}})).status,400);
+ const before=Number((await db.pool.query('SELECT count(*) FROM users')).rows[0].count),responses=await Promise.all([a.call('/public/registration/complete',{method:'POST',body:{...body,username:'registration-race-a'}}),b.call('/public/registration/complete',{method:'POST',body:{...body,username:'registration-race-b'}})]);
+ assert.deepEqual(responses.map(r=>r.status).sort(),[201,404]);assert.equal(Number((await db.pool.query('SELECT count(*) FROM users')).rows[0].count),before+1);
+ for(const expired of [false,true]){const link=await admin.call('/registration-links',{method:'POST',body:{label:'invalid'}});if(expired)await db.pool.query("UPDATE registration_links SET expires_at=now()-interval '1 second' WHERE id=$1",[link.data.id]);else assert.equal((await admin.call(`/registration-links/${link.data.id}`,{method:'DELETE'})).status,200);assert.equal((await a.call('/public/registration/inspect',{method:'POST',body:{token:link.data.url.split('/').at(-1)}})).status,404);}
+});
+
+apiTest('server: unified user updates are atomic and paginated searches have stable totals',async()=>{
+ const id=seed.users.otherUser.id,original=(await admin.call(`/users/${id}`)).data,profile={...original.profile,firstName:'ویرایش',lastName:'یکپارچه'};
+ assert.equal((await user.call(`/users/${id}`,{method:'PATCH',body:{profile}})).status,403);
+ assert.equal((await admin.call(`/users/${id}`,{method:'PATCH',body:{username:seed.users.user.username,profile}})).status,409);assert.equal((await admin.call(`/users/${id}`)).data.profile.firstName,original.profile.firstName);
+ const edited=await admin.call(`/users/${id}`,{method:'PATCH',body:{profile,username:original.user.username}});assert.equal(edited.status,200);assert.equal(edited.data.user.name,'ویرایش یکپارچه');
+ await admin.call(`/users/${id}`,{method:'PATCH',body:{profile:original.profile}});
+ for(let i=0;i<23;i++)assert.equal((await admin.call('/users',{method:'POST',body:{role:'user',method:'invite',username:`paged-user-${String(i).padStart(2,'0')}`,profile:{firstName:'صفحه',lastName:String(i),birthDate:'2016-01-01',grade:'پایهٔ ۳',school:'امید'}}})).status,201);
+ const first=await admin.call('/users?page=1&pageSize=20&search=paged-user&role=user&status=pending&sort=name'),second=await admin.call('/users?page=2&pageSize=20&search=paged-user&role=user&status=pending&sort=name');assert.equal(first.data.pagination.total,23);assert.equal(first.data.users.length,20);assert.equal(second.data.users.length,3);assert.equal(new Set([...first.data.users,...second.data.users].map(u=>u.id)).size,23);assert.equal((await admin.call('/users?page=-1')).status,400);
+});
+
+apiTest('server: dashboard aggregates real sessions with Tehran day boundaries and enforces permissions',async()=>{
+ assert.equal((await user.call('/admin/dashboard')).status,403);assert.equal((await admin.call('/admin/dashboard?days=13')).status,400);
+ const before=await admin.call('/admin/dashboard?days=7');assert.equal(before.status,200,JSON.stringify(before.data));assert.equal(before.data.daily.length,7);assert.equal(before.data.games.length,7);
+ const run=await start(admin,'traffic'),result=playSession(run);
+ for(const offset of [0,7])await db.pool.query("INSERT INTO game_sessions(id,child_id,actor_id,kind,settings,difficulty_revision,result,started_at,finished_at) VALUES($1,$2,$3,'training',$4,0,$5,now(),((now() AT TIME ZONE 'Asia/Tehran')::date-$6::int)::timestamp AT TIME ZONE 'Asia/Tehran')",[randomUUID(),seed.children[0].id,seed.users.admin.id,run.settings,result,offset]);
+ const after=await admin.call('/admin/dashboard?days=7');assert.equal(after.data.totals.sessions,before.data.totals.sessions+1);assert.equal(after.data.daily.at(-1).training,before.data.daily.at(-1).training+1);assert.equal(after.data.games.find(g=>g.id==='traffic').count,before.data.games.find(g=>g.id==='traffic').count+1);
+ for(const days of [30,90])assert.equal((await admin.call(`/admin/dashboard?days=${days}`)).data.daily.length,days);
+});

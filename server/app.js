@@ -20,7 +20,7 @@ const role=(req,roles)=>check(roles.includes(req.user.role),'اجازهٔ این
 export async function childAccess(db,user,id,write=false){
   uuid(id);if(write)check(user.role==='admin','این عملیات مخصوص ادمین است.',403,'FORBIDDEN');
   const child=(await db.query("SELECT * FROM children WHERE id=$1 AND ($2='admin' OR owner_user_id=$3)",[id,user.role,user.id])).rows[0];
-  check(child,'پرونده یافت نشد یا دسترسی ندارید.',404,'NOT_FOUND');return child;
+  check(child,'اطلاعات کاربر یافت نشد یا دسترسی ندارید.',404,'NOT_FOUND');return child;
 }
 export function profileDTO(child,user){const profile=user.role==='admin'?{...child.profile}:Object.fromEntries(['firstName','lastName','birthDate','grade','school'].map(key=>[key,child.profile[key]]));return {...profile,id:child.id,ownerUserId:child.owner_user_id,createdAt:child.created_at};}
 export function recordDTO(row,user){return {id:row.id,profileId:row.child_id,kind:row.kind,result:user.role==='admin'?row.result:reportResult(row.result),...(user.role==='admin'?{actorId:row.actor_id,legacyId:row.legacy_id}:{}),startedAt:row.started_at};}
@@ -55,7 +55,7 @@ export function createApp({pool,secret=process.env.SESSION_SECRET,production=pro
   app.get('/api/children/:id',async(req,res)=>res.json({profile:profileDTO(await childAccess(pool,req.user,req.params.id),req.user)}));
   app.patch('/api/children/:id',async(req,res)=>{
     const child=await childAccess(pool,req.user,req.params.id,true),validation=validateProfile({...child.profile,...req.body});check(!validation.error,validation.error);
-    check(!Object.hasOwn(req.body,'ownerUserId')||req.body.ownerUserId===child.owner_user_id,'اتصال پرونده از مسیر ایجاد حساب انجام می‌شود.');
+    check(!Object.hasOwn(req.body,'ownerUserId')||req.body.ownerUserId===child.owner_user_id,'اتصال اطلاعات کاربر از مسیر ایجاد حساب انجام می‌شود.');
     const updated=(await pool.query('UPDATE children SET profile=$1 WHERE id=$2 RETURNING *',[validation.profile,child.id])).rows[0];res.json({profile:profileDTO(updated,req.user)});
   });
   app.delete('/api/children/:id',async(req,res)=>{await childAccess(pool,req.user,req.params.id,true);throw new HttpError(409,'برای حفظ سوابق، حساب کاربر را غیرفعال کنید.','ARCHIVE_REQUIRED');});
@@ -104,6 +104,6 @@ export function createApp({pool,secret=process.env.SESSION_SECRET,production=pro
   registerImports(app,pool,{role,childAccess,profileDTO});
   app.use('/api',(_req,res)=>res.status(404).json({error:'مسیر پیدا نشد.',code:'NOT_FOUND'}));
   app.use('/assets',express.static(resolve(staticRoot,'assets')));app.use('/src',express.static(resolve(staticRoot,'src')));app.get(['/', '/index.html'],(_req,res)=>res.sendFile(resolve(staticRoot,'index.html')));
-  app.use((error,_req,res,_next)=>{const status=error.status||(error.code==='23505'?409:(error.type==='entity.too.large')?413:500);if(status>=500)console.error('Request failed:',error.code||error.name);res.status(status).json({error:status>=500?'خطای سرور؛ دوباره تلاش کنید.':error.code==='23505'?'نام کاربری، ایمیل یا اتصال پرونده تکراری است.':error.message,code:error.code||'SERVER_ERROR'});});
+  app.use((error,_req,res,_next)=>{const status=error.status||(error.code==='23505'?409:(error.type==='entity.too.large')?413:500);if(status>=500)console.error('Request failed:',error.code||error.name);res.status(status).json({error:status>=500?'خطای سرور؛ دوباره تلاش کنید.':error.code==='23505'?'نام کاربری، ایمیل یا اتصال اطلاعات کاربر تکراری است.':error.message,code:error.code||'SERVER_ERROR'});});
   return app;
 }

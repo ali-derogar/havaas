@@ -1,6 +1,7 @@
 import { ApiClient,ApiError } from './api.js';
 import { preloadWorld,worldBackground,gameArtwork } from './worlds.js';
-import { accountView, loginView, importPreviewView, roleName, adminView, adminUserView, reportLinksView, passwordView } from './account-ui.js';
+import { accountView, loginView, importPreviewView, roleName, reportLinksView, passwordView } from './account-ui.js';
+import {adminShell,adminOverview,adminUsersView,createUserView,registrationView,invitationsView,userDetailsView,clientWelcome} from './dashboard-ui.js';
 import { seededRandom } from './core/random.js';
 import { ActiveClock } from './core/session.js';
 import { preparationView, countdownView, reviewView, transitionView, stroopStages, trafficRoad, missionChecklist, searchTargetStatus, searchRounds, huntBlocks, learningRecap, roundBreakView } from './play-ui.js';
@@ -14,7 +15,7 @@ import { readProgress, writeProgress, resultKey } from './core/storage.js';
 import { activeProfile, readClients, profileRecords, latestBaseline, validateProfile, escapeHTML as esc, variantOf } from './core/clients.js';
 import { describeStimulus } from './stimuli.js';
 import { recommendLevel, comparableRecords } from './core/reports.js';
-import { profileStrip, profilesView, reportsView, assessmentView, variantLabel } from './client-ui.js';
+import { reportsView, assessmentView, variantLabel } from './client-ui.js';
 import { icon, logo, art, heroArt, symbol, equipment, trophyArt, sceneBackground, huntBackground, missionOutcomeArt, vehicleArt } from './visuals.js';
 
 const app = document.querySelector('#app');
@@ -23,9 +24,10 @@ const announcer = document.querySelector('#announcer');
 const progress = readProgress();
 const clients = {version:1,activeId:null,profiles:[],records:[],difficulties:[]};
 const api=new ApiClient();
-let currentUser=null,members=[],inviteToken=null,inviteInfo=null,remoteRun=null,pendingSave=null,starting=false,launchAttempt=null,previewImport=null;
+let currentUser=null,members=[],inviteToken=null,inviteInfo=null,remoteRun=null,pendingSave=null,starting=false,launchAttempt=null,previewImport=null,importAttempt=null;
 let inspectedUserId=null,publicReportData=null,viewVersion=0;
-const adminState={search:'',status:'',role:''};
+let dashboardDays=30,userTab='overview',registrationToken=null,createContext={};
+const adminState={search:'',status:'',role:'',sort:'newest',page:1};
 let pendingStart = null, sessionIsBaseline = false, editingProfile = null, guideState = null, sessionAssessment = false, lessonState = null, sessionRecordId = null;
 const reportState = { tab: 'admin', game: '', level: '', variant: '', kind: 'training', recordId: null };
 const fa = value => new Intl.NumberFormat('fa-IR', { maximumFractionDigits: 0 }).format(value);
@@ -36,11 +38,11 @@ let engine = null, frame = 0, arenaKey = '', modalKind = '', audioContext;
 let playPhase='ready', preparationClock=null, reactionPointerInput=false, loadedWorld=null;
 
 function header() {
- const brand=`<a class="brand" href="#${currentUser?.role==='admin'?'admin':'app'}" data-action="home" aria-label="حواس، صفحهٔ اصلی">${logo()}<span>حواس<small>${currentUser?.role==='admin'?'پنل مدیریت':'ماجراجویی‌های ذهنی'}</small></span></a>`;
- if(publicReportData||!currentUser)return `<header class="site-header"><div class="header-inner"><span class="brand">${logo()} حواس</span><span>${publicReportData?'گزارش خانواده':'ورود به حواس'}</span></div></header>`;
- if(currentUser.passwordChangeRequired)return `<header class="site-header"><div class="header-inner">${brand}<button class="text-button" data-action="logout">خروج</button></div></header>`;
- if(currentUser.role==='admin')return `<header class="site-header admin-header"><div class="header-inner">${brand}<nav aria-label="منوی مدیریت"><button class="nav-link ${route==='admin'?'active':''}" data-action="admin">کاربران</button><button class="nav-link" data-action="profiles">پرونده‌ها</button><button class="nav-link" data-action="account">حساب و انتقال داده</button></nav><div class="header-end"><span>${esc(currentUser.name)}</span><button class="text-button" data-action="logout">خروج</button></div></div></header>`;
- return `<header class="site-header"><div class="header-inner">${brand}<nav aria-label="منوی اصلی"><button class="nav-link ${route==='home'?'active':''}" data-action="games">بازی‌ها <span class="nav-count">۷</span></button><button class="nav-link" data-action="assessment">ارزیابی اولیه</button><button class="nav-link report-nav" data-action="dashboard">گزارش من</button></nav><div class="header-end"><button class="profile-button" data-action="account">${esc(currentUser.name)}</button><button class="icon-button sound-button" data-action="sound" aria-label="${progress.sound?'خاموش‌کردن صدا':'روشن‌کردن صدا'}" aria-pressed="${progress.sound}">${icon(progress.sound?'sound':'mute')}</button></div></div></header>`;
+ if(publicReportData||!currentUser||route==='registration')return `<header class="site-header"><div class="header-inner"><span class="brand">${logo()} حواس</span><span>${publicReportData?'گزارش خانواده':'همراه رشد و توجه'}</span></div></header>`;
+ if(currentUser.passwordChangeRequired)return `<header class="site-header"><div class="header-inner"><span class="brand">${logo()} حواس</span><button class="text-button" data-action="logout">خروج</button></div></header>`;
+ if(currentUser.role==='admin')return adminShell(currentUser,route==='admin'?'overview':route==='invitations'?'invitations':route==='account'?'settings':'users');
+ const nav=[['home','home','خانه'],['games','grid','بازی‌ها'],['dashboard','activity','پیشرفت من'],['account','user','حساب']];
+ return `<header class="site-header client-header"><div class="header-inner"><a class="brand" href="#app" data-action="home">${logo()}<span>حواس<small>ماجراجویی‌های ذهنی</small></span></a><nav aria-label="منوی اصلی">${nav.map(([action,symbol,label])=>`<button class="nav-link ${route==='home'&&action==='home'||route==='reports'&&action==='dashboard'||route==='account'&&action==='account'?'active':''}" data-action="${action}">${icon(symbol)}${label}</button>`).join('')}</nav><div class="header-end"><button class="profile-button" data-action="account">${esc(currentUser.name)}</button><button class="icon-button sound-button" data-action="sound" aria-label="${progress.sound?'خاموش‌کردن صدا':'روشن‌کردن صدا'}" aria-pressed="${progress.sound}">${icon(progress.sound?'sound':'mute')}</button></div></div></header><nav class="client-bottom-nav" aria-label="منوی موبایل">${nav.map(([action,symbol,label])=>`<button data-action="${action}" class="${route==='home'&&action==='home'||route==='reports'&&action==='dashboard'||route==='account'&&action==='account'?'active':''}">${icon(symbol)}<span>${label}</span></button>`).join('')}</nav>`;
 }
 const footer = () => `<footer class="site-footer"><span>${logo()} حواس؛ جایی برای بازی و کشف</span><span>با سرعت خودت، به سبک خودت ${icon('spark')}</span></footer>`;
 function page(content, className = '') {
@@ -48,12 +50,15 @@ function page(content, className = '') {
   if(launchAttempt){launchAttempt=null;starting=false;}
   cancelAnimationFrame(frame);
   document.body.dataset.screen=route;reactionPointerInput=false;
+  document.body.dataset.panel=currentUser?.role==='admin'&&!publicReportData&&route!=='registration'&&!currentUser.passwordChangeRequired?'admin':currentUser&&!publicReportData&&route!=='registration'?'client':'guest';
+  document.body.classList.remove('admin-menu-open');
   app.innerHTML = `${header()}<main id="main" class="${className}" tabindex="-1">${content}</main>${footer()}`;
+  syncSidebarAccess();
   window.scrollTo({ top: 0, behavior: 'instant' });
   document.querySelector('#main').focus({ preventScroll: true });
 }
 async function request(path,options){
- const publicPath=['/auth/session','/auth/login','/invitations/inspect','/invitations/accept','/public/report'].includes(path),viewerId=currentUser?.id,viewerRole=currentUser?.role;
+ const publicPath=['/auth/session','/auth/login','/invitations/inspect','/invitations/accept','/public/report','/public/registration/inspect','/public/registration/complete'].includes(path),viewerId=currentUser?.id,viewerRole=currentUser?.role;
  const stale=()=>!publicPath&&(currentUser?.id!==viewerId||currentUser?.role!==viewerRole);
  try{const data=await api.request(path,options);if(stale())throw new ApiError('پاسخ متعلق به حساب قبلی است.',0,'STALE_RESPONSE');return data;}
  catch(error){if(stale())throw new ApiError('پاسخ متعلق به حساب قبلی است.',0,'STALE_RESPONSE');throw error;}
@@ -69,8 +74,7 @@ function home(updateHash = true) {
   if(currentUser.role==='admin')return adminPanel();
   pendingStart = null; guideState = null; engine = null; route = 'home'; if (modal.open) modal.close(); if (updateHash) setHash('#app');
   document.title = 'حواس — ماجراجویی‌های ذهنی';
-  page(`<section class="hero"><div class="hero-copy"><div class="eyebrow"><span class="tiny-spark">✳</span> به دنیای حواس خوش اومدی</div><h1>یک بازی کوچک،<br>یک ذهن <span class="highlight">آماده‌تر.<svg viewBox="0 0 250 15" aria-hidden="true"><path d="M3 10Q120-3 246 8"/></svg></span></h1><p class="hero-description">کشف کن، به خاطر بسپار و با دقت انتخاب کن.<br>اینجا هر بازی، یک ماجراجویی تازه برای ذهن توئه.</p><div class="hero-actions"><button class="button primary" data-action="games">بزن بریم بازی ${icon('arrow')}</button><button class="text-button" data-action="about">${icon('play')} چطور بازی کنیم؟</button></div><div class="hero-facts"><span><b>۷</b> بازی متفاوت</span><i></i><span><b>۳</b> سطح چالش</span><i></i><span>${icon('check')} پروندهٔ شخصی تمرین</span></div></div><div class="hero-picture">${heroArt()}<div class="hero-caption"><span class="status-dot"></span> هر بار بازی، یک قدم رو به جلو</div></div></section>
-    ${profileStrip(clients,currentUser)}<section class="library" id="games" aria-labelledby="library-heading"><div class="section-heading"><div><div class="section-kicker">یک چالش تازه انتخاب کن</div><h2 id="library-heading">امروز کدوم ماجراجویی؟ ${icon('spark')}</h2></div><p>از هر جا دوست داری، شروع کن.</p></div><div class="filter-bar" role="group" aria-label="دسته‌بندی بازی‌ها">${[['all','همهٔ بازی‌ها'],['attention','توجه و تمرکز'],['memory','حافظه'],['speed','سرعت واکنش']].map(([id,label]) => `<button class="filter ${filter === id ? 'selected' : ''}" data-action="filter" data-filter="${id}" aria-pressed="${filter === id}">${label}${id === 'all' ? '<span>۷</span>' : ''}</button>`).join('')}<span class="filter-note">همهٔ بازی‌ها برای تو بازه ${icon('check')}</span></div><div class="game-grid" id="game-grid">${gameCards()}</div></section>
+  page(`${clientWelcome(clients,currentUser)}<section class="library" id="games" aria-labelledby="library-heading"><div class="section-heading"><div><div class="section-kicker">یک چالش تازه انتخاب کن</div><h2 id="library-heading">امروز کدوم ماجراجویی؟ ${icon('spark')}</h2></div><p>از هر جا دوست داری، شروع کن.</p></div><div class="filter-bar" role="group" aria-label="دسته‌بندی بازی‌ها">${[['all','همهٔ بازی‌ها'],['attention','توجه و تمرکز'],['memory','حافظه'],['speed','سرعت واکنش']].map(([id,label]) => `<button class="filter ${filter === id ? 'selected' : ''}" data-action="filter" data-filter="${id}" aria-pressed="${filter === id}">${label}${id === 'all' ? '<span>۷</span>' : ''}</button>`).join('')}<span class="filter-note">همهٔ بازی‌ها برای تو بازه ${icon('check')}</span></div><div class="game-grid" id="game-grid">${gameCards()}</div></section>
     <section class="little-note"><span class="note-symbol">${icon('spark')}</span><div><h3>برای بهترشدن، لازم نیست عجله کنی.</h3><p>از سطح آسان شروع کن، قانون بازی رو یاد بگیر و از مسیر لذت ببر.</p></div><span class="note-doodle">✳</span></section>`, 'home-main');
 }
 function gameCards() {
@@ -333,7 +337,7 @@ function finish() {
   const ratio = result.maxScore ? result.score/result.maxScore : 0;
   const stars = !result.completed?0:ratio>=.85?3:ratio>=.5?2:ratio>0?1:0;
   const title = session.practice ? sessionIsBaseline ? 'ارزیابی پایه کامل شد' : 'تمرین تموم شد، آماده‌ای؟' : !result.completed ? 'این سفر هنوز ادامه داره!' : ratio>=.85 ? 'چه تمرکز درخشانی!' : ratio>=.5 ? 'آفرین، خوب پیش رفتی!' : 'هر بار، یک قدم بهتر!';
-  const caption = session.practice ? sessionIsBaseline ? 'نتیجهٔ این پنج تمرین جدا از بازی اصلی در پرونده نگهداری می‌شود. پیشنهاد سطح اولیه است و می‌توانی آن را تغییر بدهی.' : 'قانون بازی رو یاد گرفتی. حالا می‌تونی ماجراجویی اصلی رو شروع کنی.' : !result.completed ? result.hits===result.maxScore?'همهٔ وسایل را پیدا کردی! دفعهٔ بعد، پیش از پایان زمان دکمهٔ حرکت را بزن.':'زمان تمام شد؛ در مرور پایین، نیازهای باقی‌ماندهٔ سفر را بشناس و دوباره امتحان کن.' : game.kind==='adventure' ? session.mission.success : 'مهم‌ترین بخشش رو انجام دادی: با دقت بازی کردی. آمادهٔ یک چالش دیگه‌ای؟';
+  const caption = session.practice ? sessionIsBaseline ? 'نتیجهٔ این پنج تمرین جدا از بازی اصلی در اطلاعات کاربر نگهداری می‌شود. پیشنهاد سطح اولیه است و می‌توانی آن را تغییر بدهی.' : 'قانون بازی رو یاد گرفتی. حالا می‌تونی ماجراجویی اصلی رو شروع کنی.' : !result.completed ? result.hits===result.maxScore?'همهٔ وسایل را پیدا کردی! دفعهٔ بعد، پیش از پایان زمان دکمهٔ حرکت را بزن.':'زمان تمام شد؛ در مرور پایین، نیازهای باقی‌ماندهٔ سفر را بشناس و دوباره امتحان کن.' : game.kind==='adventure' ? session.mission.success : 'مهم‌ترین بخشش رو انجام دادی: با دقت بازی کردی. آمادهٔ یک چالش دیگه‌ای؟';
   page(`<section class="result-card">${game.kind==='adventure'&&!session.practice?missionOutcomeArt(game.id,result.completed):trophyArt()}<div class="eyebrow">${session.practice?'۵ تمرین آموزشی':'پایان بازی'} <span>·</span> ${game.title}</div><h1>${title}</h1><p class="result-caption">${caption}</p>${!session.practice?`<div class="result-stars" aria-label="${fa(stars)} ستاره از ۳">${[0,1,2].map(i=>`<span class="${i<stars?'earned':''}">★</span>`).join('')}</div>`:''}<div class="result-main-score"><b>${fa(result.score)}</b><span>از ${fa(result.maxScore)} ${session.practice?'پاسخ هدف':'امتیاز'}</span></div><div class="result-stats"><div>${icon('check')}<b>${fa(result.hits)}</b><span>انتخاب هدف درست</span></div><div>${icon('target')}<b>${fa(result.falseSelections)}</b><span>انتخاب اشتباه</span></div><div>${icon('info')}<b>${fa(result.omissions)}</b><span>هدف بدون پاسخ</span></div><div>${icon('clock')}<b>${time(result.durationMs)}</b><span>زمان فعال بازی</span></div><div>${icon('check')}<b>${fa(result.longestStreak)}</b><span>تصمیم درست متوالی</span></div>${game.kind==='reaction'?`<div>${icon('pause')}<b>${fa(result.correctRejections)}</b><span>خودداری درست از پاسخ</span></div>`:''}${result.meanReactionMs!==null?`<div>${icon('spark')}<b>${fa(result.meanReactionMs)} <small>ms</small></b><span>${result.reactionMeasure==='decision-interval'?'میانگین زمان انتخاب درست':'میانگین واکنش درست'}</span></div>`:''}</div>${learningRecap(session)}${game.kind==='reaction'?'<p class="score-note">امتیاز = هدف‌های درست، منهای انتخاب‌های اشتباه؛ حداقل صفر.</p>':''}${!session.practice || sessionIsBaseline?`<p class="local-note">${icon('check')} در حال ثبت نتیجه در سرور مرکز…</p>`:''}<div class="result-actions"><button class="button primary" data-action="${session.practice?'main-game':'replay'}">${session.practice?'بزن بریم بازی اصلی':'دوباره بازی کن'} ${icon(session.practice?'arrow':'repeat')}</button><button class="button subtle" data-action="${session.practice?'detail':'home'}">${session.practice?'برگشت به راهنما':'انتخاب بازی دیگه'}</button></div></section>`, 'result-main');
   if (!session.practice || sessionIsBaseline) {
     const note = document.querySelector('.local-note');
@@ -343,7 +347,7 @@ function finish() {
   }
   if(result.variant && result.variant!=='standard')document.querySelector('.result-caption').insertAdjacentHTML('afterend',`<span class="variant-note">${variantLabel(result.variant)}</span>`);
   document.querySelector('.result-actions').insertAdjacentHTML('beforebegin', `<div class="level-recommendation"><b>سطح پیشنهادی ${sessionIsBaseline?'برای شروع':'برای نوبت بعد'}: ${LEVELS[recommendation.level].label}</b><p>${recommendation.reason}</p><button class="text-button" data-action="recommended-level" data-level="${recommendation.level}">انتخاب سطح و دیدن راهنما ←</button></div>`);
-  document.querySelector('.result-actions').insertAdjacentHTML('beforeend','<button class="text-button" data-action="dashboard">دیدن پرونده و گزارش‌ها</button>');
+  document.querySelector('.result-actions').insertAdjacentHTML('beforeend','<button class="text-button" data-action="dashboard">دیدن اطلاعات کاربر و گزارش‌ها</button>');
   if(sessionAssessment) {
     const next=nextAssessmentGame(clients);
     document.querySelector('.result-actions').innerHTML=`<button class="button primary" data-action="${next?'assessment-next':'assessment'}">${next?'ادامهٔ ارزیابی بازی بعد':'جمع‌بندی ارزیابی هفت بازی'} ${icon('arrow')}</button><button class="button subtle" data-action="assessment">مسیر ارزیابی و استراحت</button>`;
@@ -358,7 +362,7 @@ function openModal(content, kind) {
 }
 function about() {
   if (route==='play' && engine){if(!engine.paused)engine.pause();preparationClock?.pause();}
-  openModal(`<button class="modal-close icon-button" data-action="close-modal" aria-label="بستن راهنما">${icon('close')}</button><span class="big-spark">✳</span><h2 id="modal-title">بازی کنیم، کشف کنیم!</h2><p>حواس یک مجموعهٔ هفت‌تایی از بازی‌های توجه و حافظه‌ست. برای هر مراجع یک پروندهٔ مرکز داری؛ تمرین‌ها و نتیجه‌های هر نفر جدا ثبت می‌شوند.</p><ol class="modal-steps"><li><b>۱</b><span>مشخصات مراجع را ثبت کن و یک بازی انتخاب کن.</span></li><li><b>۲</b><span>با ۵ تمرین کوتاه، قانون را یاد بگیر و ارزیابی پایه را انجام بده.</span></li><li><b>۳</b><span>بازی کن و نتیجهٔ خودت رو ببین.</span></li></ol><p class="modal-small">روی گوشی با لمس بازی کن؛ روی کامپیوتر از ماوس و در بازی‌های واکنشی از کلید فاصله استفاده کن. صدا رو هم می‌تونی از بالای صفحه روشن کنی.</p><button class="button primary full-width" data-action="close-modal">فهمیدم ${icon('check')}</button>`, 'about');
+  openModal(`<button class="modal-close icon-button" data-action="close-modal" aria-label="بستن راهنما">${icon('close')}</button><span class="big-spark">✳</span><h2 id="modal-title">بازی کنیم، کشف کنیم!</h2><p>حواس یک مجموعهٔ هفت‌تایی از بازی‌های توجه و حافظه‌ست. برای هر مراجع یک اطلاعات مرکز داری؛ تمرین‌ها و نتیجه‌های هر نفر جدا ثبت می‌شوند.</p><ol class="modal-steps"><li><b>۱</b><span>مشخصات مراجع را ثبت کن و یک بازی انتخاب کن.</span></li><li><b>۲</b><span>با ۵ تمرین کوتاه، قانون را یاد بگیر و ارزیابی پایه را انجام بده.</span></li><li><b>۳</b><span>بازی کن و نتیجهٔ خودت رو ببین.</span></li></ol><p class="modal-small">روی گوشی با لمس بازی کن؛ روی کامپیوتر از ماوس و در بازی‌های واکنشی از کلید فاصله استفاده کن. صدا رو هم می‌تونی از بالای صفحه روشن کنی.</p><button class="button primary full-width" data-action="close-modal">فهمیدم ${icon('check')}</button>`, 'about');
 }
 function pause() {
   if (route!=='play'||!engine) return;
@@ -381,14 +385,7 @@ function tone(good) {
 }
 function answer(result,context={}) { if(result!==null&&result!==undefined) { tone(result===true||result==='cleared'); if(engine?.feedback) announcer.textContent=engine.feedback; } updatePlay();if(result!==null&&result!==undefined&&route==='play'){document.querySelector('.play-panel').dataset.response=result===true||result==='cleared'?'good':'wrong';if(context.itemId!==undefined){const item=document.querySelector(`[data-action="item"][data-index="${context.itemId}"]`);if(item)item.dataset.effect=result==='cleared'?'cleared':result?'packed':'rejected';}} }
 
-async function profiles(editId = null, notice = '') {
-  if(!currentUser)return showLogin();
-  if(currentUser.role!=='admin')return home();
-  const view=beginView();inspectedUserId=null;if(!await refreshClients(view))return;const data=await viewRequest(view,'/users');if(!currentView(view))return;members=data.users;
-  guideState = null; engine = null; route = 'profiles'; editingProfile = editId;
-  if (modal.open) modal.close(); setHash('#profiles'); document.title = 'پروندهٔ مراجعان — حواس';
-  page(profilesView(clients, editId, notice,{user:currentUser,members}), 'content-main clients-main');
-}
+async function profiles(){return adminUsers();}
 function continueAfterProfile() {
   if (pendingStart) { const next = pendingStart; pendingStart = null; return start(next.practice, next.forceBaseline); }
   return home();
@@ -422,6 +419,12 @@ async function exportTrials() {
 app.addEventListener('submit',event=>{event.preventDefault();void submitForm(event.target).catch(showError);});
 async function submitForm(form){
   if(form.dataset.waiting==='true')return;
+  form.dataset.waiting='true';form.setAttribute('aria-busy','true');
+  const controls=[...form.querySelectorAll('button[type="submit"],button:not([type]),input[type="submit"]')].map(control=>({control,disabled:control.disabled}));
+  controls.forEach(({control})=>control.disabled=true);
+  try{return await processForm(form);}finally{delete form.dataset.waiting;form.removeAttribute('aria-busy');controls.forEach(({control,disabled})=>control.disabled=disabled);}
+}
+async function processForm(form){
   const values=Object.fromEntries([...form.querySelectorAll('[name]')].map(el=>[el.name||el.getAttribute('name'),el.value]));
   if(form.id==='login-form'){
     if(!api.csrfToken)await request('/auth/session');
@@ -436,9 +439,17 @@ async function submitForm(form){
     const auth=await request('/invitations/accept',{method:'POST',body:{...values,token:inviteToken}});currentUser=auth.user;inviteToken=null;inviteInfo=null;history.replaceState?.({},'',location.pathname);if(currentUser.passwordChangeRequired)return forcedPassword();await refreshClients();return home();
   }
   if(form.id==='password-form'){const wasForced=currentUser.passwordChangeRequired;const data=await request('/auth/change-password',{method:'POST',body:values});currentUser=data.user;form.reset?.();if(wasForced){await refreshClients();await home();}return notify('رمز تغییر کرد؛ نشست‌های دیگر نیاز به ورود دوباره دارند.');}
-  if(form.id==='user-filter-form'){Object.assign(adminState,values);return adminPanel();}
-  if(form.id==='create-user-form'){const data=await request('/users',{method:'POST',body:{...values,profile:values}});await adminPanel();if(data.url)showInvitation(data);return notify('حساب و پرونده در سرور ساخته شد.');}
-  if(form.id==='edit-user-form'){const data=await request(`/users/${form.dataset.user}`,{method:'PATCH',body:values});if(data.user.id===currentUser.id)currentUser=data.user;await inspectUser(data.user.id);return notify('مشخصات حساب ذخیره شد.');}
+  if(form.id==='registration-form'){
+    const auth=await request('/public/registration/complete',{method:'POST',body:{token:registrationToken,username:values.username,password:values.password,email:values.email,profile:values}});currentUser=auth.user;registrationToken=null;publicReportData=null;history.replaceState?.({},'',location.pathname);await refreshClients();return home();
+  }
+  if(form.id==='registration-link-form'){const data=await request('/registration-links',{method:'POST',body:values});return showInvitation(data);}
+  if(form.id==='user-filter-form'){Object.assign(adminState,values,{page:1});return adminUsers();}
+  if(form.id==='create-user-form'){
+    const data=await request('/users',{method:'POST',body:{...values,profile:values}});
+    if(form.dataset.importSource&&previewImport){const source=form.dataset.importSource;const choices=new Map([...document.querySelectorAll('.import-mapping')].map(row=>[row.dataset.source,row.querySelector('[name=targetId]').value]));previewImport.profiles.forEach(p=>p.targetId=p.sourceId===source?data.profile.id:choices.get(p.sourceId)||p.targetId);await refreshClients();if(modal.open)modal.close();const target=document.querySelector('#import-preview');if(target)target.innerHTML=importPreviewView(previewImport,clients.profiles);return notify('کاربر ساخته شد؛ انتقال سوابق را تأیید کنید.');}
+    if(modal.open)modal.close();await adminUsers();if(data.url){openModal('<h2 id="modal-title">دعوت ادمین</h2><div id="invitation-result"></div><button class="button subtle" data-action="close-modal">بستن</button>','invitation');showInvitation(data);}return notify('کاربر با موفقیت ساخته شد.');
+  }
+  if(form.id==='edit-user-form'){const body={username:values.username,...(form.dataset.role==='user'?{profile:values}:{name:values.name})};const data=await request(`/users/${form.dataset.user}`,{method:'PATCH',body});if(data.user.id===currentUser.id)currentUser=data.user;await inspectUser(data.user.id);return notify('اطلاعات کاربر ذخیره شد.');}
   if(form.id==='report-link-form'){const childId=clients.activeId,version=viewVersion;const data=await request(`/children/${childId}/report-links`,{method:'POST',body:values});if(version!==viewVersion||childId!==clients.activeId)return;await reportLinks();if(route==='report-links'&&childId===clients.activeId)return showInvitation(data);return;}
   if(form.id==='admin-difficulty-form'){await request(`/children/${clients.activeId}/difficulty`,{method:'PATCH',body:{...policyOptions(values.gameId,values.variant),mode:values.mode,level:values.level}});await refreshClients();syncPolicyControls(false);return notify('تنظیم سطح برای جلسهٔ بعد ذخیره شد.');}
   if(form.id==='invitation-form'){const data=await request('/invitations',{method:'POST',body:values});return showInvitation(data);}
@@ -447,13 +458,14 @@ async function submitForm(form){
   const data=await request(editingProfile?`/children/${editingProfile}`:'/children',{method:editingProfile?'PATCH':'POST',body:{...validation.profile,...(values.ownerUserId?{ownerUserId:values.ownerUserId}:{})}});
   clients.activeId=data.profile.id;await refreshClients();
   if(pendingStart)return continueAfterProfile();
-  if(inspectedUserId){await inspectUser(inspectedUserId);return notify('مشخصات پرونده ذخیره شد.');}return profiles(null,'مشخصات در سرور مرکز ذخیره شد.');
+  if(inspectedUserId){await inspectUser(inspectedUserId);return notify('مشخصات اطلاعات کاربر ذخیره شد.');}return profiles(null,'مشخصات در سرور مرکز ذخیره شد.');
 }
 app.addEventListener('change',event=>{void changeInput(event).catch(showError);});
+modal.addEventListener('change',event=>{void changeInput(event).catch(showError);});
 async function changeInput(event){
   if(['new-user-role','new-user-method','new-user-child'].includes(event.target.id))return syncCreateControls();
   if(['policy-game','policy-variant'].includes(event.target.id))return syncPolicyControls(event.target.id==='policy-game');
-  if(event.target.id==='import-file'){const file=event.target.files?.[0];if(file)return previewLegacy(JSON.parse(await file.text()));}
+  if(event.target.id==='import-file'){const file=event.target.files?.[0];if(file)return previewLegacy(async()=>JSON.parse(await file.text()));}
   if(event.target.id==='report-profile') {
     const profile=clients.profiles.find(p=>p.id===event.target.value);if(!profile)return;
     clients.activeId=profile.id;reportState.recordId=null;
@@ -467,6 +479,17 @@ async function handleAction(event) {
   const fromReactionPointer=event.type==='click'&&event.detail>0&&reactionPointerInput;if(event.type==='click')reactionPointerInput=false;
   const button = event.target.closest('[data-action]'); if(!button||button.disabled) return;
   const action=button.dataset.action;
+  if(action==='admin-menu')return toggleAdminMenu();
+  if(action==='admin-users')return adminUsers();
+  if(action==='admin-invitations')return adminInvitations();
+  if(action==='dashboard-range'){dashboardDays=Number(button.dataset.days);return adminPanel();}
+  if(action==='users-page'){adminState.page=Number(button.dataset.page);return adminUsers();}
+  if(action==='new-user'||action==='new-registration'){createContext={};return openCreate(action==='new-registration'?'link':'direct');}
+  if(action==='create-mode')return openCreate(button.dataset.mode);
+  if(action==='import-create-user'){const source=previewImport?.profiles.find(p=>p.sourceId===button.dataset.source);if(source){const legacy=clients.profiles.find(p=>p.id===source.targetId&&!p.ownerUserId);createContext={profile:source.profile,source:source.sourceId,childId:legacy?.id||''};return openCreate('direct');}return;}
+  if(action==='resolve-user'){const legacy=clients.profiles.find(p=>p.id===button.dataset.id&&!p.ownerUserId);if(legacy){createContext={profile:legacy,childId:legacy.id};return openCreate('direct');}return;}
+  if(action==='revoke-registration'){await request(`/registration-links/${button.dataset.id}`,{method:'DELETE'});return adminInvitations();}
+  if(action==='user-tab'){userTab=button.dataset.tab;viewVersion++;document.querySelectorAll('.user-tabs [role=tab]').forEach(tab=>{const active=tab.dataset.tab===userTab;tab.classList.toggle('selected',active);tab.setAttribute('aria-selected',String(active));});document.querySelectorAll('[id^="user-"][role=tabpanel]').forEach(panel=>panel.hidden=panel.id!==`user-${userTab}`);return;}
   if(fromReactionPointer&&['respond','stimulus-response'].includes(action)){event.preventDefault();return;}
   if(starting&&!['sound','about'].includes(action))return;
   if(route==='play'&&['account','profiles','dashboard','home','assessment','open'].includes(action))engine?.clock.pause();
@@ -477,7 +500,7 @@ async function handleAction(event) {
   if(action==='report-links')return reportLinks();
   if(action==='revoke-report-link'){await request(`/children/${clients.activeId}/report-links/${button.dataset.link}`,{method:'DELETE'});return reportLinks();}
   if(action==='account')return account();
-  if(action==='logout'){await request('/auth/logout',{method:'POST'});currentUser=null;members=[];inspectedUserId=null;publicReportData=null;inviteToken=null;inviteInfo=null;previewImport=null;remoteRun=null;Object.assign(clients,{activeId:null,profiles:[],records:[],difficulties:[]});api.csrfToken=null;showLogin();const form=document.querySelector('#login-form');form.dataset.waiting='true';form.querySelectorAll('input,button').forEach(control=>control.disabled=true);try{await request('/auth/session');}finally{delete form.dataset.waiting;form.querySelectorAll('input,button').forEach(control=>control.disabled=false);}return;}
+  if(action==='logout'){await request('/auth/logout',{method:'POST'});return prepareLogin();}
   if(action==='retry-save')return persistPending();
   if(action==='reauth'){await request('/auth/session');return openModal(loginView({reauth:true}),'reauth');}
   if(action==='invite-login')return showLogin(null);
@@ -485,7 +508,7 @@ async function handleAction(event) {
   if(action==='copy-invitation'){const field=document.querySelector('#invitation-url');field.select();await navigator.clipboard?.writeText(field.value);return;}
   if(action==='reset-link'){const version=viewVersion,data=await request('/invitations',{method:'POST',body:{userId:button.dataset.user,purpose:button.dataset.purpose||'reset'}});if(version===viewVersion)return showInvitation(data);return;}
   if(action==='toggle-user'){await request(`/users/${button.dataset.user}`,{method:'PATCH',body:{active:button.dataset.active==='true'}});if(button.dataset.user===currentUser.id&&button.dataset.active==='false'){currentUser=null;return showLogin();}return inspectUser(button.dataset.user);}
-  if(action==='import-browser')return previewLegacy(readClients());
+  if(action==='import-browser')return previewLegacy(()=>readClients());
   if(action==='commit-import')return commitLegacy();
   if(action==='adaptive-level'){await request(`/children/${clients.activeId}/difficulty`,{method:'PATCH',body:{...gameOptions(),mode:'adaptive',level:selectedLevel}});await refreshClients();return detail(selectedGame,false);}
   if(button.tagName==='A') event.preventDefault();
@@ -557,6 +580,8 @@ modal.addEventListener('click',event=>{void handleAction(event).catch(showError)
 modal.addEventListener('submit',event=>{event.preventDefault();void submitForm(event.target).catch(showError);});
 modal.addEventListener('cancel', event=>{ event.preventDefault(); closeModal(); });
 document.addEventListener('keydown', event=>{
+  if(event.key==='Escape'&&document.body.classList.contains('admin-menu-open')){event.preventDefault();return toggleAdminMenu(false);}
+  if(event.key==='Tab'&&document.body.classList.contains('admin-menu-open')){const controls=[...document.querySelectorAll('.admin-sidebar a,.admin-sidebar button')],first=controls[0],last=controls.at(-1);if(event.shiftKey&&document.activeElement===first){event.preventDefault();last?.focus();}else if(!event.shiftKey&&document.activeElement===last){event.preventDefault();first?.focus();}}
   if(event.key==='Escape'&&route==='play'&&!modal.open) { event.preventDefault(); pause(); }
   if(event.code==='Space'&&route==='play'&&!modal.open) {
     const control=event.target.closest?.('input,textarea,select,a,button');
@@ -587,12 +612,20 @@ function showLogin(invite=null){
   route='auth';engine=null;cancelAnimationFrame(frame);if(modal.open)modal.close();
   page(loginView({invite}), 'auth-main');
 }
+async function prepareLogin(message=''){
+ currentUser=null;members=[];inspectedUserId=null;publicReportData=null;inviteToken=null;inviteInfo=null;previewImport=null;importAttempt=null;remoteRun=null;
+ Object.assign(clients,{activeId:null,profiles:[],records:[],difficulties:[]});api.csrfToken=null;showLogin();
+ const form=document.querySelector('#login-form');form.querySelector('#account-error').textContent=message;
+ form.dataset.waiting='true';form.querySelectorAll('input,button').forEach(control=>control.disabled=true);
+ try{await request('/auth/session');}finally{delete form.dataset.waiting;form.querySelectorAll('input,button').forEach(control=>control.disabled=false);}
+}
 function publicReportMessage(title,message,retry=false){
  publicReportData={};route='public-report-message';engine=null;if(modal.open)modal.close();document.title='گزارش خانواده — حواس';
  page(`<section class="surface empty-state"><h1>${esc(title)}</h1><p>${esc(message)}</p>${retry?'<button class="button primary" data-action="retry-connect">تلاش دوباره</button>':''}</section>`,'auth-main');
 }
 async function navigate(){
  const id=location.hash.slice(1),shared=id.match(/^report\/([a-f0-9]{64})$/);
+ if(id.startsWith('register/'))return showRegistration(id.slice(9));
  if(id.startsWith('report/')){
   publicReportMessage('در حال دریافت گزارش','لطفاً کمی صبر کنید.');
   if(!shared)throw Error('لینک گزارش معتبر نیست؛ لینک کامل را از فرستنده دریافت کنید.');
@@ -600,12 +633,13 @@ async function navigate(){
  }
  publicReportData=null;
  if(!currentUser)return showLogin();if(currentUser.passwordChangeRequired)return forcedPassword();
- if(currentUser.role==='admin'){const member=id.match(/^admin\/user\/([a-f0-9-]{36})$/);if(member)return inspectUser(member[1]);if(id==='profiles')return profiles();if(id==='account')return account();if(id==='report-links')return reportLinks();if(id==='reports')return dashboard();return adminPanel();}
+ if(currentUser.role==='admin'){const member=id.match(/^admin\/users?\/([a-f0-9-]{36})$/);if(member)return inspectUser(member[1]);if(['profiles','admin/users'].includes(id))return adminUsers();if(id==='admin/invitations')return adminInvitations();if(['account','admin/settings'].includes(id))return account();if(id==='report-links')return reportLinks();if(id==='reports')return dashboard();return adminPanel();}
  inspectedUserId=null;
  if(id==='assessment')return assessment();if(id==='reports')return dashboard();if(id==='account')return account();if(id==='report-links')return reportLinks();if(GAME_MAP[id])return detail(id,false);return home();
 }
 async function initialize(){
  try {const auth=await request('/auth/session');currentUser=auth.user;
+  if(location.hash.startsWith('#register/'))return await showRegistration(location.hash.slice(10));
   const match=location.hash.match(/^#invite\/([a-f0-9]{64})$/);if(match)inviteToken=match[1];
   if(inviteToken){inviteInfo=await request('/invitations/inspect',{method:'POST',body:{token:inviteToken}});return showLogin(inviteInfo);}
   if(currentUser&&!currentUser.passwordChangeRequired&&!location.hash.startsWith('#report/'))await refreshClients();
@@ -621,42 +655,78 @@ function showError(error){
   if(error.code==='STALE_RESPONSE')return;
   if(location.hash.startsWith('#report/'))return publicReportMessage('گزارش در دسترس نیست',error.message,true);
   if(error.code==='PASSWORD_CHANGE_REQUIRED'&&currentUser){currentUser.passwordChangeRequired=true;return forcedPassword();}
-  const node=document.querySelector('#account-error')||document.querySelector('#profile-error');
+  if(error.status===401&&!pendingSave&&currentUser){void prepareLogin(error.message).catch(showError);return;}
+  const node=(modal.open?modal.querySelector('#account-error')||modal.querySelector('#profile-error'):null)||document.querySelector('#account-error')||document.querySelector('#profile-error');
   if(node)node.textContent=error.message||'عملیات انجام نشد.';else notify(error.message||'عملیات انجام نشد.');
-  if(error.status===401&&!pendingSave){currentUser=null;members=[];Object.assign(clients,{activeId:null,profiles:[],records:[],difficulties:[]});void request('/auth/session').then(()=>showLogin()).catch(()=>{});}
 }
 async function persistPending(){
   const pending=pendingSave;if(!pending||pending.saving)return;
-  pending.saving=true;
+  pending.saving=true;let data;
   try {
-    const data=await request(`/children/${pending.childId}/sessions/${pending.run.id}/complete`,{method:'POST',body:{result:pending.result}});
-    sessionRecordId=data.record.id;await refreshClients();pendingSave=null;
-    const note=document.querySelector('.local-note');if(note)note.innerHTML=`${icon('check')} نتیجه در سرور مرکز ذخیره شد.`;
-    document.querySelectorAll('.result-actions button').forEach(button=>button.disabled=false);
-    if(data.record.kind==='training'&&!document.querySelector('.best-score'))document.querySelector('.result-main-score')?.insertAdjacentHTML('afterend',`<p class="best-score">بهترین امتیاز این سطح: <b>${fa(Math.max(...comparableRecords(profileRecords(clients),data.record).map(r=>r.result.score)))} از ${fa(data.record.result.maxScore)}</b></p>`);
+    data=await request(`/children/${pending.childId}/sessions/${pending.run.id}/complete`,{method:'POST',body:{result:pending.result}});
   }catch(error){
     pending.saving=false;const note=document.querySelector('.local-note');if(note)note.innerHTML=`<span>${icon('info')} نتیجه هنوز ثبت نشده: ${esc(error.message)} نتیجه تا بستن صفحه در حافظه می‌ماند.</span><button class="button subtle" data-action="retry-save">تلاش دوباره برای ثبت</button><button class="text-button" data-action="reauth">ورود دوباره با حساب اجراکننده</button>`;
+    return;
+  }
+  // The completion acknowledgement is authoritative even if the following refresh fails.
+  sessionRecordId=data.record.id;pendingSave=null;
+  const index=clients.records.findIndex(record=>record.id===data.record.id);if(index<0)clients.records.push(data.record);else clients.records[index]=data.record;
+  const note=document.querySelector('.local-note');if(note)note.innerHTML=`${icon('check')} نتیجه در سرور مرکز ذخیره شد.`;
+  document.querySelectorAll('.result-actions button').forEach(button=>button.disabled=false);
+  if(data.record.kind==='training'){
+    const content=`بهترین امتیاز این سطح: <b>${fa(Math.max(...comparableRecords(profileRecords(clients),data.record).map(r=>r.result.score)))} از ${fa(data.record.result.maxScore)}</b>`,best=document.querySelector('.best-score');
+    if(best)best.innerHTML=content;else document.querySelector('.result-main-score')?.insertAdjacentHTML('afterend',`<p class="best-score">${content}</p>`);
+  }
+  const view={version:viewVersion,userId:currentUser?.id,role:currentUser?.role};
+  try{await refreshClients(view);}catch(error){
+    if(!currentView(view))return;
+    if(error.status===401||error.code==='PASSWORD_CHANGE_REQUIRED')return showError(error);
+    if(note?.isConnected)note.insertAdjacentHTML('beforeend','<span>دریافت آخرین تنظیمات ممکن نشد؛ نتیجهٔ شما ثبت شده است.</span>');
   }
 }
 async function account(){
  if(!currentUser)return showLogin();if(currentUser.passwordChangeRequired)return forcedPassword();const view=beginView();if(!await refreshClients(view))return;
  if(currentUser.role==='admin'){const data=await viewRequest(view,'/users');if(!currentView(view))return;members=data.users;}
- guideState=null;engine=null;route='account';setHash('#account');if(modal.open)modal.close();page(accountView(currentUser),'content-main account-main');
+ guideState=null;engine=null;route='account';setHash(currentUser.role==='admin'?'#admin/settings':'#account');if(modal.open)modal.close();page(accountView(currentUser,clients.profiles.filter(p=>!p.ownerUserId)),'content-main account-main');
+}
+async function adminUsers(){
+ if(currentUser?.role!=='admin')return home();const view=beginView(),query=new URLSearchParams({...adminState,pageSize:20});const data=await viewRequest(view,`/users?${query}`);if(!currentView(view))return;
+ members=data.users;adminState.page=data.pagination.page;inspectedUserId=null;engine=null;route='admin-users';if(modal.open)modal.close();setHash('#admin/users');document.title='کاربران — حواس';page(adminUsersView(data.users,adminState,data.pagination),'content-main admin-main');
+}
+async function adminInvitations(){
+ if(currentUser?.role!=='admin')return home();const view=beginView(),data=await viewRequest(view,'/registration-links');if(!currentView(view))return;
+ inspectedUserId=null;engine=null;route='invitations';if(modal.open)modal.close();setHash('#admin/invitations');document.title='دعوت‌ها — حواس';page(invitationsView(data.links),'content-main admin-main');
+}
+function openCreate(mode='direct'){
+ if(currentUser?.role!=='admin')return;openModal(createUserView({...createContext,mode}),'create-user');syncCreateControls();
+}
+function toggleAdminMenu(force){
+ const open=force??!document.body.classList.contains('admin-menu-open');document.body.classList.toggle('admin-menu-open',open);document.querySelector('.menu-toggle')?.setAttribute('aria-expanded',String(open));const shade=document.querySelector('.sidebar-shade');if(shade)shade.hidden=!open;
+ syncSidebarAccess();if(open)document.querySelector('.admin-sidebar .sidebar-link')?.focus();else document.querySelector('.menu-toggle')?.focus();
+}
+function syncSidebarAccess(){const sidebar=document.querySelector('.admin-sidebar');if(sidebar){const hidden=matchMedia('(max-width:1023px)').matches&&!document.body.classList.contains('admin-menu-open');sidebar.inert=hidden;sidebar.setAttribute('aria-hidden',String(hidden));}}
+window.addEventListener('resize',syncSidebarAccess);
+async function showRegistration(raw){
+ registrationToken=raw;publicReportData=null;route='registration';engine=null;if(modal.open)modal.close();document.title='ثبت‌نام در حواس';page('<section class="surface dashboard-empty"><h1>در حال بررسی دعوت…</h1></section>','auth-main');const view=beginView();
+ try{if(!/^[a-f0-9]{64}$/.test(raw))throw Error('لینک ثبت‌نام معتبر نیست.');await viewRequest(view,'/public/registration/inspect',{method:'POST',body:{token:raw}});if(currentView(view))page(registrationView(),'auth-main registration-main');}
+ catch(error){if(currentView(view))page(`<section class="surface dashboard-empty"><h1>ثبت‌نام در دسترس نیست</h1><p>${esc(error.message)}</p><p>یک لینک تازه از ادمین دریافت کنید.</p></section>`,'auth-main');}
 }
 function showInvitation(data){
- document.querySelector('#invitation-result').innerHTML=`<section class="surface invitation-card"><h2>لینک آماده است</h2><label>${data.expiresAt?'لینک یک‌بارمصرف':'لینک گزارش؛ دائمی تا لغو'}<input id="invitation-url" readonly dir="ltr" value="${esc(data.url)}"></label><button class="button subtle" data-action="copy-invitation">کپی لینک</button><p>${data.expiresAt?'اعتبار تا '+new Intl.DateTimeFormat('fa-IR',{dateStyle:'medium',timeStyle:'short'}).format(new Date(data.expiresAt)):'این آدرس فقط همین‌بار نمایش داده می‌شود؛ آن را کپی و نگهداری کنید.'}</p></section>`;
+ const target=modal.open?modal.querySelector('#invitation-result'):document.querySelector('#invitation-result');if(!target)return;
+ target.innerHTML=`<section class="surface invitation-card"><h2>لینک آماده است</h2><label>${data.expiresAt?'لینک یک‌بارمصرف':'لینک گزارش؛ دائمی تا لغو'}<input id="invitation-url" readonly dir="ltr" value="${esc(data.url)}"></label><button class="button subtle" data-action="copy-invitation">کپی لینک</button><p>${data.expiresAt?'اعتبار تا '+new Intl.DateTimeFormat('fa-IR',{dateStyle:'medium',timeStyle:'short'}).format(new Date(data.expiresAt)):'این آدرس فقط همین‌بار نمایش داده می‌شود؛ آن را کپی و نگهداری کنید.'}</p></section>`;
 }
 function forcedPassword(){route='password';engine=null;setHash('#change-password');page(`<div class="page-title"><h1>خوش آمدید، ${esc(currentUser.name)}</h1><p>نام کاربری: <b dir="ltr">${esc(currentUser.username)}</b></p></div>${passwordView(currentUser,true)}`,'content-main auth-main');}
 async function adminPanel(){
- if(currentUser?.role!=='admin')return home();const view=beginView();if(!await refreshClients(view))return;const data=await viewRequest(view,'/users');if(!currentView(view))return;members=data.users;
- inspectedUserId=null;reportState.tab='admin';engine=null;route='admin';if(modal.open)modal.close();setHash('#admin');document.title='مدیریت کاربران — حواس';page(adminView(currentUser,members,clients.profiles,adminState),'content-main admin-main');syncCreateControls();
+ if(currentUser?.role!=='admin')return home();const view=beginView(),data=await viewRequest(view,`/admin/dashboard?days=${dashboardDays}`);if(!currentView(view))return;
+ inspectedUserId=null;reportState.tab='admin';engine=null;route='admin';if(modal.open)modal.close();setHash('#admin');document.title='نمای کلی مرکز — حواس';page(adminOverview(data,currentUser),'content-main admin-main');
 }
 async function inspectUser(id){
  if(currentUser?.role!=='admin')return home();const view=beginView(),data=await viewRequest(view,`/users/${id}`);if(!currentView(view))return;
+ if(inspectedUserId!==id)userTab='overview';
  inspectedUserId=id;clients.activeId=data.profile?.id||null;if(!await refreshClients(view))return;let evaluation=null;
  if(data.profile){evaluation=await viewRequest(view,`/children/${data.profile.id}/assessment`);if(!currentView(view))return;}
  route='admin-user';engine=null;editingProfile=data.profile?.id||null;if(modal.open)modal.close();setHash(`#admin/user/${id}`);document.title=`بررسی ${data.user.name} — حواس`;
- page(adminUserView(data.user,data.profile,evaluation,clients.difficulties)+(data.profile?reportsView(clients,reportState,currentUser):''),'content-main admin-main');syncPolicyControls();
+ page(userDetailsView(data.user,data.profile,evaluation,userTab,data.profile?reportsView(clients,reportState,currentUser):''),'content-main admin-main');syncPolicyControls();
 }
 async function reportLinks(){
  if(!currentUser)return showLogin();const view=beginView();if(!await refreshClients(view))return;const profile=activeProfile(clients);if(!profile)return home();const data=await viewRequest(view,`/children/${profile.id}/report-links`);if(!currentView(view))return;
@@ -668,9 +738,10 @@ function renderPublicReport(){
 }
 function syncCreateControls(){
  const form=document.querySelector('#create-user-form');if(!form)return;const user=form.elements.role.value==='user',direct=form.elements.method.value==='direct',existing=Boolean(form.elements.childId.value);
- document.querySelector('#new-user-child-label').hidden=!user;form.elements.childId.disabled=!user;
+ form.elements.childId.disabled=!user;if(user)form.elements.method.value='direct';
+ const nameLabel=document.querySelector('#admin-name-label');nameLabel.hidden=user;form.elements.name.disabled=user;form.elements.name.required=!user;document.querySelector('#admin-method-label').hidden=user;
  const fields=document.querySelector('#new-profile-fields');fields.hidden=!user||existing;fields.disabled=!user||existing;
- const label=document.querySelector('#temporary-password-label');label.hidden=!direct;form.elements.password.disabled=!direct;form.elements.password.required=direct;
+ const needsPassword=user||direct,label=document.querySelector('#temporary-password-label');label.hidden=!needsPassword;form.elements.password.disabled=!needsPassword;form.elements.password.required=needsPassword;
 }
 const policyVariants={hunt:['standard','divided'],traffic:['standard','signs'],nback:['standard','numbers','toys'],search:['standard','scattered','letters','letters-scattered','dual','letters-dual','scattered-dual','letters-scattered-dual']};
 function policyOptions(gameId,variant){return {gameId,targetCount:variant.includes('dual')||variant==='divided'?2:1,material:variant.includes('letters')?'letters':['numbers','toys'].includes(variant)?variant:'shapes',layout:variant.includes('scattered')?'scattered':'grid',trafficMode:variant==='signs'?'signs':'circles'};}
@@ -679,15 +750,26 @@ function syncPolicyControls(reset=true){
  if(reset)form.elements.variant.innerHTML=(policyVariants[game]||['standard']).map(v=>`<option value="${v}">${variantLabel(v)}</option>`).join('');
  const setting=clients.difficulties.find(d=>d.gameId===game&&d.variant===form.elements.variant.value&&d.protocolVersion===GAME_PROTOCOLS[game]);form.elements.mode.value=setting?.mode||'adaptive';form.elements.level.value=setting?.level||'easy';
 }
-async function previewLegacy(documentData){
-  if(currentUser?.role!=='admin')return;
-  previewImport=await request('/imports/preview',{method:'POST',body:{document:documentData}});
-  document.querySelector('#import-preview').innerHTML=importPreviewView(previewImport,clients.profiles,members,currentUser);
+async function previewLegacy(readDocument){
+  const container=document.querySelector('#import-preview');if(currentUser?.role!=='admin'||!container)return;
+  const attempt={},view={version:viewVersion,userId:currentUser.id,role:currentUser.role};importAttempt=attempt;previewImport=null;
+  const valid=()=>importAttempt===attempt&&currentView(view)&&container.isConnected;
+  container.innerHTML='<p class="status-message" role="status">در حال بررسی فایل…</p>';
+  try{
+    const documentData=await readDocument();if(!valid())return;
+    const preview=await request('/imports/preview',{method:'POST',body:{document:documentData}});if(!valid())return;
+    previewImport=preview;container.innerHTML=importPreviewView(preview,clients.profiles,members,currentUser);
+  }catch(error){
+    if(!valid())return;
+    if(error.status===401||error.code==='PASSWORD_CHANGE_REQUIRED')return showError(error);
+    container.innerHTML=`<div class="form-error" role="alert">${esc(error instanceof SyntaxError?'ساختار فایل JSON معتبر نیست.':error.message||'خواندن فایل ممکن نشد؛ دوباره تلاش کنید.')}</div>`;
+  }finally{if(importAttempt===attempt)importAttempt=null;}
 }
 async function commitLegacy(){
   if(!previewImport?.id)return;
   const mapping=[...document.querySelectorAll('.import-mapping')].map(row=>({sourceId:row.dataset.source,targetId:row.querySelector('[name="targetId"]').value||null,ownerUserId:null}));
-  const data=await request('/imports/commit',{method:'POST',body:{previewId:previewImport.id,mapping}});previewImport=null;await refreshClients();await account();notify(`${fa(data.createdProfiles)} پرونده و ${fa(data.importedRecords)} نتیجه منتقل شد.`);
+  if(mapping.some(m=>!m.targetId)){notify('کاربر مقصد را انتخاب کنید یا با همین مشخصات کاربر جدید بسازید.');return;}
+  const data=await request('/imports/commit',{method:'POST',body:{previewId:previewImport.id,mapping,requireUser:true}});previewImport=null;await refreshClients();await account();notify(`${fa(data.importedRecords)} نتیجه منتقل شد.`);
 }
 window.addEventListener('beforeunload',event=>{if(pendingSave){event.preventDefault();event.returnValue='';}});
 await initialize();

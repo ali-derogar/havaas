@@ -9,7 +9,7 @@ export async function migrate(pool){
   await transaction(pool,async db=>{
     await db.query("SELECT pg_advisory_xact_lock(82004173)");
     await db.query('CREATE TABLE IF NOT EXISTS schema_migrations(version integer PRIMARY KEY, applied_at timestamptz NOT NULL DEFAULT now())');
-    for(const version of [1,2])if(!(await db.query('SELECT 1 FROM schema_migrations WHERE version=$1',[version])).rowCount){
+    for(const version of [1,2,3])if(!(await db.query('SELECT 1 FROM schema_migrations WHERE version=$1',[version])).rowCount){
       await db.query(await readFile(new URL(`./migrations/${String(version).padStart(3,'0')}.sql`,import.meta.url),'utf8'));
       await db.query('INSERT INTO schema_migrations(version) VALUES($1)',[version]);
     }

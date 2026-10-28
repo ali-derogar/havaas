@@ -4,6 +4,16 @@ const ink = '#34443d';
 const svg = (body, viewBox = '0 0 64 64', cls = '') => `<svg class="${cls}" viewBox="${viewBox}" xmlns="http://www.w3.org/2000/svg" fill="none" aria-hidden="true">${body}</svg>`;
 export function icon(name, cls = '') {
   const paths = {
+    users:'<circle cx="9" cy="8" r="3"/><path d="M3 21v-3a6 6 0 0 1 12 0v3M16 5a3 3 0 0 1 0 6m2 4a5 5 0 0 1 3 5"/>',
+    user:'<circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/>',
+    link:'<path d="m9 15 6-6M8 17l-1 1a4 4 0 0 1-6-6l5-5a4 4 0 0 1 6 0m0 10a4 4 0 0 0 6 0l5-5a4 4 0 0 0-6-6l-1 1"/>',
+    settings:'<path d="M4 7h16M4 17h16"/><circle cx="9" cy="7" r="3" fill="white"/><circle cx="15" cy="17" r="3" fill="white"/>',
+    plus:'<path d="M12 5v14M5 12h14"/>',menu:'<path d="M4 6h16M4 12h16M4 18h16"/>',
+    logout:'<path d="M9 4H4v16h5m5-12 4 4-4 4m-5-4h11"/>',
+    calendar:'<rect x="3" y="5" width="18" height="16" rx="3"/><path d="M7 3v5m10-5v5M3 11h18M7 15h3m4 0h3"/>',
+    activity:'<path d="M3 13h4l3-8 4 14 3-6h4"/>',search:'<circle cx="10" cy="10" r="6"/><path d="m15 15 6 6"/>',
+    key:'<circle cx="8" cy="9" r="5"/><path d="m12 13 9 9m-3-3 3-3m-6 0 3-3"/>',
+    grid:'<rect x="3" y="3" width="7" height="7" rx="2"/><rect x="14" y="3" width="7" height="7" rx="2"/><rect x="3" y="14" width="7" height="7" rx="2"/><rect x="14" y="14" width="7" height="7" rx="2"/>',
     arrow: '<path d="M19 12H5m6-6-6 6 6 6"/>', back: '<path d="M5 12h14m-6-6 6 6-6 6"/>',
     play: '<path d="m9 5 11 7-11 7z" fill="currentColor" stroke="none"/>', pause: '<path d="M9 5v14M15 5v14"/>',
     check: '<path d="m5 12 4 4L19 6"/>', close: '<path d="m6 6 12 12M18 6 6 18"/>',

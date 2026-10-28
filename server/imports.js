@@ -21,12 +21,12 @@ function validTimestamp(value){
 }
 export function inspectLegacy(input){
   const errors=[],profiles=Array.isArray(input?.profiles)?input.profiles:input?.profile?[input.profile]:[],records=input?.records;
-  if(input?.version!==1||!profiles.length||!Array.isArray(records)||profiles.length>500||records.length>20000)return {errors:['فایل نسخهٔ ۱ شامل پرونده و سابقه لازم است؛ رکوردهای ناشناس قابل انتساب خودکار نیستند.']};
+  if(input?.version!==1||!profiles.length||!Array.isArray(records)||profiles.length>500||records.length>20000)return {errors:['فایل نسخهٔ ۱ شامل اطلاعات کاربر و سابقه لازم است؛ رکوردهای ناشناس قابل انتساب خودکار نیستند.']};
   if(!validDocumentText(input))return {errors:['فایل شامل نویسهٔ نامعتبر یا ساختار بیش از حد تو‌در‌تو است.']};
   const ids=new Set();
   for(const [i,p] of profiles.entries()){
-    if(!p||typeof p.id!=='string'||p.id.length>150||ids.has(p.id)||validateProfile(p).error)errors.push(`مشخصات پروندهٔ ${i+1} کامل یا یکتا نیست.`);else ids.add(p.id);
-    if(p?.createdAt!==undefined&&!validTimestamp(p.createdAt))errors.push(`تاریخ ایجاد پروندهٔ ${i+1} باید تاریخ و ساعت معتبر ISO با منطقهٔ زمانی باشد.`);
+    if(!p||typeof p.id!=='string'||p.id.length>150||ids.has(p.id)||validateProfile(p).error)errors.push(`مشخصات اطلاعات ${i+1} کامل یا یکتا نیست.`);else ids.add(p.id);
+    if(p?.createdAt!==undefined&&!validTimestamp(p.createdAt))errors.push(`تاریخ ایجاد اطلاعات ${i+1} باید تاریخ و ساعت معتبر ISO با منطقهٔ زمانی باشد.`);
   }
   const seen=new Set();
   for(const [i,r] of records.entries()){
@@ -48,18 +48,19 @@ export function registerImports(app,pool,{role,childAccess}){
     res.json({id,errors:[],profiles,totalRecords:stored.records.length});
   });
   app.post('/api/imports/commit',async(req,res)=>{
-    role(req,['admin']);uuid(req.body.previewId);check(Array.isArray(req.body.mapping)&&req.body.mapping.every(m=>m&&typeof m==='object'&&!Array.isArray(m)&&typeof m.sourceId==='string'&&(m.targetId===undefined||m.targetId===null||typeof m.targetId==='string')),'نگاشت پرونده‌ها باید شامل شناسهٔ منبع و مقصد معتبر باشد.');
+    role(req,['admin']);uuid(req.body.previewId);check(Array.isArray(req.body.mapping)&&req.body.mapping.every(m=>m&&typeof m==='object'&&!Array.isArray(m)&&typeof m.sourceId==='string'&&(m.targetId===undefined||m.targetId===null||typeof m.targetId==='string')),'نگاشت کاربران باید شامل شناسهٔ منبع و مقصد معتبر باشد.');
     const response=await transaction(pool,async db=>{
       await db.query('SELECT pg_advisory_xact_lock(82004175)');
       const preview=(await db.query('SELECT * FROM import_previews WHERE id=$1 AND user_id=$2 FOR UPDATE',[req.body.previewId,req.user.id])).rows[0];check(preview&&new Date(preview.expires_at)>new Date(),'پیش‌نمایش منقضی یا نامعتبر است.');if(preview.committed_at)return preview.response;
       const document=preview.document,targets=new Map();let createdProfiles=0,importedRecords=0;
-      check(req.body.mapping.length===document.profiles.length,'برای هر پرونده یک مقصد مشخص کنید.');
+      check(req.body.mapping.length===document.profiles.length,'برای هر اطلاعات کاربر یک مقصد مشخص کنید.');
       for(const p of document.profiles){
         const choices=req.body.mapping.filter(m=>m.sourceId===p.id);check(choices.length===1,'نگاشت تکراری یا ناقص است.');const m=choices[0],sourceKey=digest(JSON.stringify(p)),known=(await db.query('SELECT child_id FROM legacy_profiles WHERE source_key=$1',[sourceKey])).rows[0];let id=known?.child_id||m.targetId;
-        if(known&&m.targetId)check(m.targetId===known.child_id,'این پرونده قبلاً به مقصد دیگری منتقل شده است.',409);
-        if(id)await childAccess(db,req.user,id,true);
+        if(known&&m.targetId)check(m.targetId===known.child_id,'این اطلاعات کاربر قبلاً به مقصد دیگری منتقل شده است.',409);
+        if(id){const child=await childAccess(db,req.user,id,true);if(req.body.requireUser)check(child.owner_user_id,'ابتدا کاربر مقصد را بسازید.',400);}
         else {
-          check(!m.ownerUserId,'برای اتصال پروندهٔ جدید ابتدا حساب کاربر بسازید و مقصد موجود را انتخاب کنید.');id=randomUUID();
+          check(!req.body.requireUser,'انتخاب کاربر مقصد الزامی است.');
+          check(!m.ownerUserId,'برای اتصال اطلاعات جدید ابتدا حساب کاربر بسازید و مقصد موجود را انتخاب کنید.');id=randomUUID();
           await db.query('INSERT INTO children(id,profile,created_at) VALUES($1,$2,$3)',[id,validateProfile(p).profile,p.createdAt?new Date(p.createdAt).toISOString():new Date()]);createdProfiles++;
         }
         await db.query('INSERT INTO legacy_profiles(source_key,child_id) VALUES($1,$2) ON CONFLICT DO NOTHING',[sourceKey,id]);targets.set(p.id,id);
