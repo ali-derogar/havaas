@@ -12,8 +12,9 @@ async function api(path,{method='GET',body}={}){const response=await fetch('http
 try{
  await docker(['up','-d','--wait','app']);const password='Disposable-smoke-password-2026!';await docker(['exec','-T','app','node','scripts/admin-create.mjs'],{input:JSON.stringify({username:'admin',email:'admin@example.test',name:'مدیر آزمون Docker',password})});
  await api('/auth/session');await api('/auth/login',{method:'POST',body:{identifier:'admin',password}});
- const created=await api('/users',{method:'POST',body:{username:'smoke-user',name:'کاربر آزمون Docker',role:'user',method:'invite',profile:{firstName:'مراجع',lastName:'آزمون Docker',birthDate:'2016-01-01',grade:'پایهٔ ۳',school:'امید',concerns:'disposable smoke test'}}});
- await api('/invitations/accept',{method:'POST',body:{token:created.url.split('/').at(-1),password}});const id=created.profile.id;
+ const overview=await api('/admin/dashboard?days=7');assert.equal(overview.totals.users,0);
+ const invitation=await api('/registration-links',{method:'POST',body:{label:'دعوت آزمون Docker'}});
+ await api('/public/registration/complete',{method:'POST',body:{token:invitation.url.split('/').at(-1),username:'smoke-user',password,profile:{firstName:'مراجع',lastName:'آزمون Docker',birthDate:'2016-01-01',grade:'پایهٔ ۳',school:'امید'}}});const id=(await api('/bootstrap')).profiles[0].id;
  const run=await api(`/children/${id}/sessions`,{method:'POST',body:{gameId:'traffic',kind:'baseline'}});await api(`/children/${id}/sessions/${run.id}/complete`,{method:'POST',body:{result:playSession(run)}});
  await docker(['restart','db','app']);
  let ready=false;for(let attempt=0;attempt<40;attempt++){try{if((await fetch('http://127.0.0.1:4184/health')).ok){ready=true;break;}}catch{}await new Promise(r=>setTimeout(r,500));}assert.ok(ready,'containers did not recover');assert.equal((await api(`/children/${id}/sessions`)).records[0].id,run.id);

@@ -313,3 +313,10 @@ apiTest('server: dashboard aggregates real sessions with Tehran day boundaries a
  const after=await admin.call('/admin/dashboard?days=7');assert.equal(after.data.totals.sessions,before.data.totals.sessions+1);assert.equal(after.data.daily.at(-1).training,before.data.daily.at(-1).training+1);assert.equal(after.data.games.find(g=>g.id==='traffic').count,before.data.games.find(g=>g.id==='traffic').count+1);
  for(const days of [30,90])assert.equal((await admin.call(`/admin/dashboard?days=${days}`)).data.daily.length,days);
 });
+
+apiTest('server: user-centered imports require an owner and do not create orphan data on failure',async()=>{
+ const run=await start(admin,'traffic'),profile={id:'owner-required-import',firstName:'انتقال',lastName:'کاربر',birthDate:'2016-01-01',grade:'پایهٔ ۳',school:'امید'},document={version:1,profile,records:[{id:'owner-required-result',profileId:profile.id,kind:'baseline',result:playSession(run)}]},preview=await admin.call('/imports/preview',{method:'POST',body:{document}}),before=Number((await db.pool.query('SELECT count(*) FROM children')).rows[0].count);
+ assert.equal((await admin.call('/imports/commit',{method:'POST',body:{previewId:preview.data.id,requireUser:true,mapping:[{sourceId:profile.id,targetId:null}]}})).status,400);assert.equal(Number((await db.pool.query('SELECT count(*) FROM children')).rows[0].count),before);
+ const created=await admin.call('/users',{method:'POST',body:{role:'user',method:'direct',username:'import-owner-client',password:testPassword,profile}});assert.equal(created.status,201);
+ const imported=await admin.call('/imports/commit',{method:'POST',body:{previewId:preview.data.id,requireUser:true,mapping:[{sourceId:profile.id,targetId:created.data.profile.id}]}});assert.equal(imported.status,200);assert.equal(imported.data.createdProfiles,0);assert.equal(imported.data.importedRecords,1);
+});
