@@ -32,7 +32,10 @@ export function latestBaseline(clients, gameId, variant = 'standard', level = nu
   return profileRecords(clients).filter(r => r.kind === 'baseline' && (!level || r.result.level === level) && r.result.gameId === gameId && (r.result.protocolVersion || 2) === GAME_PROTOCOLS[gameId] && variantOf(r.result) === variant).at(-1)?.result ?? null;
 }
 export function validateProfile(input, today = new Date()) {
-  const profile = Object.fromEntries(['firstName','lastName','birthDate','grade','school','concerns'].map(key => [key, String(input[key] ?? '').trim()]));
+  const keys=['firstName','lastName','birthDate','grade','school','concerns'];
+  if(!input||typeof input!=='object'||Array.isArray(input))return {error:'ساختار اطلاعات مشخصات معتبر نیست.'};
+  if(keys.some(key=>input[key]!==undefined&&input[key]!==null&&typeof input[key]!=='string'))return {error:'نام، تاریخ و سایر مشخصات باید به‌صورت متن وارد شوند.'};
+  const profile = Object.fromEntries(keys.map(key => [key, (input[key] ?? '').trim()]));
   if(Object.values(profile).some(value=>!isValidText(value)))return {error:'متن مشخصات شامل نویسهٔ نامعتبر است؛ آن بخش را دوباره وارد کنید.'};
   if (!profile.firstName || !profile.lastName || !profile.birthDate || !profile.grade || !profile.school) return { error: 'نام، نام خانوادگی، تاریخ تولد، پایه و مدرسه را کامل کن.' };
   if (Object.values(profile).some(value => value.length > 500)) return { error: 'طول هر بخش باید کمتر از ۵۰۰ نویسه باشد.' };

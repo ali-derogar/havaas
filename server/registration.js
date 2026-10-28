@@ -1,5 +1,5 @@
 import {randomUUID} from 'node:crypto';
-import {requireValue as check,token,digest,passwordHash,usernameOf,emailOf,uuid,isValidText} from './security.js';
+import {requireValue as check,token,digest,passwordHash,usernameOf,emailOf,uuid,textOf} from './security.js';
 import {validateProfile} from '../src/core/clients.js';
 
 async function inspect(db,raw,lock=false){
@@ -25,7 +25,7 @@ export function registerPublicRegistration(app,pool,{authLimit,accountTransactio
 export function registerRegistrationAdmin(app,pool,{role,accountTransaction,creatorActive}){
  app.get('/api/registration-links',async(req,res)=>{role(req,['admin']);res.json({links:(await pool.query("SELECT l.id,l.label,l.created_at AS \"createdAt\",l.expires_at AS \"expiresAt\",l.used_at AS \"usedAt\",l.revoked_at AS \"revokedAt\",l.user_id AS \"userId\",u.name AS \"userName\",CASE WHEN l.used_at IS NOT NULL THEN 'used' WHEN l.revoked_at IS NOT NULL OR NOT c.active THEN 'revoked' WHEN l.expires_at<=now() THEN 'expired' ELSE 'open' END AS status FROM registration_links l LEFT JOIN users u ON u.id=l.user_id JOIN users c ON c.id=l.created_by ORDER BY l.created_at DESC,l.id")).rows});});
  app.post('/api/registration-links',async(req,res)=>{
-  role(req,['admin']);const label=String(req.body.label||'دعوت مراجعه‌کننده').trim();check(isValidText(label)&&label.length>=1&&label.length<=100,'عنوان دعوت باید ۱ تا ۱۰۰ نویسه باشد.');
+  role(req,['admin']);const message='عنوان دعوت باید ۱ تا ۱۰۰ نویسه باشد.',label=textOf(req.body.label??'دعوت مراجعه‌کننده',message);check(label.length>=1&&label.length<=100,message);
   const raw=token(),id=randomUUID(),expiresAt=new Date(Date.now()+48*60*60*1000);
   await accountTransaction(pool,async db=>{await creatorActive(db,req.user.id);await db.query('INSERT INTO registration_links(id,token_hash,label,created_by,expires_at) VALUES($1,$2,$3,$4,$5)',[id,digest(raw),label,req.user.id,expiresAt]);});
   res.status(201).json({id,expiresAt,url:`${process.env.APP_ORIGIN||`${req.protocol}://${req.get('host')}`}/#register/${raw}`});

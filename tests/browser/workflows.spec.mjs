@@ -304,3 +304,46 @@ test('a confirmed mandatory password change stays complete when subsequent accou
  const created=await adminApi.post('/api/users',{headers:{'X-CSRF-Token':adminCsrf},data:{username:'forced-password-after-ack',role:'user',method:'direct',password:'Forced-initial-password-2026!',profile:{firstName:'رمز',lastName:'شخصی',birthDate:'2016-01-01',grade:'پایهٔ ۳',school:'امید'}}});expect(created.status()).toBe(201);
  await page.goto('/');await page.locator('#login-form [name=identifier]').fill('forced-password-after-ack');await page.locator('#login-form [name=password]').fill('Forced-initial-password-2026!');await page.locator('#login-form button[type=submit]').click();await expect(page.locator('#password-form')).toBeVisible();await page.locator('#password-form [name=currentPassword]').fill('Forced-initial-password-2026!');await page.locator('#password-form [name=password]').fill('Forced-personal-password-2026!');await page.route('**/api/bootstrap*',route=>route.abort('failed'));const changed=page.waitForResponse(r=>r.url().endsWith('/api/auth/change-password')&&r.status()===200);await page.locator('#password-form button[type=submit]').click();await changed;await expect(page.locator('#password-form')).toHaveCount(0);await expect(page.locator('[data-action=retry-connect]')).toBeVisible();await page.unroute('**/api/bootstrap*');await click(page,'retry-connect');await expect(page.locator('.profile-strip')).toContainText('رمز شخصی');
 });
+
+test('a JSON import with malformed field types shows validation errors and can be corrected',async({page})=>{
+ await login(page,'admin');await click(page,'account');const profile={id:'malformed-structure-browser',firstName:{toString:null},lastName:'آزمون',birthDate:'2016-01-01',grade:'پایهٔ ۳',school:'امید'},upload=document=>page.locator('#import-file').setInputFiles({name:'structure.json',mimeType:'application/json',buffer:Buffer.from(JSON.stringify(document))});
+ const checked=page.waitForResponse(r=>r.url().endsWith('/api/imports/preview'));await upload({version:1,profile,records:[]});const response=await checked;expect(response.status()).toBe(200);expect((await response.json()).id).toBe(null);await expect(page.locator('#import-preview [role=alert]')).toBeVisible();await expect(page.locator('[data-action=commit-import]')).toHaveCount(0);
+ await upload({version:1,profile:{...profile,firstName:'بررسی'},records:[]});await expect(page.locator('.import-mapping')).toContainText('بررسی آزمون');await expect(page.locator('[data-action=commit-import]')).toBeVisible();
+});
+
+test('a delayed settings refresh cannot replace the client being reviewed or redirect the next save',async({page})=>{
+ const headers={'X-CSRF-Token':adminCsrf};expect((await adminApi.patch(`/api/children/${seed.children[1].id}/difficulty`,{headers,data:{gameId:'traffic',mode:'fixed',level:'medium'}})).ok()).toBe(true);
+ await login(page,'admin');await click(page,'inspect-user',`[data-user="${seed.users.user.id}"]`);await click(page,'user-tab','[data-tab=difficulty]');await page.locator('#policy-game').selectOption('traffic');await page.locator('#admin-difficulty-form [name=mode]').selectOption('fixed');await page.locator('#admin-difficulty-form [name=level]').selectOption('hard');
+ let release,ready;const gate=new Promise(resolve=>release=resolve),fetched=new Promise(resolve=>ready=resolve),matches=url=>url.pathname==='/api/bootstrap'&&url.searchParams.get('childId')===seed.children[0].id;
+ await page.route(matches,async route=>{const response=await route.fetch();ready();await gate;await route.fulfill({response});});
+ try{
+  await page.locator('#admin-difficulty-form button[type=submit]').click();await fetched;await click(page,'inspect-user',`[data-user="${seed.users.otherUser.id}"]`);await click(page,'user-tab','[data-tab=difficulty]');await page.locator('#policy-game').selectOption('traffic');await expect(page.locator('#admin-difficulty-form [name=level]')).toHaveValue('medium');
+  const late=page.waitForResponse(r=>matches(new URL(r.url())));release();await late;await page.waitForLoadState('networkidle');await expect(page.locator('#admin-difficulty-form [name=level]')).toHaveValue('medium');
+  await page.locator('#admin-difficulty-form [name=level]').selectOption('easy');const saved=page.waitForResponse(r=>r.url().endsWith('/difficulty')&&r.request().method()==='PATCH');await page.locator('#admin-difficulty-form button[type=submit]').click();expect((await saved).url()).toContain(`/children/${seed.children[1].id}/`);await expect(page.locator('#account-status')).toContainText('ذخیره شد');
+  const first=await (await adminApi.get(`/api/children/${seed.children[0].id}/difficulty`)).json();expect(first.settings.find(s=>s.gameId==='traffic'&&s.variant==='standard').level).toBe('hard');
+ }finally{release();await page.unrouteAll({behavior:'wait'});}
+});
+
+for(const source of ['overview','invitations'])test(`creating a registration link updates ${source} after closing its dialog`,async({page})=>{
+ await login(page,'admin');if(source==='invitations')await click(page,'admin-invitations');const before=await (await adminApi.get('/api/admin/dashboard')).json(),label=`دعوت تازه ${source}`;
+ await click(page,source==='overview'?'new-user':'new-registration');if(source==='overview')await click(page,'create-mode','[data-mode=link]');await page.locator('#registration-link-form [name=label]').fill(label);await page.locator('#registration-link-form button[type=submit]').click();await expect(page.locator('#invitation-url')).toBeVisible();await click(page,'close-modal');
+ if(source==='overview')await expect(page.locator('.metric-card').filter({hasText:'دعوت باز'}).locator('b')).toHaveText(Number(before.totals.openInvitations+1).toLocaleString('fa-IR'));
+ else {
+  await expect(page.locator('.invitation-row').filter({hasText:label})).toBeVisible();let release,ready;const gate=new Promise(resolve=>release=resolve),fetched=new Promise(resolve=>ready=resolve);await page.route('**/api/registration-links',async route=>{if(route.request().method()!=='POST')return route.continue();const response=await route.fetch();ready();await gate;await route.fulfill({response});});
+  try{await click(page,'new-registration');await page.locator('#registration-link-form [name=label]').fill('دعوت با پاسخ دیررس');await page.locator('#registration-link-form button[type=submit]').click();await fetched;await click(page,'close-modal');release();await expect(page.locator('.invitation-row').filter({hasText:'دعوت با پاسخ دیررس'})).toBeVisible();await expect(page.locator('#modal')).not.toBeVisible();}finally{release();await page.unrouteAll({behavior:'wait'});}
+ }
+});
+
+test('a delayed invitation revocation cannot pull the admin away from the user list',async({page})=>{
+ const created=await adminApi.post('/api/registration-links',{headers:{'X-CSRF-Token':adminCsrf},data:{label:'لغو دیررس'}}),link=await created.json();expect(created.status()).toBe(201);await login(page,'admin');await click(page,'admin-invitations');
+ let release,ready;const gate=new Promise(resolve=>release=resolve),fetched=new Promise(resolve=>ready=resolve);await page.route(`**/api/registration-links/${link.id}`,async route=>{const response=await route.fetch();ready();await gate;await route.fulfill({response});});
+ try{await page.locator(`[data-action=revoke-registration][data-id="${link.id}"]`).click();await fetched;await click(page,'admin-users');const late=page.waitForResponse(r=>r.url().endsWith(`/api/registration-links/${link.id}`));release();await late;await page.waitForLoadState('networkidle');await expect(page).toHaveURL(/#admin\/users$/);await expect(page.locator('.members-table')).toBeVisible();}finally{release();await page.unrouteAll({behavior:'wait'});}
+});
+
+test('the last administrator receives a visible error in the active tab when deactivation is blocked',async({page})=>{
+ const headers={'X-CSRF-Token':adminCsrf},users=(await (await adminApi.get('/api/users')).json()).users,others=users.filter(u=>u.role==='admin'&&u.active&&u.id!==seed.users.admin.id);
+ try{
+  for(const user of others)expect((await adminApi.patch(`/api/users/${user.id}`,{headers,data:{active:false}})).ok()).toBe(true);
+  await login(page,'admin');await click(page,'inspect-user',`[data-user="${seed.users.admin.id}"]`);const blocked=page.waitForResponse(r=>r.url().endsWith(`/api/users/${seed.users.admin.id}`)&&r.request().method()==='PATCH'&&r.status()===409);await page.locator(`[data-action=toggle-user][data-user="${seed.users.admin.id}"]`).click();await blocked;await expect(page.locator('#account-status')).toBeVisible();await expect(page.locator('#account-status')).toContainText('آخرین ادمین');await expect(page.locator('.admin-sidebar')).toBeVisible();expect((await (await adminApi.get(`/api/users/${seed.users.admin.id}`)).json()).user.active).toBe(true);
+ }finally{for(const user of others)expect((await adminApi.patch(`/api/users/${user.id}`,{headers,data:{active:true}})).ok()).toBe(true);}
+});

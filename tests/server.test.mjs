@@ -320,3 +320,33 @@ apiTest('server: user-centered imports require an owner and do not create orphan
  const created=await admin.call('/users',{method:'POST',body:{role:'user',method:'direct',username:'import-owner-client',password:testPassword,profile}});assert.equal(created.status,201);
  const imported=await admin.call('/imports/commit',{method:'POST',body:{previewId:preview.data.id,requireUser:true,mapping:[{sourceId:profile.id,targetId:created.data.profile.id}]}});assert.equal(imported.status,200);assert.equal(imported.data.createdProfiles,0);assert.equal(imported.data.importedRecords,1);
 });
+
+apiTest('server: malformed text values are validation errors and cannot change users or profiles',async()=>{
+ const bad={toString:null},original=(await admin.call(`/children/${seed.children[0].id}`)).data.profile;
+ for(const [path,method,body] of [
+  ['/users','POST',{role:'admin',method:'invite',username:'malformed-name',name:bad}],
+  ['/users','POST',{role:'admin',method:'invite',username:bad,name:'نام آزمون'}],
+  ['/users','POST',{role:'admin',method:'invite',username:'malformed-email',name:'نام آزمون',email:bad}],
+  [`/users/${seed.users.otherUser.id}`,'PATCH',{name:bad}],
+  [`/children/${seed.children[0].id}`,'PATCH',{firstName:bad}],
+  ['/registration-links','POST',{label:bad}],
+  [`/children/${seed.children[0].id}/report-links`,'POST',{label:bad}]
+ ]){const response=await admin.call(path,{method,body});assert.equal(response.status,400,`${method} ${path}: ${JSON.stringify(response.data)}`);}
+ const guest=new Client();await guest.call('/auth/session');for(const identifier of [bad,'bad\u0000identifier'])assert.equal((await guest.call('/auth/login',{method:'POST',body:{identifier,password:testPassword}})).status,401);
+ assert.deepEqual((await admin.call(`/children/${seed.children[0].id}`)).data.profile,original);
+});
+
+apiTest('server: malformed legacy keys are rejected in preview without storing a preview',async()=>{
+ const bad={toString:null},run=await start(admin,'traffic'),result=playSession(run),profile={id:'bad-key-profile',firstName:'نام',lastName:'آزمون',birthDate:'2016-01-01',grade:'پایهٔ ۳',school:'امید'},before=Number((await db.pool.query('SELECT count(*) FROM import_previews')).rows[0].count);
+ for(const mutate of [d=>d.profile.firstName=bad,d=>d.records[0].id=bad,d=>d.records[0].profileId=bad,d=>d.records[0].result.gameId=bad,d=>d.records[0].result.level=bad]){
+  const document={version:1,profile:{...profile},records:[{id:'bad-key-run',profileId:profile.id,kind:'baseline',result:{...result}}]};mutate(document);const preview=await admin.call('/imports/preview',{method:'POST',body:{document}});assert.equal(preview.status,200);assert.equal(preview.data.id,null);assert.ok(preview.data.errors.length);
+ }
+ assert.equal(Number((await db.pool.query('SELECT count(*) FROM import_previews')).rows[0].count),before);
+});
+
+apiTest('server: user filters reject invalid parameters and search treats wildcard and SQL syntax as literal text',async()=>{
+ for(const path of ['/users?page=NaN','/users?pageSize=0','/users?sort=__proto__','/users?role=admin&role=user','/users?search=%00','/admin/dashboard?days=7&days=30'])assert.equal((await admin.call(path)).status,400,path);
+ const created=await admin.call('/users',{method:'POST',body:{role:'admin',method:'invite',username:'literal-search-user',name:'کاربر % آزمون'}});assert.equal(created.status,201);
+ const percent=await admin.call('/users?page=1&search=%25');assert.equal(percent.status,200);assert.equal(percent.data.pagination.total,1);assert.equal(percent.data.users[0].id,created.data.user.id);
+ const injection=await admin.call('/users?page=1&search='+encodeURIComponent("' OR 1=1 --"));assert.equal(injection.status,200);assert.equal(injection.data.pagination.total,0);
+});

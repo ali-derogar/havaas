@@ -1,6 +1,6 @@
 import { randomUUID } from 'node:crypto';
 import { transaction } from './db.js';
-import { requireValue as check, HttpError, token, digest, passwordHash, verifyPassword, emailOf, usernameOf, uuid, publicUser, isValidText } from './security.js';
+import { requireValue as check, HttpError, token, digest, passwordHash, verifyPassword, emailOf, usernameOf, uuid, publicUser, isValidText, textOf } from './security.js';
 import { validateProfile } from '../src/core/clients.js';
 import {registerPublicRegistration,registerRegistrationAdmin} from './registration.js';
 import {registerDashboard} from './dashboard.js';
@@ -8,7 +8,7 @@ import {registerDashboard} from './dashboard.js';
 const save=req=>new Promise((resolve,reject)=>req.session.save(e=>e?reject(e):resolve()));
 async function signIn(req,user){await new Promise((resolve,reject)=>req.session.regenerate(e=>e?reject(e):resolve()));req.session.userId=user.id;req.session.authVersion=user.auth_version;req.session.csrf=token();await save(req);return {user:publicUser(user),csrfToken:req.session.csrf};}
 const origin=req=>process.env.APP_ORIGIN||`${req.protocol}://${req.get('host')}`;
-const nameOf=value=>{const name=String(value||'').trim();check(isValidText(name)&&name.length>=2&&name.length<=120,'نام باید بین ۲ تا ۱۲۰ نویسهٔ معتبر باشد.');return name;};
+const nameOf=value=>{const message='نام باید بین ۲ تا ۱۲۰ نویسهٔ معتبر باشد.',name=textOf(value,message);check(name.length>=2&&name.length<=120,message);return name;};
 const userStats=`SELECT u.*,c.id AS "childId",(SELECT count(*)::int FROM game_sessions s WHERE s.child_id=c.id AND s.result IS NOT NULL) AS "sessionCount",(SELECT max(finished_at) FROM game_sessions s WHERE s.child_id=c.id) AS "lastPlayedAt" FROM users u LEFT JOIN children c ON c.owner_user_id=u.id`;
 const memberDTO=u=>({...publicUser(u),childId:u.childId,sessionCount:u.sessionCount,lastPlayedAt:u.lastPlayedAt});
 async function creatorActive(db,id){check((await db.query("SELECT 1 FROM users WHERE id=$1 AND role='admin' AND active=true AND pending=false FOR SHARE",[id])).rowCount,'حساب مدیر دیگر فعال نیست.',403);}
@@ -24,8 +24,8 @@ export function registerAccounts(app,pool,{authLimit,role,profileDTO}){
  registerPublicRegistration(app,pool,{authLimit,accountTransaction,creatorActive,signIn});
  app.get('/api/auth/session',async(req,res)=>{await save(req);res.json({user:req.user?publicUser(req.user):null,csrfToken:req.session.csrf});});
  app.post('/api/auth/login',authLimit,async(req,res)=>{
-  const identifier=String(req.body.identifier||req.body.username||req.body.email||'').trim().toLowerCase();
-  check(identifier.length<=254,'نام کاربری یا رمز درست نیست.',401,'INVALID_CREDENTIALS');
+  const value=req.body.identifier||req.body.username||req.body.email||'';check(typeof value==='string'&&isValidText(value)&&value.length<=254,'نام کاربری یا رمز درست نیست.',401,'INVALID_CREDENTIALS');
+  const identifier=value.trim().toLowerCase();
   const user=(await pool.query('SELECT * FROM users WHERE lower(username)=$1 OR (legacy_email_login AND lower(email)=$1)',[identifier])).rows[0];
   const verified=await verifyPassword(req.body.password,user?.password_hash||'scrypt$131072$8$1$00000000000000000000000000000000$'+'00'.repeat(64));
   check(user?.active&&!user.pending&&verified,'نام کاربری یا رمز درست نیست.',401,'INVALID_CREDENTIALS');

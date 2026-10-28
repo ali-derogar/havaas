@@ -27,6 +27,7 @@ const api=new ApiClient();
 let currentUser=null,members=[],inviteToken=null,inviteInfo=null,remoteRun=null,pendingSave=null,starting=false,launchAttempt=null,previewImport=null,importAttempt=null;
 let inspectedUserId=null,publicReportData=null,viewVersion=0;
 let dashboardDays=30,userTab='overview',registrationToken=null,createContext={};
+let pendingAdminRefresh=null;
 const adminState={search:'',status:'',role:'',sort:'newest',page:1};
 let pendingStart = null, sessionIsBaseline = false, editingProfile = null, guideState = null, sessionAssessment = false, lessonState = null, sessionRecordId = null;
 const reportState = { tab: 'admin', game: '', level: '', variant: '', kind: 'training', recordId: null };
@@ -373,6 +374,7 @@ function pause() {
 function closeModal() {
   if(modal.open) modal.close();
   if(route==='play'&&engine){if(playPhase==='countdown')preparationClock?.resume();else if(playPhase==='playing'&&engine.paused&&!engine.gate&&!engine.review)engine.resume();updatePlay();}
+  refreshAdminAfterDialog();
 }
 function tone(good) {
   if(!progress.sound) return;
@@ -443,17 +445,20 @@ async function processForm(form){
   if(form.id==='registration-form'){
     const auth=await request('/public/registration/complete',{method:'POST',body:{token:registrationToken,username:values.username,password:values.password,email:values.email,profile:values}});history.replaceState?.({},'',location.pathname);return openSignedInHome(auth);
   }
-  if(form.id==='registration-link-form'){const data=await request('/registration-links',{method:'POST',body:values});if(form.isConnected)return showInvitation(data);return;}
+  if(form.id==='registration-link-form'){
+    const view={version:viewVersion,userId:currentUser.id,role:currentUser.role},data=await viewRequest(view,'/registration-links',{method:'POST',body:values});if(!currentView(view))return;
+    if(form.isConnected&&modal.open)showInvitation(data);scheduleAdminRefresh(view);return;
+  }
   if(form.id==='user-filter-form'){Object.assign(adminState,values,{page:1});return adminUsers();}
   if(form.id==='create-user-form'){
-    const data=await request('/users',{method:'POST',body:{...values,profile:values}});
-    if(!form.isConnected)return;
-    if(form.dataset.importSource&&previewImport){const source=form.dataset.importSource;const choices=new Map([...document.querySelectorAll('.import-mapping')].map(row=>[row.dataset.source,row.querySelector('[name=targetId]').value]));previewImport.profiles.forEach(p=>p.targetId=p.sourceId===source?data.profile.id:choices.get(p.sourceId)||p.targetId);await refreshClients();if(modal.open)modal.close();const target=document.querySelector('#import-preview');if(target)target.innerHTML=importPreviewView(previewImport,clients.profiles);return notify('کاربر ساخته شد؛ انتقال سوابق را تأیید کنید.');}
+    const view={version:viewVersion,userId:currentUser.id,role:currentUser.role},preview=previewImport,data=await viewRequest(view,'/users',{method:'POST',body:{...values,profile:values}});
+    if(!currentView(view))return;if(!form.isConnected||!modal.open){scheduleAdminRefresh(view);return;}
+    if(form.dataset.importSource&&preview&&preview===previewImport){const source=form.dataset.importSource;const choices=new Map([...document.querySelectorAll('.import-mapping')].map(row=>[row.dataset.source,row.querySelector('[name=targetId]').value]));if(!await refreshClients(view)||preview!==previewImport)return;preview.profiles.forEach(p=>p.targetId=p.sourceId===source?data.profile.id:choices.get(p.sourceId)||p.targetId);if(modal.open)modal.close();const target=document.querySelector('#import-preview');if(target)target.innerHTML=importPreviewView(preview,clients.profiles);return notify('کاربر ساخته شد؛ انتقال سوابق را تأیید کنید.');}
     if(modal.open)modal.close();await adminUsers();if(data.url){openModal('<h2 id="modal-title">دعوت ادمین</h2><div id="invitation-result"></div><button class="button subtle" data-action="close-modal">بستن</button>','invitation');showInvitation(data);}return notify('کاربر با موفقیت ساخته شد.');
   }
-  if(form.id==='edit-user-form'){const body={username:values.username,...(form.dataset.role==='user'?{profile:values}:{name:values.name})};const data=await request(`/users/${form.dataset.user}`,{method:'PATCH',body});if(data.user.id===currentUser.id)currentUser=data.user;if(!form.isConnected)return;await inspectUser(data.user.id);return notify('اطلاعات کاربر ذخیره شد.');}
+  if(form.id==='edit-user-form'){const view={version:viewVersion,userId:currentUser.id,role:currentUser.role},body={username:values.username,...(form.dataset.role==='user'?{profile:values}:{name:values.name})};const data=await request(`/users/${form.dataset.user}`,{method:'PATCH',body});if(data.user.id===currentUser.id)currentUser=data.user;if(!currentView(view)||!form.isConnected)return;await inspectUser(data.user.id);return notify('اطلاعات کاربر ذخیره شد.');}
   if(form.id==='report-link-form'){const childId=clients.activeId,version=viewVersion;const data=await request(`/children/${childId}/report-links`,{method:'POST',body:values});if(version!==viewVersion||childId!==clients.activeId)return;await reportLinks();if(route==='report-links'&&childId===clients.activeId)return showInvitation(data);return;}
-  if(form.id==='admin-difficulty-form'){await request(`/children/${clients.activeId}/difficulty`,{method:'PATCH',body:{...policyOptions(values.gameId,values.variant),mode:values.mode,level:values.level}});await refreshClients();syncPolicyControls(false);return notify('تنظیم سطح برای جلسهٔ بعد ذخیره شد.');}
+  if(form.id==='admin-difficulty-form'){const view={version:viewVersion,userId:currentUser.id,role:currentUser.role},childId=clients.activeId;await viewRequest(view,`/children/${childId}/difficulty`,{method:'PATCH',body:{...policyOptions(values.gameId,values.variant),mode:values.mode,level:values.level}});if(!currentView(view)||!await refreshClients(view))return;syncPolicyControls(false);return notify('تنظیم سطح برای جلسهٔ بعد ذخیره شد.');}
   if(form.id==='invitation-form'){const data=await request('/invitations',{method:'POST',body:values});return showInvitation(data);}
   if(form.id!=='profile-form')return;
   const validation=validateProfile(values);if(validation.error){document.querySelector('#profile-error').textContent=validation.error;return;}
@@ -490,7 +495,7 @@ async function handleAction(event) {
   if(action==='create-mode')return openCreate(button.dataset.mode);
   if(action==='import-create-user'){const source=previewImport?.profiles.find(p=>p.sourceId===button.dataset.source);if(source){const legacy=clients.profiles.find(p=>p.id===source.targetId&&!p.ownerUserId);createContext={profile:source.profile,source:source.sourceId,childId:legacy?.id||''};return openCreate('direct');}return;}
   if(action==='resolve-user'){const legacy=clients.profiles.find(p=>p.id===button.dataset.id&&!p.ownerUserId);if(legacy){createContext={profile:legacy,childId:legacy.id};return openCreate('direct');}return;}
-  if(action==='revoke-registration'){await request(`/registration-links/${button.dataset.id}`,{method:'DELETE'});return adminInvitations();}
+  if(action==='revoke-registration'){const view={version:viewVersion,userId:currentUser.id,role:currentUser.role};await viewRequest(view,`/registration-links/${button.dataset.id}`,{method:'DELETE'});if(currentView(view))return adminInvitations();return;}
   if(action==='user-tab'){userTab=button.dataset.tab;viewVersion++;document.querySelectorAll('.user-tabs [role=tab]').forEach(tab=>{const active=tab.dataset.tab===userTab;tab.classList.toggle('selected',active);tab.setAttribute('aria-selected',String(active));});document.querySelectorAll('[id^="user-"][role=tabpanel]').forEach(panel=>panel.hidden=panel.id!==`user-${userTab}`);return;}
   if(fromReactionPointer&&['respond','stimulus-response'].includes(action)){event.preventDefault();return;}
   if(starting&&!['sound','about'].includes(action))return;
@@ -500,7 +505,7 @@ async function handleAction(event) {
   if(action==='inspect-user')return inspectUser(button.dataset.user);
   if(action==='review-profile'){clients.activeId=button.dataset.id;inspectedUserId=button.dataset.user||null;return inspectedUserId?inspectUser(inspectedUserId):dashboard();}
   if(action==='report-links')return reportLinks();
-  if(action==='revoke-report-link'){await request(`/children/${clients.activeId}/report-links/${button.dataset.link}`,{method:'DELETE'});return reportLinks();}
+  if(action==='revoke-report-link'){const view={version:viewVersion,userId:currentUser.id,role:currentUser.role},childId=clients.activeId;await viewRequest(view,`/children/${childId}/report-links/${button.dataset.link}`,{method:'DELETE'});if(currentView(view))return reportLinks();return;}
   if(action==='account')return account();
   if(action==='logout'){await request('/auth/logout',{method:'POST'});return prepareLogin();}
   if(action==='retry-save')return persistPending();
@@ -509,7 +514,7 @@ async function handleAction(event) {
   if(action==='retry-connect')return initialize();
   if(action==='copy-invitation'){const field=document.querySelector('#invitation-url');field.select();await navigator.clipboard?.writeText(field.value);return;}
   if(action==='reset-link'){const version=viewVersion,data=await request('/invitations',{method:'POST',body:{userId:button.dataset.user,purpose:button.dataset.purpose||'reset'}});if(version===viewVersion)return showInvitation(data);return;}
-  if(action==='toggle-user'){await request(`/users/${button.dataset.user}`,{method:'PATCH',body:{active:button.dataset.active==='true'}});if(button.dataset.user===currentUser.id&&button.dataset.active==='false'){currentUser=null;return showLogin();}return inspectUser(button.dataset.user);}
+  if(action==='toggle-user'){const view={version:viewVersion,userId:currentUser.id,role:currentUser.role};await viewRequest(view,`/users/${button.dataset.user}`,{method:'PATCH',body:{active:button.dataset.active==='true'}});if(!currentView(view))return;if(button.dataset.user===currentUser.id&&button.dataset.active==='false')return prepareLogin('حساب شما غیرفعال شد.');return inspectUser(button.dataset.user);}
   if(action==='import-browser')return previewLegacy(()=>readClients());
   if(action==='commit-import')return commitLegacy();
   if(action==='adaptive-level'){await request(`/children/${clients.activeId}/difficulty`,{method:'PATCH',body:{...gameOptions(),mode:'adaptive',level:selectedLevel}});await refreshClients();return detail(selectedGame,false);}
@@ -615,7 +620,7 @@ function showLogin(invite=null){
   page(loginView({invite}), 'auth-main');
 }
 function clearPrivateData(){
- members=[];inspectedUserId=null;publicReportData=null;previewImport=null;importAttempt=null;remoteRun=null;
+ members=[];inspectedUserId=null;publicReportData=null;previewImport=null;importAttempt=null;remoteRun=null;pendingAdminRefresh=null;
  pendingStart=null;guideState=null;lessonState=null;editingProfile=null;sessionRecordId=null;engine=null;launchAttempt=null;starting=false;userTab='overview';
  Object.assign(clients,{activeId:null,profiles:[],records:[],difficulties:[]});Object.assign(reportState,{tab:'admin',game:'',level:'',variant:'',kind:'training',recordId:null});
 }
@@ -677,7 +682,8 @@ function showError(error){
   if(error.code==='PASSWORD_CHANGE_REQUIRED'&&currentUser){currentUser.passwordChangeRequired=true;return forcedPassword();}
   if(error.status===401&&!pendingSave&&currentUser){void prepareLogin(error.message).catch(showError);return;}
   if(['connecting','connection-error'].includes(route))return connectionError(error);
-  const node=(modal.open?modal.querySelector('#account-error')||modal.querySelector('#profile-error'):null)||document.querySelector('#account-error')||document.querySelector('#profile-error');
+  const candidates=[...(modal.open?modal.querySelectorAll('#account-error,#profile-error'):[]),...app.querySelectorAll('#account-error,#profile-error')];
+  const node=candidates.find(field=>!field.closest('[hidden]'));
   if(node)node.textContent=error.message||'عملیات انجام نشد.';else notify(error.message||'عملیات انجام نشد.');
 }
 async function persistPending(){
@@ -717,6 +723,15 @@ async function adminUsers(){
 async function adminInvitations(){
  if(currentUser?.role!=='admin')return home();const view=beginView(),data=await viewRequest(view,'/registration-links');if(!currentView(view))return;
  inspectedUserId=null;engine=null;route='invitations';if(modal.open)modal.close();setHash('#admin/invitations');document.title='دعوت‌ها — حواس';page(invitationsView(data.links),'content-main admin-main');
+}
+function scheduleAdminRefresh(view){
+ if(!currentView(view)||!['admin','admin-users','invitations'].includes(route))return;
+ pendingAdminRefresh={view,route};if(!modal.open)refreshAdminAfterDialog();
+}
+function refreshAdminAfterDialog(){
+ const pending=pendingAdminRefresh;pendingAdminRefresh=null;
+ if(!pending||!currentView(pending.view)||route!==pending.route||currentUser?.role!=='admin')return;
+ const refresh=route==='invitations'?adminInvitations():route==='admin-users'?adminUsers():adminPanel();void refresh.catch(showError);
 }
 function openCreate(mode='direct'){
  if(currentUser?.role!=='admin')return;openModal(createUserView({...createContext,mode}),'create-user');syncCreateControls();
@@ -793,9 +808,10 @@ async function previewLegacy(readDocument){
 }
 async function commitLegacy(){
   if(!previewImport?.id)return;
+  const view={version:viewVersion,userId:currentUser.id,role:currentUser.role},preview=previewImport;
   const mapping=[...document.querySelectorAll('.import-mapping')].map(row=>({sourceId:row.dataset.source,targetId:row.querySelector('[name="targetId"]').value||null,ownerUserId:null}));
   if(mapping.some(m=>!m.targetId)){notify('کاربر مقصد را انتخاب کنید یا با همین مشخصات کاربر جدید بسازید.');return;}
-  const data=await request('/imports/commit',{method:'POST',body:{previewId:previewImport.id,mapping,requireUser:true}});previewImport=null;await refreshClients();await account();notify(`${fa(data.importedRecords)} نتیجه منتقل شد.`);
+  const data=await viewRequest(view,'/imports/commit',{method:'POST',body:{previewId:preview.id,mapping,requireUser:true}});if(!currentView(view)||preview!==previewImport)return;previewImport=null;if(!await refreshClients(view))return;await account();if(route==='account')notify(`${fa(data.importedRecords)} نتیجه منتقل شد.`);
 }
 window.addEventListener('beforeunload',event=>{if(pendingSave){event.preventDefault();event.returnValue='';}});
 await initialize();
