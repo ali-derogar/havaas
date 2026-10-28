@@ -97,7 +97,7 @@ apiTest('server: imports preview, assign, preserve legacy metadata and reject du
  const preview=await admin.call('/imports/preview',{method:'POST',body:{document:legacy}});assert.equal(preview.status,200);assert.equal(preview.data.errors.length,0);
  const body={previewId:preview.data.id,mapping:[{sourceId:p.id,targetId:null}]};const imported=await admin.call('/imports/commit',{method:'POST',body});assert.equal(imported.status,200,JSON.stringify(imported.data));assert.equal(imported.data.importedRecords,1);
  const again=await admin.call('/imports/commit',{method:'POST',body});assert.deepEqual(again.data,imported.data);
- const preview2=await admin.call('/imports/preview',{method:'POST',body:{document:legacy}});const again2=await admin.call('/imports/commit',{method:'POST',body:{...body,previewId:preview2.data.id}});assert.equal(again2.data.createdProfiles,0);assert.equal(again2.data.importedRecords,0);
+ const preview2=await admin.call('/imports/preview',{method:'POST',body:{document:legacy}});assert.equal(preview2.data.profiles[0].targetId,imported.data.childIds[0]);const again2=await admin.call('/imports/commit',{method:'POST',body:{...body,previewId:preview2.data.id}});assert.equal(again2.data.createdProfiles,0);assert.equal(again2.data.importedRecords,0);
  const records=(await admin.call(`/children/${imported.data.childIds[0]}/sessions`)).data.records;assert.equal(records[0].legacyId,'legacy-run');assert.equal(records[0].result.finishedAt,result.finishedAt);assert.equal(records[0].result.protocolVersion,result.protocolVersion);
  const bad=await admin.call('/imports/preview',{method:'POST',body:{document:{...legacy,records:[{...legacy.records[0],result:{...result,score:-1}}]}}});assert.equal(bad.data.id,null);assert.ok(bad.data.errors.length);
  assert.equal((await user.call('/imports/preview',{method:'POST',body:{document:legacy}})).status,403);
@@ -239,4 +239,37 @@ apiTest('server: malformed import mappings return a validation error and leave t
  for(const mapping of [[null],[{}],[{sourceId:profile.id,targetId:{id:seed.children[0].id}}]])assert.equal((await admin.call('/imports/commit',{method:'POST',body:{previewId:preview.data.id,mapping}})).status,400);
  assert.equal((await db.pool.query('SELECT count(*)::int n FROM children')).rows[0].n,before);assert.equal((await db.pool.query('SELECT committed_at FROM import_previews WHERE id=$1',[preview.data.id])).rows[0].committed_at,null);
  const valid=await admin.call('/imports/commit',{method:'POST',body:{previewId:preview.data.id,mapping:[{sourceId:profile.id,targetId:seed.children[0].id}]}});assert.equal(valid.status,200);assert.equal(valid.data.importedRecords,1);
+});
+
+apiTest('server: imported standard baselines without a variant allow training and share one latest difficulty',async()=>{
+ const {normalizeSettings}=await import('../server/domain.js');const run={id:'old-standard',kind:'baseline',settings:{...normalizeSettings({gameId:'traffic'}),seed:42}},result=playSession(run);delete result.variant;
+ const profile={firstName:'قدیمی',lastName:'بدون حالت',birthDate:'2016-01-01',grade:'پایهٔ ۳',school:'امید',id:'no-variant-case'},document={version:1,profile,records:[{id:'old-standard-run',profileId:profile.id,kind:'baseline',result}]};
+ const preview=await admin.call('/imports/preview',{method:'POST',body:{document}});assert.equal(preview.data.errors.length,0);const imported=await admin.call('/imports/commit',{method:'POST',body:{previewId:preview.data.id,mapping:[{sourceId:profile.id,targetId:null}]}});assert.equal(imported.status,200);const id=imported.data.childIds[0];
+ const assessment=await admin.call(`/children/${id}/assessment`);assert.ok(assessment.data.steps.find(s=>s.gameId==='traffic').baseline);
+ const training=await admin.call(`/children/${id}/sessions`,{method:'POST',body:{gameId:'traffic',kind:'training'}});assert.equal(training.status,201,JSON.stringify(training.data));assert.equal(training.data.settings.variant,'standard');
+ const stored=(await db.pool.query('SELECT result FROM game_sessions WHERE child_id=$1 AND legacy_id=$2',[id,'old-standard-run'])).rows[0].result;assert.equal(stored.variant,undefined);assert.equal(stored.finishedAt,result.finishedAt);
+});
+
+apiTest('server: invalid Unicode and malformed timestamps are reported in preview and rejected by profile APIs',async()=>{
+ const run=await start(admin,'traffic'),valid=playSession(run),profile={...seed.children[0],id:'invalid-text-case'},original=(await db.pool.query('SELECT profile FROM children WHERE id=$1',[seed.children[0].id])).rows[0].profile;
+ for(const text of ['bad\u0000text','bad\ud800text','bad\udc00text']){
+  const document={version:1,profile:{...profile,firstName:text},records:[{id:'invalid-text-run',profileId:profile.id,kind:'baseline',result:valid}]};
+  const preview=await admin.call('/imports/preview',{method:'POST',body:{document}});assert.equal(preview.status,200);assert.equal(preview.data.id,null);assert.ok(preview.data.errors.length);
+  assert.equal((await admin.call(`/children/${seed.children[0].id}`,{method:'PATCH',body:{firstName:text}})).status,400);
+  assert.equal((await admin.call(`/users/${seed.users.otherUser.id}`,{method:'PATCH',body:{name:text}})).status,400);
+  assert.equal((await admin.call(`/children/${seed.children[0].id}/report-links`,{method:'POST',body:{label:text}})).status,400);
+ }
+ for(const finishedAt of ['1',1,'2026-02-30T12:00:00Z','not-a-date']){
+  const preview=await admin.call('/imports/preview',{method:'POST',body:{document:{version:1,profile,records:[{id:'invalid-date-run',profileId:profile.id,kind:'baseline',result:{...valid,finishedAt}}]}}});assert.equal(preview.status,200);assert.equal(preview.data.id,null);assert.ok(preview.data.errors.length);
+ }
+ const metadata=await admin.call('/imports/preview',{method:'POST',body:{document:{version:1,profile:{...profile,metadata:{note:'bad\u0000metadata'}},records:[]}}});assert.equal(metadata.status,200);assert.equal(metadata.data.id,null);
+ assert.deepEqual((await db.pool.query('SELECT profile FROM children WHERE id=$1',[seed.children[0].id])).rows[0].profile,original);
+});
+
+apiTest('server: mixed explicit and omitted standard variants seed difficulty from the latest imported baseline',async()=>{
+ const {normalizeSettings}=await import('../server/domain.js'),run={id:'mixed-standard',kind:'baseline',settings:{...normalizeSettings({gameId:'traffic'}),seed:42}},older={...playSession(run),finishedAt:'2026-01-01T12:00:00.000Z'},latest={...playSession(run,{omit:true}),finishedAt:'2026-01-02T15:30:00.000+03:30'};delete latest.variant;
+ const profile={id:'mixed-standard-case',firstName:'مراجع',lastName:'آخرین ارزیابی',birthDate:'2016-01-01',grade:'پایهٔ ۳',school:'امید',createdAt:'2025-12-01T12:00:00.000+03:30'},document={version:1,profile,records:[{id:'older-standard',kind:'baseline',profileId:profile.id,result:older},{id:'latest-no-variant',kind:'baseline',profileId:profile.id,result:latest}]};
+ const preview=await admin.call('/imports/preview',{method:'POST',body:{document}});assert.deepEqual(preview.data.errors,[]);const imported=await admin.call('/imports/commit',{method:'POST',body:{previewId:preview.data.id,mapping:[{sourceId:profile.id,targetId:null}]}});assert.equal(imported.status,200);const id=imported.data.childIds[0],settings=(await admin.call(`/children/${id}/difficulty`)).data.settings;assert.equal(settings.length,1);assert.equal(settings[0].variant,'standard');assert.equal(settings[0].level,'easy');
+ const saved=(await db.pool.query('SELECT result,finished_at FROM game_sessions WHERE child_id=$1 AND legacy_id=$2',[id,'latest-no-variant'])).rows[0];assert.equal(saved.result.finishedAt,latest.finishedAt);assert.equal(saved.finished_at.toISOString(),'2026-01-02T12:00:00.000Z');assert.equal((await db.pool.query('SELECT created_at FROM children WHERE id=$1',[id])).rows[0].created_at.toISOString(),'2025-12-01T08:30:00.000Z');
+ const reordered={...document,profile:Object.fromEntries(Object.entries(profile).reverse())};const again=await admin.call('/imports/preview',{method:'POST',body:{document:reordered}});assert.equal(again.data.profiles[0].targetId,id);const repeat=await admin.call('/imports/commit',{method:'POST',body:{previewId:again.data.id,mapping:[{sourceId:profile.id,targetId:id}]}});assert.equal(repeat.status,200);assert.equal(repeat.data.createdProfiles,0);assert.equal(repeat.data.importedRecords,0);
 });

@@ -4,6 +4,15 @@ export const CLIENTS_KEY = 'havaas:clients:v1';
 const blank = () => ({ version: 1, activeId: null, profiles: [], records: [] });
 export const uid = () => globalThis.crypto?.randomUUID?.() || `${Date.now().toString(36)}-${Math.random().toString(36).slice(2)}`;
 export const escapeHTML = value => String(value ?? '').replace(/[&<>"']/g, char => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[char]));
+export function isValidText(value){
+  if(typeof value!=='string'||value.includes('\0'))return false;
+  for(let i=0;i<value.length;i++){
+    const code=value.charCodeAt(i);
+    if(code>=0xd800&&code<=0xdbff){const next=value.charCodeAt(++i);if(!(next>=0xdc00&&next<=0xdfff))return false;}
+    else if(code>=0xdc00&&code<=0xdfff)return false;
+  }
+  return true;
+}
 export function readClients(storage) {
   try {
     const value = JSON.parse((storage ?? globalThis.localStorage).getItem(CLIENTS_KEY));
@@ -24,6 +33,7 @@ export function latestBaseline(clients, gameId, variant = 'standard', level = nu
 }
 export function validateProfile(input, today = new Date()) {
   const profile = Object.fromEntries(['firstName','lastName','birthDate','grade','school','concerns'].map(key => [key, String(input[key] ?? '').trim()]));
+  if(Object.values(profile).some(value=>!isValidText(value)))return {error:'متن مشخصات شامل نویسهٔ نامعتبر است؛ آن بخش را دوباره وارد کنید.'};
   if (!profile.firstName || !profile.lastName || !profile.birthDate || !profile.grade || !profile.school) return { error: 'نام، نام خانوادگی، تاریخ تولد، پایه و مدرسه را کامل کن.' };
   if (Object.values(profile).some(value => value.length > 500)) return { error: 'طول هر بخش باید کمتر از ۵۰۰ نویسه باشد.' };
   const birthday = new Date(`${profile.birthDate}T12:00:00`);

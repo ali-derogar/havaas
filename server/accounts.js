@@ -1,12 +1,12 @@
 import { randomUUID } from 'node:crypto';
 import { transaction } from './db.js';
-import { requireValue as check, HttpError, token, digest, passwordHash, verifyPassword, emailOf, usernameOf, uuid, publicUser } from './security.js';
+import { requireValue as check, HttpError, token, digest, passwordHash, verifyPassword, emailOf, usernameOf, uuid, publicUser, isValidText } from './security.js';
 import { validateProfile } from '../src/core/clients.js';
 
 const save=req=>new Promise((resolve,reject)=>req.session.save(e=>e?reject(e):resolve()));
 async function signIn(req,user){await new Promise((resolve,reject)=>req.session.regenerate(e=>e?reject(e):resolve()));req.session.userId=user.id;req.session.authVersion=user.auth_version;req.session.csrf=token();await save(req);return {user:publicUser(user),csrfToken:req.session.csrf};}
 const origin=req=>process.env.APP_ORIGIN||`${req.protocol}://${req.get('host')}`;
-const nameOf=value=>{const name=String(value||'').trim();check(name.length>=2&&name.length<=120,'نام باید بین ۲ تا ۱۲۰ نویسه باشد.');return name;};
+const nameOf=value=>{const name=String(value||'').trim();check(isValidText(name)&&name.length>=2&&name.length<=120,'نام باید بین ۲ تا ۱۲۰ نویسهٔ معتبر باشد.');return name;};
 const userStats=`SELECT u.*,c.id AS "childId",(SELECT count(*)::int FROM game_sessions s WHERE s.child_id=c.id AND s.result IS NOT NULL) AS "sessionCount",(SELECT max(finished_at) FROM game_sessions s WHERE s.child_id=c.id) AS "lastPlayedAt" FROM users u LEFT JOIN children c ON c.owner_user_id=u.id`;
 const memberDTO=u=>({...publicUser(u),childId:u.childId,sessionCount:u.sessionCount,lastPlayedAt:u.lastPlayedAt});
 async function creatorActive(db,id){check((await db.query("SELECT 1 FROM users WHERE id=$1 AND role='admin' AND active=true AND pending=false FOR SHARE",[id])).rowCount,'حساب مدیر دیگر فعال نیست.',403);}

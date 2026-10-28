@@ -77,7 +77,7 @@ export function createApp({pool,secret=process.env.SESSION_SECRET,production=pro
   app.post('/api/children/:id/sessions',async(req,res)=>{
     await childAccess(pool,req.user,req.params.id);const s=normalizeSettings(req.body),kind=req.body.kind;check(['baseline','training'].includes(kind),'نوع جلسه معتبر نیست.');
     const run=await transaction(pool,async db=>{
-      if(kind==='training')check((await db.query("SELECT 1 FROM game_sessions WHERE child_id=$1 AND kind='baseline' AND result->>'gameId'=$2 AND result->>'variant'=$3 AND (result->>'protocolVersion')::int=$4 AND result IS NOT NULL",[req.params.id,s.gameId,s.variant,s.protocolVersion])).rowCount,'اول ارزیابی پایه را انجام دهید.',409,'BASELINE_REQUIRED');
+      if(kind==='training')check((await db.query("SELECT 1 FROM game_sessions WHERE child_id=$1 AND kind='baseline' AND result->>'gameId'=$2 AND COALESCE(result->>'variant','standard')=$3 AND (result->>'protocolVersion')::int=$4 AND result IS NOT NULL",[req.params.id,s.gameId,s.variant,s.protocolVersion])).rowCount,'اول ارزیابی پایه را انجام دهید.',409,'BASELINE_REQUIRED');
       await db.query('INSERT INTO difficulty(child_id,game_id,variant,protocol) VALUES($1,$2,$3,$4) ON CONFLICT DO NOTHING',[req.params.id,s.gameId,s.variant,s.protocolVersion]);
       const difficulty=(await db.query('SELECT * FROM difficulty WHERE child_id=$1 AND game_id=$2 AND variant=$3 AND protocol=$4 FOR UPDATE',[req.params.id,s.gameId,s.variant,s.protocolVersion])).rows[0];
       const settings={...s,level:kind==='baseline'?'easy':difficulty.level,seed:randomBytes(4).readUInt32BE(),practice:kind==='baseline',reviewEnabled:kind==='baseline'};

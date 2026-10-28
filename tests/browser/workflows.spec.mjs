@@ -157,3 +157,41 @@ test('leaving while a session is starting cancels late success and failure witho
   }finally{release();await page.unrouteAll({behavior:'wait'});}
  }
 });
+
+for(const delayed of ['user','bootstrap'])test(`an old admin ${delayed} response cannot render clinical data after switching to the client in the same tab`,async({page})=>{
+ await login(page,'admin');let release,ready,intercepted=false;const gate=new Promise(resolve=>release=resolve),fetched=new Promise(resolve=>ready=resolve);
+ const matches=url=>delayed==='user'?url.endsWith(`/api/users/${seed.users.user.id}`):url.includes('/api/bootstrap');
+ await page.route(delayed==='user'?`**/api/users/${seed.users.user.id}`:'**/api/bootstrap*',async route=>{if(intercepted)return route.continue();intercepted=true;const response=await route.fetch();ready();await gate;await route.fulfill({response});});
+ try{
+  await page.locator(`[data-action=inspect-user][data-user="${seed.users.user.id}"]`).click();await fetched;await click(page,'logout');await expect(page.locator('#login-form')).toBeVisible();
+  await page.locator('#login-form [name=identifier]').fill(seed.users.user.username);await page.locator('#login-form [name=password]').fill(seed.password);await page.locator('#login-form button[type=submit]').click();await expect(page.locator('.hero')).toBeVisible();
+  const response=page.waitForResponse(response=>matches(response.url()));release();await response;await page.waitForLoadState('networkidle');
+  await expect(page.locator('.hero')).toBeVisible();await expect(page.locator('#profile-form')).toHaveCount(0);await expect(page.locator('.admin-main')).toHaveCount(0);expect(await page.locator('body').textContent()).not.toContain('clinical-secret');
+ }finally{release();await page.unrouteAll({behavior:'wait'});}
+});
+
+test('logout removes the private screen even if loading the next login session fails',async({page})=>{
+ await login(page,'admin');await click(page,'inspect-user',`[data-user="${seed.users.user.id}"]`);await expect(page.locator('#profile-form [name=concerns]')).toHaveValue('clinical-secret-0');
+ await page.route('**/api/auth/session',route=>route.abort('failed'));await click(page,'logout');await expect(page.locator('#login-form')).toBeVisible();await expect(page.locator('#account-error')).not.toBeEmpty();await expect(page.locator('#profile-form')).toHaveCount(0);expect(await page.locator('body').textContent()).not.toContain('clinical-secret');
+ await page.unroute('**/api/auth/session');await page.locator('#login-form [name=identifier]').fill(seed.users.user.username);await page.locator('#login-form [name=password]').fill(seed.password);await page.locator('#login-form button[type=submit]').click();await expect(page.locator('.hero')).toBeVisible();expect(await page.locator('body').textContent()).not.toContain('clinical-secret');
+});
+
+test('a report link created by a previous account cannot appear in the next family account',async({page})=>{
+ await login(page,'admin');await click(page,'inspect-user',`[data-user="${seed.users.user.id}"]`);await click(page,'report-links');let release,ready;const gate=new Promise(resolve=>release=resolve),fetched=new Promise(resolve=>ready=resolve);
+ const path=`/api/children/${seed.children[0].id}/report-links`;await page.route(`**${path}`,async route=>{if(route.request().method()!=='POST')return route.continue();const response=await route.fetch();ready();await gate;await route.fulfill({response});});
+ try{
+  await page.locator('#report-link-form button[type=submit]').click();await fetched;await click(page,'logout');await page.locator('#login-form [name=identifier]').fill(seed.users.otherUser.username);await page.locator('#login-form [name=password]').fill(seed.password);await page.locator('#login-form button[type=submit]').click();await expect(page.locator('.hero')).toBeVisible();await click(page,'report-links');
+  const response=page.waitForResponse(response=>response.url().endsWith(path)&&response.request().method()==='POST');release();await response;await page.waitForLoadState('networkidle');
+  await expect(page.locator('#invitation-url')).toHaveCount(0);expect(await page.locator('body').textContent()).not.toContain('سارا');await expect(page.locator('.page-title')).toContainText('علی');
+ }finally{release();await page.unrouteAll({behavior:'wait'});}
+});
+
+test('a delayed raw CSV export does not download after switching from admin to a user',async({page})=>{
+ const {playSession}=await import('../helpers/play-session.mjs'),headers={'X-CSRF-Token':adminCsrf};const run=await (await adminApi.post(`/api/children/${seed.children[0].id}/sessions`,{headers,data:{gameId:'traffic',kind:'baseline'}})).json();expect((await adminApi.post(`/api/children/${seed.children[0].id}/sessions/${run.id}/complete`,{headers,data:{result:playSession(run)}})).ok()).toBe(true);
+ await login(page,'admin');await click(page,'inspect-user',`[data-user="${seed.users.user.id}"]`);await page.locator('[data-report-filter=kind]').selectOption('baseline');await expect(page.locator('[data-action=export-trials]')).toBeVisible();const allowed=page.waitForEvent('download');await click(page,'export-trials');const file=await allowed;expect(file.suggestedFilename()).toBe('havaas-responses.csv');const chunks=[];for await(const chunk of await file.createReadStream())chunks.push(chunk);const csv=Buffer.concat(chunks);expect(csv.subarray(0,3).equals(Buffer.from([0xef,0xbb,0xbf]))).toBe(true);expect(csv.toString('utf8')).toContain('ردیف');
+ let release,ready;const gate=new Promise(resolve=>release=resolve),fetched=new Promise(resolve=>ready=resolve),downloads=[];page.on('download',download=>downloads.push(download));await page.route('**/api/children/*/sessions/*/export',async route=>{const response=await route.fetch();ready();await gate;await route.fulfill({response});});
+ try{
+  await click(page,'export-trials');await fetched;await click(page,'logout');await page.locator('#login-form [name=identifier]').fill(seed.users.user.username);await page.locator('#login-form [name=password]').fill(seed.password);await page.locator('#login-form button[type=submit]').click();await expect(page.locator('.hero')).toBeVisible();
+  const response=page.waitForResponse(response=>response.url().includes('/sessions/')&&response.url().endsWith('/export'));release();await response;await page.waitForLoadState('networkidle');expect(downloads).toHaveLength(0);await expect(page.locator('.hero')).toBeVisible();
+ }finally{release();await page.unrouteAll({behavior:'wait'});}
+});
