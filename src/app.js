@@ -1,4 +1,6 @@
 import { ApiClient,ApiError } from './api.js';
+import {syncBirthDate} from './birth-date.js';
+import {copyTextField} from './clipboard.js';
 import { preloadWorld,worldBackground,gameArtwork } from './worlds.js';
 import { accountView, loginView, importPreviewView, roleName, reportLinksView, passwordView } from './account-ui.js';
 import {adminShell,adminOverview,adminUsersView,createUserView,registrationView,invitationsView,userDetailsView,clientWelcome} from './dashboard-ui.js';
@@ -128,11 +130,11 @@ function standardOptions(level='easy') {
   selectedLevel=level;selectedTheme='star';selectedMaterial='shapes';selectedHuntMode='standard';selectedLayout='grid';selectedSearchMode='single';selectedTrafficMode='circles';
 }
 function beginAssessment(id) {
-  if(!activeProfile(clients)||!GAME_MAP[id])return assessment();
+  if(!activeProfile(clients)||!Object.hasOwn(GAME_MAP,id))return assessment();
   standardOptions();guideState={profileId:clients.activeId,gameId:id};return detail(id);
 }
 function trainFromAssessment(id) {
-  if(!GAME_MAP[id])return;
+  if(!Object.hasOwn(GAME_MAP,id))return;
   const step=assessmentSteps(clients).find(step=>step.game.id===id);
   guideState=null;standardOptions(step?.recommendation?.level || 'easy');return detail(id);
 }
@@ -173,7 +175,7 @@ function gameCopy(game) {
 async function detail(id, updateHash = true) {
   if(!currentUser)return showLogin();if(currentUser.role==='admin')return adminPanel();
   const view=beginView();if(!await refreshClients(view))return;
-  if (!GAME_MAP[id]) return home();
+  if (!Object.hasOwn(GAME_MAP,id)) return home();
   if (selectedGame !== id) selectedMaterial = 'shapes';
   engine = null; route = 'detail'; selectedGame = id; if (modal.open) modal.close(); if (updateHash) setHash(`#${id}`);
   if (guideState && (guideState.gameId!==id || guideState.profileId!==clients.activeId)) guideState = null;
@@ -470,6 +472,7 @@ async function processForm(form){
 app.addEventListener('change',event=>{void changeInput(event).catch(showError);});
 modal.addEventListener('change',event=>{void changeInput(event).catch(showError);});
 async function changeInput(event){
+  if(event.target.matches('[data-birth-part]'))return syncBirthDate(event.target.closest('[data-birth-date]'));
   if(['new-user-role','new-user-method','new-user-child'].includes(event.target.id))return syncCreateControls();
   if(['policy-game','policy-variant'].includes(event.target.id))return syncPolicyControls(event.target.id==='policy-game');
   if(event.target.id==='import-file'){const file=event.target.files?.[0];if(file)return previewLegacy(async()=>JSON.parse(await file.text()));}
@@ -486,6 +489,7 @@ async function handleAction(event) {
   const fromReactionPointer=event.type==='click'&&event.detail>0&&reactionPointerInput;if(event.type==='click')reactionPointerInput=false;
   const button = event.target.closest('[data-action]'); if(!button||button.disabled) return;
   const action=button.dataset.action;
+  if(button.tagName==='A')event.preventDefault();
   if(action==='admin-menu')return toggleAdminMenu();
   if(action==='admin-users')return adminUsers();
   if(action==='admin-invitations')return adminInvitations();
@@ -512,13 +516,21 @@ async function handleAction(event) {
   if(action==='reauth'){await request('/auth/session');return openModal(loginView({reauth:true}),'reauth');}
   if(action==='invite-login')return showLogin(null);
   if(action==='retry-connect')return initialize();
-  if(action==='copy-invitation'){const field=document.querySelector('#invitation-url');field.select();await navigator.clipboard?.writeText(field.value);return;}
+  if(action==='copy-invitation'){
+    const card=button.closest('.invitation-card'),field=card?.querySelector('#invitation-url');if(!field)return;
+    button.disabled=true;
+    try{
+      const copied=await copyTextField(field);if(!card.isConnected)return;
+      button.textContent=copied?'لینک کپی شد':'کپی لینک';
+      card.querySelector('[data-copy-status]').textContent=copied?'لینک با موفقیت کپی شد.':'کپی خودکار ممکن نشد؛ لینک انتخاب شده است. از گزینهٔ «کپی» مرورگر یا Ctrl+C استفاده کنید.';
+    }finally{button.disabled=false;}
+    return;
+  }
   if(action==='reset-link'){const version=viewVersion,data=await request('/invitations',{method:'POST',body:{userId:button.dataset.user,purpose:button.dataset.purpose||'reset'}});if(version===viewVersion)return showInvitation(data);return;}
   if(action==='toggle-user'){const view={version:viewVersion,userId:currentUser.id,role:currentUser.role};await viewRequest(view,`/users/${button.dataset.user}`,{method:'PATCH',body:{active:button.dataset.active==='true'}});if(!currentView(view))return;if(button.dataset.user===currentUser.id&&button.dataset.active==='false')return prepareLogin('حساب شما غیرفعال شد.');return inspectUser(button.dataset.user);}
   if(action==='import-browser')return previewLegacy(()=>readClients());
   if(action==='commit-import')return commitLegacy();
   if(action==='adaptive-level'){await request(`/children/${clients.activeId}/difficulty`,{method:'PATCH',body:{...gameOptions(),mode:'adaptive',level:selectedLevel}});await refreshClients();return detail(selectedGame,false);}
-  if(button.tagName==='A') event.preventDefault();
   if(action==='home') return home();
   if(action==='profiles') return profiles();
   if(action==='assessment') return assessment();
@@ -662,7 +674,7 @@ async function navigate(){
  if(currentUser.role==='admin'){const member=id.match(/^admin\/users?\/([a-f0-9-]{36})$/);if(member)return inspectUser(member[1]);if(['profiles','admin/users'].includes(id))return adminUsers();if(id==='admin/invitations')return adminInvitations();if(['account','admin/settings'].includes(id))return account();if(id==='report-links')return reportLinks();if(id==='reports')return dashboard();return adminPanel();}
  if(!clients.activeId){const view=beginView();if(!await refreshClients(view))return;}
  inspectedUserId=null;
- if(id==='assessment')return assessment();if(id==='reports')return dashboard();if(id==='account')return account();if(id==='report-links')return reportLinks();if(GAME_MAP[id])return detail(id,false);return home();
+ if(id==='assessment')return assessment();if(id==='reports')return dashboard();if(id==='account')return account();if(id==='report-links')return reportLinks();if(Object.hasOwn(GAME_MAP,id))return detail(id,false);return home();
 }
 async function initialize(){
  try {const auth=await request('/auth/session');if(currentUser?.id!==auth.user?.id||currentUser?.role!==auth.user?.role)clearPrivateData();currentUser=auth.user;
@@ -754,7 +766,7 @@ async function showRegistration(raw){
 }
 function showInvitation(data){
  const target=modal.open?modal.querySelector('#invitation-result'):document.querySelector('#invitation-result');if(!target)return;
- target.innerHTML=`<section class="surface invitation-card"><h2>لینک آماده است</h2><label>${data.expiresAt?'لینک یک‌بارمصرف':'لینک گزارش؛ دائمی تا لغو'}<input id="invitation-url" readonly dir="ltr" value="${esc(data.url)}"></label><button class="button subtle" data-action="copy-invitation">کپی لینک</button><p>${data.expiresAt?'اعتبار تا '+new Intl.DateTimeFormat('fa-IR',{dateStyle:'medium',timeStyle:'short'}).format(new Date(data.expiresAt)):'این آدرس فقط همین‌بار نمایش داده می‌شود؛ آن را کپی و نگهداری کنید.'}</p></section>`;
+ target.innerHTML=`<section class="surface invitation-card"><h2>لینک آماده است</h2><label>${data.expiresAt?'لینک یک‌بارمصرف':'لینک گزارش؛ دائمی تا لغو'}<input id="invitation-url" readonly dir="ltr" value="${esc(data.url)}"></label><button type="button" class="button subtle" data-action="copy-invitation">کپی لینک</button><p data-copy-status role="status" aria-live="polite" aria-atomic="true"></p><p>${data.expiresAt?'اعتبار تا '+new Intl.DateTimeFormat('fa-IR',{dateStyle:'medium',timeStyle:'short'}).format(new Date(data.expiresAt)):'این آدرس فقط همین‌بار نمایش داده می‌شود؛ آن را کپی و نگهداری کنید.'}</p></section>`;
 }
 function forcedPassword(){route='password';engine=null;setHash('#change-password');page(`<div class="page-title"><h1>خوش آمدید، ${esc(currentUser.name)}</h1><p>نام کاربری: <b dir="ltr">${esc(currentUser.username)}</b></p></div>${passwordView(currentUser,true)}`,'content-main auth-main');}
 async function adminPanel(){

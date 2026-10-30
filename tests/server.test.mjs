@@ -39,6 +39,17 @@ apiTest('server: CSRF and foreign origins are rejected',async()=>{
  assert.equal((await user.call('/auth/logout',{method:'POST',headers:{'X-CSRF-Token':'wrong'}})).status,403);
  assert.equal((await user.call('/auth/logout',{method:'POST',headers:{Origin:'https://attacker.example'}})).status,403);
 });
+apiTest('server: configured origins with a trailing slash and default port accept the canonical browser Origin',async()=>{
+ const previous=process.env.APP_ORIGIN;process.env.APP_ORIGIN='http://havaas.example.test:80/';
+ const local=createApp({pool:db.pool,secret:'origin-normalization-test-secret-at-least-32-characters'}).listen(0,'127.0.0.1');
+ await new Promise(resolve=>local.once('listening',resolve));const address=`http://127.0.0.1:${local.address().port}`;
+ try{
+  const session=await fetch(address+'/api/auth/session'),{csrfToken}=await session.json(),cookie=session.headers.getSetCookie()[0].split(';')[0];
+  const rejected=await fetch(address+'/api/auth/logout',{method:'POST',headers:{Origin:'http://havaas.example.test.evil',Cookie:cookie,'X-CSRF-Token':csrfToken}});assert.equal(rejected.status,403);await rejected.body?.cancel();
+  const logout=await fetch(address+'/api/auth/logout',{method:'POST',headers:{Origin:'http://havaas.example.test',Cookie:cookie,'X-CSRF-Token':csrfToken}});
+  assert.equal(logout.status,200,await logout.text());
+ }finally{if(previous===undefined)delete process.env.APP_ORIGIN;else process.env.APP_ORIGIN=previous;await new Promise(resolve=>{local.close(resolve);local.closeAllConnections();});}
+});
 apiTest('server: malformed game identifiers cannot create sessions or difficulty settings',async()=>{
  const childId=seed.children[0].id,before=await db.pool.query('SELECT (SELECT count(*) FROM game_sessions WHERE child_id=$1) AS sessions,(SELECT count(*) FROM difficulty WHERE child_id=$1) AS settings',[childId]);
  for(const gameId of [{toString:null},{},['traffic'],[],null,123,'constructor']){

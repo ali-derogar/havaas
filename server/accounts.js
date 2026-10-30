@@ -4,10 +4,10 @@ import { requireValue as check, HttpError, token, digest, passwordHash, verifyPa
 import { validateProfile } from '../src/core/clients.js';
 import {registerPublicRegistration,registerRegistrationAdmin} from './registration.js';
 import {registerDashboard} from './dashboard.js';
+import {appOrigin} from './origin.js';
 
 const save=req=>new Promise((resolve,reject)=>req.session.save(e=>e?reject(e):resolve()));
 async function signIn(req,user){await new Promise((resolve,reject)=>req.session.regenerate(e=>e?reject(e):resolve()));req.session.userId=user.id;req.session.authVersion=user.auth_version;req.session.csrf=token();await save(req);return {user:publicUser(user),csrfToken:req.session.csrf};}
-const origin=req=>process.env.APP_ORIGIN||`${req.protocol}://${req.get('host')}`;
 const nameOf=value=>{const message='نام باید بین ۲ تا ۱۲۰ نویسهٔ معتبر باشد.',name=textOf(value,message);check(name.length>=2&&name.length<=120,message);return name;};
 const userStats=`SELECT u.*,c.id AS "childId",(SELECT count(*)::int FROM game_sessions s WHERE s.child_id=c.id AND s.result IS NOT NULL) AS "sessionCount",(SELECT max(finished_at) FROM game_sessions s WHERE s.child_id=c.id) AS "lastPlayedAt" FROM users u LEFT JOIN children c ON c.owner_user_id=u.id`;
 const memberDTO=u=>({...publicUser(u),childId:u.childId,sessionCount:u.sessionCount,lastPlayedAt:u.lastPlayedAt});
@@ -18,7 +18,7 @@ async function issue(db,req,user,purpose){
  const raw=token(),expiresAt=new Date(Date.now()+(purpose==='reset'?30*60*1000:48*60*60*1000));
  await db.query('UPDATE invitations SET used_at=now() WHERE user_id=$1 AND used_at IS NULL',[user.id]);
  await db.query('INSERT INTO invitations(id,token_hash,role,purpose,created_by,user_id,expires_at) VALUES($1,$2,$3,$4,$5,$6,$7)',[randomUUID(),digest(raw),user.role,purpose,req.user.id,user.id,expiresAt]);
- return {url:`${origin(req)}/#invite/${raw}`,expiresAt};
+ return {url:`${appOrigin(req)}/#invite/${raw}`,expiresAt};
 }
 export function registerAccounts(app,pool,{authLimit,role,profileDTO}){
  registerPublicRegistration(app,pool,{authLimit,accountTransaction,creatorActive,signIn});

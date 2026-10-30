@@ -140,6 +140,10 @@ dialog{max-height:calc(100dvh - 28px);overflow-y:auto;overscroll-behavior:contai
 .members-table small { display:block;margin-top:5px;color:#697361; }
 .profile-form fieldset { border:1px solid #d5ddcd;border-radius:16px;padding:20px;min-width:0; }
 .profile-form fieldset legend { padding-inline:8px; }
+.profile-form .birth-date-field { margin:0;padding:14px;font-size:12px; }
+.birth-date-controls { display:grid;grid-template-columns:minmax(0,.8fr) minmax(0,1.5fr) minmax(0,1fr);gap:10px; }
+.birth-date-controls label { min-width:0; }
+.birth-date-error { margin:10px 0 0; }
 .assessment-readonly { display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:12px; }
 .assessment-readonly>div { display:grid;gap:8px;padding:14px;background:#f3f5ee;border-radius:12px; }
 .assessment-readonly span { color:#647459; }

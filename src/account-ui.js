@@ -1,9 +1,10 @@
 import { escapeHTML as esc } from './core/clients.js';
+import {birthDateField} from './birth-date.js';
 export const roleName=role=>({admin:'ادمین',user:'کاربر'}[role]||'');
 const fa=n=>Number(n||0).toLocaleString('fa-IR');
 const date=value=>value?new Intl.DateTimeFormat('fa-IR',{dateStyle:'medium',timeStyle:'short'}).format(new Date(value)):'—';
 export function profileFields(p={},{clinical=true}={}){
- return `<label>نام<input name="firstName" required maxlength="80" value="${esc(p.firstName)}"></label><label>نام خانوادگی<input name="lastName" required maxlength="80" value="${esc(p.lastName)}"></label><label>تاریخ تولد (میلادی)<input name="birthDate" type="date" required max="${new Date().toISOString().slice(0,10)}" value="${esc(p.birthDate)}"></label><label>پایهٔ تحصیلی<select name="grade" required><option value="">انتخاب پایه</option>${['پیش‌دبستانی',...Array.from({length:12},(_,i)=>`پایهٔ ${fa(i+1)}`),'خارج از مدرسه'].map(g=>`<option ${p.grade===g?'selected':''}>${g}</option>`).join('')}</select></label><label class="wide">مدرسه<input name="school" required maxlength="160" value="${esc(p.school)}" placeholder="نام مدرسه یا ندارد"></label>${clinical?`<label class="wide">یادداشت بالینی؛ فقط ادمین<textarea name="concerns" maxlength="500" rows="3">${esc(p.concerns)}</textarea></label>`:''}`;
+ return `<label>نام<input name="firstName" required maxlength="80" value="${esc(p.firstName)}"></label><label>نام خانوادگی<input name="lastName" required maxlength="80" value="${esc(p.lastName)}"></label>${birthDateField(p.birthDate)}<label>پایهٔ تحصیلی<select name="grade" required><option value="">انتخاب پایه</option>${['پیش‌دبستانی',...Array.from({length:12},(_,i)=>`پایهٔ ${fa(i+1)}`),'خارج از مدرسه'].map(g=>`<option ${p.grade===g?'selected':''}>${g}</option>`).join('')}</select></label><label class="wide">مدرسه<input name="school" required maxlength="160" value="${esc(p.school)}" placeholder="نام مدرسه یا ندارد"></label>${clinical?`<label class="wide">یادداشت بالینی؛ فقط ادمین<textarea name="concerns" maxlength="500" rows="3">${esc(p.concerns)}</textarea></label>`:''}`;
 }
 export function loginView({invite=null,error='',reauth=false}={}){
  const accepting=invite&&!reauth;

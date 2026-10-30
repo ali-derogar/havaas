@@ -26,6 +26,13 @@ test('client storage reloads history and isolates invalid data or denied storage
   values.set(CLIENTS_KEY,'{bad');assert.equal(readClients(storage).profiles.length,0);
   assert.equal(writeClients(c,{setItem(){throw Error();}}),false);assert.equal(readClients({getItem(){throw Error();}}).activeId,null);
 });
+
+test('invalid legacy game identifiers are discarded without losing valid profiles and history',()=>{
+ const c=clients();addRecord(c,result(),'training');
+ for(const invalid of [{gameId:'constructor'},{gameId:'__proto__'},{level:'toString'},{gameId:{toString:null}},{level:{toString:null}}])c.records.push({profileId:'a',kind:'training',result:result(invalid)});
+ const restored=readClients({getItem:()=>JSON.stringify(c)});
+ assert.equal(restored.profiles.length,2);assert.equal(restored.records.length,1);assert.equal(restored.records[0].result.gameId,'traffic');
+});
 test('level recommendation uses recall, errors, speed, streak, and completion without skipping levels',()=>{
   assert.equal(recommendLevel(result()).level,'medium');assert.equal(recommendLevel(result({level:'hard'})).level,'hard');
   assert.equal(recommendLevel(result({level:'medium',hits:0,omissions:30,correctResponses:120,meanReactionMs:null})).level,'easy');

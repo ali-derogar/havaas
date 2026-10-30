@@ -18,7 +18,7 @@ export function readClients(storage) {
     const value = JSON.parse((storage ?? globalThis.localStorage).getItem(CLIENTS_KEY));
     if (value?.version !== 1 || !Array.isArray(value.profiles) || !Array.isArray(value.records)) return blank();
     const profiles = value.profiles.filter(p => p && typeof p.id === 'string' && typeof p.firstName === 'string' && typeof p.lastName === 'string');
-    const records = value.records.filter(r => r && profiles.some(p => p.id === r.profileId) && GAME_MAP[r.result?.gameId] && LEVELS[r.result?.level] && ['baseline', 'training'].includes(r.kind) && Number.isFinite(r.result.score) && Number.isFinite(r.result.maxScore) && Number.isFinite(r.result.hits) && Number.isFinite(r.result.correctResponses) && Number.isFinite(r.result.omissions) && Number.isFinite(r.result.falseSelections));
+    const records = value.records.filter(r => r && profiles.some(p => p.id === r.profileId) && typeof r.result?.gameId === 'string' && Object.hasOwn(GAME_MAP,r.result.gameId) && typeof r.result?.level === 'string' && Object.hasOwn(LEVELS,r.result.level) && ['baseline', 'training'].includes(r.kind) && Number.isFinite(r.result.score) && Number.isFinite(r.result.maxScore) && Number.isFinite(r.result.hits) && Number.isFinite(r.result.correctResponses) && Number.isFinite(r.result.omissions) && Number.isFinite(r.result.falseSelections));
     return { version: 1, activeId: profiles.some(p => p.id === value.activeId) ? value.activeId : null, profiles, records };
   } catch { return blank(); }
 }

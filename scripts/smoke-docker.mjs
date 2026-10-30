@@ -1,16 +1,14 @@
 import { spawn } from 'node:child_process';
 import { randomBytes } from 'node:crypto';
-import { writeFile,mkdir } from 'node:fs/promises';
 import assert from 'node:assert/strict';
 import { playSession } from '../tests/helpers/play-session.mjs';
 const project=`havaas-smoke-${process.pid}`,env={...process.env,POSTGRES_PASSWORD:randomBytes(24).toString('hex'),SESSION_SECRET:randomBytes(48).toString('hex'),APP_PORT:'4184',APP_ORIGIN:'http://127.0.0.1:4184',APP_BIND:'127.0.0.1'};
-await mkdir('.local',{recursive:true});await writeFile('.local/compose.smoke.yaml','services:\n  app:\n    image: havaas-app:latest\n');
-const args=['compose','-p',project,'-f','compose.yaml','-f','.local/compose.smoke.yaml'];
+const args=['compose','-p',project,'-f','compose.yaml'];
 function docker(tail,{input,quiet=false}={}){return new Promise((resolve,reject)=>{const child=spawn('docker',[...args,...tail],{env,stdio:['pipe','pipe','pipe']});const out=[],err=[];child.stdout.on('data',c=>out.push(c));child.stderr.on('data',c=>err.push(c));child.on('exit',code=>code===0?resolve(Buffer.concat(out)):reject(Error(`Docker command failed: ${Buffer.concat(err).toString()}`)));if(input)child.stdin.end(input);else child.stdin.end();});}
 let cookie='',csrf;
-async function api(path,{method='GET',body}={}){const response=await fetch('http://127.0.0.1:4184/api'+path,{method,headers:{Cookie:cookie,...(method!=='GET'?{'X-CSRF-Token':csrf||''}:{}),...(body?{'Content-Type':'application/json'}:{})},...(body?{body:JSON.stringify(body)}:{})});const set=response.headers.getSetCookie()[0];if(set)cookie=set.split(';')[0];const data=await response.json();if(data.csrfToken)csrf=data.csrfToken;assert.ok(response.ok,JSON.stringify(data));return data;}
+async function api(path,{method='GET',body}={}){const response=await fetch('http://127.0.0.1:4184/api'+path,{method,headers:{Origin:env.APP_ORIGIN,Cookie:cookie,...(method!=='GET'?{'X-CSRF-Token':csrf||''}:{}),...(body?{'Content-Type':'application/json'}:{})},...(body?{body:JSON.stringify(body)}:{})});const set=response.headers.getSetCookie()[0];if(set)cookie=set.split(';')[0];const data=await response.json();if(data.csrfToken)csrf=data.csrfToken;assert.ok(response.ok,JSON.stringify(data));return data;}
 try{
- await docker(['up','-d','--wait','app']);const password='Disposable-smoke-password-2026!';await docker(['exec','-T','app','node','scripts/admin-create.mjs'],{input:JSON.stringify({username:'admin',email:'admin@example.test',name:'مدیر آزمون Docker',password})});
+ await docker(['up','-d','--build','--wait','app']);const password='Disposable-smoke-password-2026!';await docker(['exec','-T','app','node','scripts/admin-create.mjs'],{input:JSON.stringify({username:'admin',email:'admin@example.test',name:'مدیر آزمون Docker',password})});
  await api('/auth/session');await api('/auth/login',{method:'POST',body:{identifier:'admin',password}});
  const overview=await api('/admin/dashboard?days=7');assert.equal(overview.totals.users,0);
  const invitation=await api('/registration-links',{method:'POST',body:{label:'دعوت آزمون Docker'}});

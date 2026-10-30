@@ -9,7 +9,6 @@ npm run test:proposal
 npm test
 npm run test:api
 npm run test:e2e
-docker compose build app
 npm run test:docker
 ```
 

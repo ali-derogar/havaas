@@ -14,6 +14,7 @@ import { assessmentSteps } from '../src/core/assessment.js';
 import { registerImports } from './imports.js';
 import { registerAccounts } from './accounts.js';
 import { registerPublicReport,registerReportLinks,reportResult } from './report-links.js';
+import {appOrigin,normalizeAppOrigin} from './origin.js';
 
 const PgStore=connectPg(session);
 const role=(req,roles)=>check(roles.includes(req.user.role),'اجازهٔ این عملیات را ندارید.',403,'FORBIDDEN');
@@ -27,6 +28,7 @@ export function recordDTO(row,user){return {id:row.id,profileId:row.child_id,kin
 async function listChildren(db,user){return (await db.query("SELECT * FROM children WHERE $1='admin' OR owner_user_id=$2 ORDER BY created_at,id",[user.role,user.id])).rows;}
 export function createApp({pool,secret=process.env.SESSION_SECRET,production=process.env.NODE_ENV==='production',trustProxy=process.env.TRUST_PROXY==='1',staticRoot=resolve('dist'),loginLimit=15}={}){
   check(typeof secret==='string'&&secret.length>=32&&!secret.includes('replace-with'),'SESSION_SECRET must contain at least 32 characters',500);
+  normalizeAppOrigin(process.env.APP_ORIGIN);
   const app=express();app.disable('x-powered-by');if(trustProxy)app.set('trust proxy',1);
   app.use(helmet({contentSecurityPolicy:{directives:{defaultSrc:["'self'"],scriptSrc:["'self'"],styleSrc:["'self'","'unsafe-inline'"],fontSrc:["'self'"],imgSrc:["'self'",'data:'],connectSrc:["'self'"],objectSrc:["'none'"],frameAncestors:["'none'"],upgradeInsecureRequests:production?[]:null}},strictTransportSecurity:production?undefined:false}));
   app.get('/health',async(_req,res)=>{try{await pool.query('SELECT 1');res.json({ok:true});}catch{res.status(503).json({ok:false});}});
@@ -34,7 +36,7 @@ export function createApp({pool,secret=process.env.SESSION_SECRET,production=pro
   app.use('/api',(req,_res,next)=>{req.body ||= {};next();});
   app.use('/api',session({name:'havaas.sid',secret,resave:false,saveUninitialized:false,store:new PgStore({pool,tableName:'auth_sessions',createTableIfMissing:false}),cookie:{httpOnly:true,sameSite:'lax',secure:production,maxAge:8*60*60*1000}}));
   app.use('/api',(req,res,next)=>{res.set('Cache-Control','no-store');req.session.csrf ||= token();if(!['GET','HEAD','OPTIONS'].includes(req.method)){
-    const origin=req.get('Origin');const expected=process.env.APP_ORIGIN||`${req.protocol}://${req.get('host')}`;
+    const origin=req.get('Origin');const expected=appOrigin(req);
     if((origin&&origin!==expected)||req.get('X-CSRF-Token')!==req.session.csrf)return next(new HttpError(403,'درخواست معتبر نیست؛ صفحه را تازه کنید.','CSRF'));
   }next();});
   app.use('/api',async(req,_res,next)=>{
