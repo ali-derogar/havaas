@@ -16,7 +16,11 @@ export function recommendLevel(result) {
   if (p.count >= 5 && p.recall >= .85 && p.accuracy >= .9 && p.errorRate <= .1 && fast && streak) return { level: levels[Math.min(2,index+1)], reason: 'پاسخ‌های درست، سرعت مناسب و زنجیرهٔ پاسخ‌ها نشان می‌دهند که برای چالش بعدی آماده‌ای.' };
   return { level: levels[index], reason: 'ادامه در همین سطح به تمرین سرعت، دقت و پاسخ‌های پیوسته کمک می‌کند.' };
 }
-export const stimulusFamilyOf = result => result.gameId==='hunt' ? result.stimulusFamily || result.settingsSnapshot?.theme || 'unknown' : '';
+export const stimulusFamilyOf = result => {
+  if(result.gameId!=='hunt')return '';
+  const family=result.stimulusFamily||result.settingsSnapshot?.theme;
+  return typeof family==='string'&&family?family:'unknown';
+};
 export function comparableRecords(records, reference = records.at(-1)) {
   if (!reference) return [];
   const last = reference.result;

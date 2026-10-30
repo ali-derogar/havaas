@@ -617,7 +617,7 @@ document.addEventListener('keydown', event=>{
 });
 document.addEventListener('visibilitychange', ()=>{ if(document.hidden&&route==='play'&&engine&&(!engine.paused||playPhase==='countdown')) { if(modal.open) { engine.pause(); } else pause(); } });
 window.addEventListener('orientationchange',()=>{if(route==='play'&&engine&&!engine.paused&&!modal.open)pause();});
-window.addEventListener('popstate',()=>{if(pendingSave){notify('نتیجه هنوز در سرور ثبت نشده است.');return;}void navigate().catch(showError);});
+window.addEventListener('popstate',()=>{if(pendingSave){setHash(`#${pendingSave.result.gameId}`);notify('نتیجه هنوز در سرور ثبت نشده است.');return;}void navigate().catch(showError);});
 function gameOptions(){return {gameId:selectedGame,...(selectedGame==='search'?{pacedRounds:true}:{}),level:selectedLevel,theme:selectedTheme,material:selectedMaterial,layout:selectedLayout,trafficMode:selectedTrafficMode,targetCount:selectedGame==='search'?(selectedSearchMode==='dual'?2:1):(selectedHuntMode==='divided'?2:1)};}
 async function refreshClients(view=null){
  const viewerId=currentUser?.id,viewerRole=currentUser?.role;

@@ -29,3 +29,19 @@ test('duplicate records cannot bypass detection by omitting the profile ID once'
 test('overly nested input yields validation errors without overflowing the call stack',()=>{
  const d=document();let metadata=d.profile.metadata={};for(let i=0;i<70;i++)metadata=metadata.next={};assert.ok(inspectLegacy(d).errors.length);
 });
+
+test('legacy stimulus-family metadata must be text while unknown historical string values remain compatible',()=>{
+ for(const invalid of [{},[],{toString:null},123,true])for(const nested of [false,true]){
+  const d=document();d.records[0].result.gameId='hunt';
+  if(nested)d.records[0].result.settingsSnapshot={theme:invalid};else d.records[0].result.stimulusFamily=invalid;
+  assert.ok(inspectLegacy(d).errors.length);
+ }
+ const d=document();d.records[0].result.stimulusFamily='historical-family';assert.deepEqual(inspectLegacy(d).errors,[]);
+});
+
+test('missing or malformed legacy records are validation errors instead of unexpected exceptions',()=>{
+ for(const record of [null,{},[],false,42,'invalid',{kind:'baseline'},{result:null}]){
+  const d=document();d.records=[record];let inspected;
+  assert.doesNotThrow(()=>{inspected=inspectLegacy(d);});assert.ok(inspected.errors.length);assert.equal(inspected.document,null);
+ }
+});

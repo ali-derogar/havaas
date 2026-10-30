@@ -68,6 +68,7 @@ test('a failed completion stays pending and can be saved after reauthentication 
  for(let i=0;i<150;i++){await advance(page,100);await page.keyboard.press('Space');await advance(page,900);}
  await expect(page.locator('[data-action=retry-save]')).toBeVisible();await expect(page.locator('.result-actions button').first()).toBeDisabled();
  const pendingURL=page.url();await page.locator('.client-header .brand').click();await expect(page).toHaveURL(pendingURL);await expect(page.locator('[data-action=retry-save]')).toBeVisible();
+ await page.goBack();await expect(page).toHaveURL(pendingURL);await expect(page.locator('[data-action=retry-save]')).toBeVisible();
  await page.unroute('**/api/children/*/sessions/*/complete');await page.context().clearCookies();await click(page,'reauth');await page.locator('#modal #login-form [name=identifier]').fill(seed.users.user.username);await page.locator('#modal #login-form [name=password]').fill(seed.password);await page.locator('#modal #login-form button[type=submit]').click();await expect(page.locator('.local-note')).toContainText('ذخیره شد');await expect(page.locator('.result-actions button').first()).toBeEnabled();await click(page,'dashboard');await expect(page.locator('.report-metrics')).toBeVisible();
 });
 
@@ -366,4 +367,48 @@ test('the admin sidebar brand performs one dashboard navigation',async({page})=>
  await page.locator('.admin-sidebar .brand').click();
  await expect(page.locator('.admin-stats')).toBeVisible();await page.waitForLoadState('networkidle');
  expect(requests).toBe(1);
+});
+
+test('an HTML unauthorized response clears the private admin screen and allows signing in again',async({page})=>{
+ await login(page,'admin');await click(page,'inspect-user',`[data-user="${seed.users.user.id}"]`);await click(page,'user-tab','[data-tab="details"]');
+ await expect(page.locator('#edit-user-form [name=concerns]')).toHaveValue('clinical-secret-0');
+ await page.route('**/api/bootstrap*',route=>route.fulfill({status:401,contentType:'text/html',body:'<h1>Unauthorized</h1>'}));
+ await page.locator('[data-action=account]').first().click();
+ await expect(page.locator('#login-form')).toBeVisible();await expect(page.locator('.admin-sidebar')).toHaveCount(0);await expect(page.locator('#edit-user-form')).toHaveCount(0);
+ expect(await page.locator('body').textContent()).not.toContain('clinical-secret');
+ await page.unroute('**/api/bootstrap*');
+ await page.locator('#login-form [name=identifier]').fill(seed.users.user.username);await page.locator('#login-form [name=password]').fill(seed.password);await page.locator('#login-form button[type=submit]').click();
+ await expect(page.locator('.hero')).toBeVisible();
+});
+
+test('an HTML gateway error during login shows a readable error and permits retrying',async({page})=>{
+ await page.goto('/');await page.locator('#login-form [name=identifier]').fill(seed.users.admin.username);await page.locator('#login-form [name=password]').fill(seed.password);
+ await page.route('**/api/auth/login',route=>route.fulfill({status:502,contentType:'text/html',body:'<h1>Bad Gateway</h1>'}));
+ await page.locator('#login-form button[type=submit]').click();await expect(page.locator('#account-error')).toContainText('پاسخ سرور معتبر نیست');
+ await expect(page.locator('#login-form button[type=submit]')).toBeEnabled();
+ await page.locator('.auth-card').screenshot({path:'.local/verification/gateway-error-recovery.png'});
+ await page.unroute('**/api/auth/login');await page.locator('#login-form button[type=submit]').click();await expect(page.locator('.admin-stats')).toBeVisible();
+});
+
+test('a delayed JSON export does not download after reviewing a different client',async({page})=>{
+ await login(page,'admin');await click(page,'inspect-user',`[data-user="${seed.users.user.id}"]`);await click(page,'user-tab','[data-tab="sessions"]');
+ let release,ready;const gate=new Promise(resolve=>release=resolve),fetched=new Promise(resolve=>ready=resolve),downloads=[];
+ page.on('download',download=>downloads.push(download));
+ await page.route(`**/api/children/${seed.children[0].id}/export`,async route=>{const response=await route.fetch();ready();await gate;await route.fulfill({response});});
+ try{
+  await page.locator('[data-action=export-profile]').click();await fetched;
+  await click(page,'inspect-user',`[data-user="${seed.users.otherUser.id}"]`);await expect(page.locator('.user-hero')).toContainText('علی');
+  const completed=page.waitForResponse(response=>response.url().endsWith(`/api/children/${seed.children[0].id}/export`));release();await completed;await page.waitForLoadState('networkidle');
+  expect(downloads).toHaveLength(0);await expect(page.locator('.user-hero')).toContainText('علی');
+ }finally{release();await page.unrouteAll({behavior:'wait'});}
+});
+
+for(const format of ['json','html'])test(`an expired CSV export session clears the private screen with a ${format} response`,async({page})=>{
+ const {playSession}=await import('../helpers/play-session.mjs'),headers={'X-CSRF-Token':adminCsrf};
+ const run=await (await adminApi.post(`/api/children/${seed.children[0].id}/sessions`,{headers,data:{gameId:'traffic',kind:'baseline'}})).json();
+ expect((await adminApi.post(`/api/children/${seed.children[0].id}/sessions/${run.id}/complete`,{headers,data:{result:playSession(run)}})).ok()).toBe(true);
+ await login(page,'admin');await click(page,'inspect-user',`[data-user="${seed.users.user.id}"]`);await click(page,'user-tab','[data-tab="sessions"]');await page.locator('[data-report-filter=kind]').selectOption('baseline');
+ await page.route('**/api/children/*/sessions/*/export',route=>route.fulfill({status:401,contentType:format==='json'?'application/json':'text/html',body:format==='json'?JSON.stringify({error:'ابتدا وارد حساب شوید.',code:'AUTH_REQUIRED'}):'<h1>Unauthorized</h1>'}));
+ await page.locator('[data-action=export-trials]').click();await expect(page.locator('#login-form')).toBeVisible();await expect(page.locator('.admin-sidebar')).toHaveCount(0);await expect(page.locator('.report-sheet')).toHaveCount(0);
+ expect(await page.locator('body').textContent()).not.toContain('clinical-secret');
 });
