@@ -45,3 +45,11 @@ test('missing or malformed legacy records are validation errors instead of unexp
   assert.doesNotThrow(()=>{inspected=inspectLegacy(d);});assert.ok(inspected.errors.length);assert.equal(inspected.document,null);
  }
 });
+
+test('legacy trial fields used in reports and CSV exports reject structured or incorrectly typed values',()=>{
+ const outcome={number:1,target:true,response:true,correct:true,atMs:100,reactionMs:100};
+ for(const extra of [{item:{toString:null}},{number:{}},{round:[]},{phase:{}},{stimulus:{shape:'circle',color:{toString:null}}},{stimulus:{shape:'word',word:{}}},{stimulus:{shape:'circle',detail:{}}},{selectedStimulus:{shape:'circle',color:{}}}]){
+  const d=document();d.records[0].result.outcomes=[{...outcome,...extra}];assert.ok(inspectLegacy(d).errors.length);
+ }
+ const d=document();d.records[0].result.outcomes=[{...outcome,item:'وسیلهٔ قدیمی',stimulus:{shape:'historical-shape',color:'historical-color'}}];assert.deepEqual(inspectLegacy(d).errors,[]);
+});

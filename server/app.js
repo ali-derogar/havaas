@@ -15,6 +15,7 @@ import { registerImports } from './imports.js';
 import { registerAccounts } from './accounts.js';
 import { registerPublicReport,registerReportLinks,reportResult } from './report-links.js';
 import {appOrigin,normalizeAppOrigin} from './origin.js';
+import {serializeCsv} from './csv.js';
 
 const PgStore=connectPg(session);
 const role=(req,roles)=>check(roles.includes(req.user.role),'اجازهٔ این عملیات را ندارید.',403,'FORBIDDEN');
@@ -100,8 +101,9 @@ export function createApp({pool,secret=process.env.SESSION_SECRET,production=pro
   app.get('/api/children/:id/export',async(req,res)=>{const child=await childAccess(pool,req.user,req.params.id,true),records=(await recordsFor(req)).map(r=>recordDTO(r,req.user));res.attachment('havaas-profile.json').json({version:1,exportedAt:new Date().toISOString(),profile:profileDTO(child,req.user),records});});
   app.get('/api/children/:id/sessions/:sessionId/export',async(req,res)=>{
     await childAccess(pool,req.user,req.params.id,true);uuid(req.params.sessionId);const row=(await pool.query('SELECT * FROM game_sessions WHERE id=$1 AND child_id=$2 AND result IS NOT NULL',[req.params.sessionId,req.params.id])).rows[0];check(row,'جلسه پیدا نشد.',404);
-    const lines=[['ردیف','هدف','پاسخ','درست','زمان پاسخ','زمان فعال','وسیله','دور','مرحله'],...(row.result.outcomes||[]).map(o=>[o.number,o.target,o.response,o.correct,o.reactionMs??'',o.atMs,o.item||'',o.round||'',o.phase??''])];
-    res.type('text/csv; charset=utf-8').attachment('havaas-responses.csv').send('\uFEFF'+lines.map(line=>line.map(v=>'"'+(/^[=+@\-\t\r]/.test(String(v))?"'"+String(v):String(v)).replaceAll('"','""')+'"').join(',')).join('\r\n'));
+    const outcomes=Array.isArray(row.result.outcomes)?row.result.outcomes:[];
+    const lines=[['ردیف','هدف','پاسخ','درست','زمان پاسخ','زمان فعال','وسیله','دور','مرحله'],...outcomes.map((source,index)=>{const o=source&&typeof source==='object'?source:{};return [Number.isInteger(o.number)&&o.number>=0?o.number:index+1,o.target,o.response,o.correct,o.reactionMs??'',o.atMs,o.item??'',o.round??'',o.phase??''];})];
+    res.type('text/csv; charset=utf-8').attachment('havaas-responses.csv').send(serializeCsv(lines));
   });
   registerImports(app,pool,{role,childAccess,profileDTO});
   app.use('/api',(_req,res)=>res.status(404).json({error:'مسیر پیدا نشد.',code:'NOT_FOUND'}));

@@ -126,6 +126,16 @@ apiTest('server: raw exports enforce permission and persist after creating a new
  assert.equal((await user.call(`/children/${seed.children[0].id}/sessions/${id}/export`)).status,403);assert.equal((await admin.call(`/children/${seed.children[0].id}/sessions/${id}/export`)).status,200);
  const another=createApp({pool:db.pool,loginLimit:200,secret:'test-session-secret-at-least-thirty-two-characters'}).listen(0,'127.0.0.1');await new Promise(r=>another.once('listening',r));const response=await fetch(`http://127.0.0.1:${another.address().port}/api/bootstrap`,{headers:{Cookie:admin.cookie}});assert.equal(response.status,200);assert.ok((await response.json()).records.length>=7);await new Promise(r=>{another.close(r);another.closeAllConnections();});
 });
+
+apiTest('server: CSV exports tolerate malformed historical trial metadata and escape formula-like text',async()=>{
+ const run=await start(admin,'traffic'),result=playSession(run);
+ result.outcomes[0].item='\n=1+1';result.outcomes[1].item='  =1+1';result.outcomes[2].item='＝1+1';result.outcomes[3].item={toString:null};result.outcomes[4].number={toString:null};result.outcomes[4].item='وسیله "ویژه", قدیمی';
+ await db.pool.query('UPDATE game_sessions SET result=$1,finished_at=now() WHERE id=$2',[result,run.id]);
+ const exported=await admin.call(`/children/${seed.children[0].id}/sessions/${run.id}/export`);assert.equal(exported.status,200);assert.equal(typeof exported.data,'string');
+ for(const value of ['\n=1+1','  =1+1','＝1+1'])assert.ok(exported.data.includes('"'+"'"+value+'"'),value);
+ assert.ok(!exported.data.includes('[object Object]'));
+ assert.ok(exported.data.includes('"وسیله ""ویژه"", قدیمی"'));
+});
 apiTest('server: administrator password reset invalidates other sessions; logout revokes access',async()=>{
  const reset=await admin.call('/invitations',{method:'POST',body:{userId:seed.users.user.id,purpose:'reset'}});assert.equal(reset.status,201);const client=new Client();await client.call('/auth/session');
  const accepted=await client.call('/invitations/accept',{method:'POST',body:{token:reset.data.url.split('/').at(-1),password:'A-brand-new-password-2026!'}});assert.equal(accepted.status,200);

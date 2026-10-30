@@ -19,6 +19,13 @@ function validTimestamp(value){
   const day=new Date(value.slice(0,10)+'T12:00:00Z'),time=new Date(value);
   return Number.isFinite(day.getTime())&&day.toISOString().slice(0,10)===value.slice(0,10)&&time.getUTCFullYear()>=1&&time.getUTCFullYear()<=9999;
 }
+function validLegacyStimulus(value){
+ if(value===undefined||value===null)return true;
+ return typeof value==='object'&&!Array.isArray(value)&&['shape','color','word'].every(key=>value[key]===undefined||value[key]===null||typeof value[key]==='string')&&(value.detail===undefined||value.detail===null||Number.isInteger(value.detail)&&value.detail>=0);
+}
+function validLegacyOutcome(outcome){
+ return outcome&&typeof outcome==='object'&&!Array.isArray(outcome)&&['target','response','correct'].every(key=>typeof outcome[key]==='boolean')&&Number.isFinite(outcome.atMs)&&outcome.atMs>=0&&(outcome.reactionMs===null||Number.isFinite(outcome.reactionMs)&&outcome.reactionMs>=0)&&['number','round','phase'].every(key=>outcome[key]===undefined||outcome[key]===null||Number.isInteger(outcome[key])&&outcome[key]>=0)&&(outcome.item===undefined||outcome.item===null||typeof outcome.item==='string')&&(outcome.selectedTarget===undefined||outcome.selectedTarget===null||typeof outcome.selectedTarget==='boolean')&&validLegacyStimulus(outcome.stimulus)&&validLegacyStimulus(outcome.selectedStimulus);
+}
 export function inspectLegacy(input){
   const errors=[],profiles=Array.isArray(input?.profiles)?input.profiles:input?.profile?[input.profile]:[],records=input?.records;
   if(input?.version!==1||!profiles.length||!Array.isArray(records)||profiles.length>500||records.length>20000)return {errors:['فایل نسخهٔ ۱ شامل اطلاعات کاربر و سابقه لازم است؛ رکوردهای ناشناس قابل انتساب خودکار نیستند.']};
@@ -35,7 +42,7 @@ export function inspectLegacy(input){
     if(result&&(typeof (result.variant||'standard')!=='string'||String(result.variant||'standard').length>100||result.inventory!==undefined&&(!Array.isArray(result.inventory)||result.inventory.some(v=>typeof v!=='string'))||result.mission!==undefined&&typeof result.mission!=='string'))errors.push(`اطلاعات تکمیلی نتیجهٔ ${i+1} معتبر نیستند.`);
     if(result&&[result.stimulusFamily,result.settingsSnapshot?.theme].some(value=>value!==undefined&&value!==null&&(typeof value!=='string'||value.length>100)))errors.push(`خانوادهٔ محرک نتیجهٔ ${i+1} باید متن معتبر باشد.`);
     if(typeof profileId==='string'&&typeof id==='string')seen.add(`${profileId}:${id}`);
-    if(Array.isArray(result?.outcomes))for(const o of result.outcomes)if(!o||typeof o.target!=='boolean'||typeof o.response!=='boolean'||typeof o.correct!=='boolean'||!Number.isFinite(o.atMs)||o.atMs<0||!(o.reactionMs===null||Number.isFinite(o.reactionMs)&&o.reactionMs>=0)){errors.push(`پاسخ‌های نتیجهٔ ${i+1} معتبر نیستند.`);break;}
+    if(Array.isArray(result?.outcomes)&&!result.outcomes.every(validLegacyOutcome))errors.push(`پاسخ‌های نتیجهٔ ${i+1} معتبر نیستند.`);
   }
   return {errors,document:errors.length?null:{version:1,profiles,records:records.map(r=>({...r,id:r.id||digest(JSON.stringify(r.result)),profileId:r.profileId||input.profile.id}))}};
 }

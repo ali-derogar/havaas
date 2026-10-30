@@ -397,18 +397,63 @@ test('a delayed JSON export does not download after reviewing a different client
  await page.route(`**/api/children/${seed.children[0].id}/export`,async route=>{const response=await route.fetch();ready();await gate;await route.fulfill({response});});
  try{
   await page.locator('[data-action=export-profile]').click();await fetched;
-  await click(page,'inspect-user',`[data-user="${seed.users.otherUser.id}"]`);await expect(page.locator('.user-hero')).toContainText('علی');
+  await click(page,'inspect-user',`[data-user="${seed.users.otherUser.id}"]`);await expect(page.locator('.user-heading [data-action=reset-link]')).toHaveAttribute('data-user',seed.users.otherUser.id);
   const completed=page.waitForResponse(response=>response.url().endsWith(`/api/children/${seed.children[0].id}/export`));release();await completed;await page.waitForLoadState('networkidle');
-  expect(downloads).toHaveLength(0);await expect(page.locator('.user-hero')).toContainText('علی');
+  expect(downloads).toHaveLength(0);await expect(page.locator('.user-heading [data-action=reset-link]')).toHaveAttribute('data-user',seed.users.otherUser.id);
  }finally{release();await page.unrouteAll({behavior:'wait'});}
 });
 
-for(const format of ['json','html'])test(`an expired CSV export session clears the private screen with a ${format} response`,async({page})=>{
+async function openExportableReport(page){
  const {playSession}=await import('../helpers/play-session.mjs'),headers={'X-CSRF-Token':adminCsrf};
  const run=await (await adminApi.post(`/api/children/${seed.children[0].id}/sessions`,{headers,data:{gameId:'traffic',kind:'baseline'}})).json();
  expect((await adminApi.post(`/api/children/${seed.children[0].id}/sessions/${run.id}/complete`,{headers,data:{result:playSession(run)}})).ok()).toBe(true);
  await login(page,'admin');await click(page,'inspect-user',`[data-user="${seed.users.user.id}"]`);await click(page,'user-tab','[data-tab="sessions"]');await page.locator('[data-report-filter=kind]').selectOption('baseline');
+}
+
+for(const format of ['json','html'])test(`an expired CSV export session clears the private screen with a ${format} response`,async({page})=>{
+ await openExportableReport(page);
  await page.route('**/api/children/*/sessions/*/export',route=>route.fulfill({status:401,contentType:format==='json'?'application/json':'text/html',body:format==='json'?JSON.stringify({error:'ابتدا وارد حساب شوید.',code:'AUTH_REQUIRED'}):'<h1>Unauthorized</h1>'}));
  await page.locator('[data-action=export-trials]').click();await expect(page.locator('#login-form')).toBeVisible();await expect(page.locator('.admin-sidebar')).toHaveCount(0);await expect(page.locator('.report-sheet')).toHaveCount(0);
  expect(await page.locator('body').textContent()).not.toContain('clinical-secret');
+});
+
+test('an HTML response cannot be downloaded as a successful CSV export',async({page})=>{
+ await openExportableReport(page);const downloads=[];page.on('download',download=>downloads.push(download));
+ await page.route('**/api/children/*/sessions/*/export',route=>route.fulfill({status:200,contentType:'text/html',body:'<h1>Login required</h1>'}));
+ await page.locator('[data-action=export-trials]').click();await expect(page.locator('#account-status')).toContainText('CSV معتبر نیست');await page.waitForLoadState('networkidle');
+ expect(downloads).toHaveLength(0);await expect(page.locator('.admin-sidebar')).toBeVisible();
+});
+
+test('a delayed CSV network failure cannot display an error in another client report',async({page})=>{
+ await openExportableReport(page);let release,ready;const gate=new Promise(resolve=>release=resolve),requested=new Promise(resolve=>ready=resolve);
+ await page.route('**/api/children/*/sessions/*/export',async route=>{ready();await gate;await route.abort('failed');});
+ try{
+  await page.locator('[data-action=export-trials]').click();await requested;await click(page,'inspect-user',`[data-user="${seed.users.otherUser.id}"]`);
+  await expect(page.locator('.user-heading [data-action=reset-link]')).toHaveAttribute('data-user',seed.users.otherUser.id);
+  const failed=page.waitForEvent('requestfailed',{predicate:request=>request.url().includes('/sessions/')&&request.url().endsWith('/export')});release();await failed;await page.waitForLoadState('networkidle');
+  await expect(page.locator('#account-status')).toBeHidden();await expect(page.locator('.user-heading [data-action=reset-link]')).toHaveAttribute('data-user',seed.users.otherUser.id);
+ }finally{release();await page.unrouteAll({behavior:'wait'});}
+});
+
+for(const action of ['users','csv'])test(`switching accounts in another tab clears stale admin data when the ${action} action is forbidden`,async({page})=>{
+ if(action==='csv')await openExportableReport(page);
+ else{await login(page,'admin');await click(page,'inspect-user',`[data-user="${seed.users.user.id}"]`);await click(page,'user-tab','[data-tab="details"]');}
+ const second=await page.context().newPage();
+ try{
+  await second.goto('/');await expect(second.locator('.admin-stats')).toBeVisible();await second.locator('[data-action=logout]').first().click();await expect(second.locator('#login-form')).toBeVisible();
+  await second.locator('#login-form [name=identifier]').fill(seed.users.user.username);await second.locator('#login-form [name=password]').fill(seed.password);await second.locator('#login-form button[type=submit]').click();await expect(second.locator('.hero')).toBeVisible();
+  await page.bringToFront();
+  if(action==='csv')await page.locator('[data-action=export-trials]').click();else await page.locator('.admin-sidebar [data-action=admin-users]').click();
+  await expect(page.locator('#login-form')).toBeVisible();await expect(page.locator('.admin-sidebar')).toHaveCount(0);await expect(page.locator('#edit-user-form')).toHaveCount(0);expect(await page.locator('body').textContent()).not.toContain('clinical-secret');
+  await expect(page.locator('#account-error')).toContainText('حساب این مرورگر تغییر کرده است');
+  if(action==='csv')await page.locator('#login-form').screenshot({path:'.local/verification/account-switch-export-recovery.png'});
+ }finally{await second.close();}
+});
+
+test('a forbidden admin action keeps the current account signed in when its identity has not changed',async({page})=>{
+ await login(page,'admin');
+ await page.route('**/api/users?**',route=>route.fulfill({status:403,contentType:'application/json',body:JSON.stringify({error:'دسترسی به این عملیات مجاز نیست.',code:'FORBIDDEN'})}));
+ await page.locator('.admin-sidebar [data-action=admin-users]').click();
+ await expect(page.locator('#app-status')).toContainText('دسترسی به این عملیات مجاز نیست.');
+ await expect(page.locator('.admin-sidebar')).toBeVisible();await expect(page.locator('#login-form')).toHaveCount(0);
 });

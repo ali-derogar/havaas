@@ -61,11 +61,23 @@ function page(content, className = '') {
   window.scrollTo({ top: 0, behavior: 'instant' });
   document.querySelector('#main').focus({ preventScroll: true });
 }
+async function accountError(error,viewerId,viewerRole){
+ if(error.status!==403||!viewerId)return error;
+ let auth;
+ try{auth=await api.request('/auth/session');}
+ catch(sessionError){return sessionError.status===401?sessionError:error;}
+ if(auth.user?.id!==viewerId||auth.user?.role!==viewerRole)return new ApiError('حساب این مرورگر تغییر کرده است؛ دوباره وارد شوید.',401,'ACCOUNT_CHANGED');
+ return error;
+}
 async function request(path,options){
  const publicPath=['/auth/session','/auth/login','/invitations/inspect','/invitations/accept','/public/report','/public/registration/inspect','/public/registration/complete'].includes(path),viewerId=currentUser?.id,viewerRole=currentUser?.role;
  const stale=()=>!publicPath&&(currentUser?.id!==viewerId||currentUser?.role!==viewerRole);
  try{const data=await api.request(path,options);if(stale())throw new ApiError('پاسخ متعلق به حساب قبلی است.',0,'STALE_RESPONSE');return data;}
- catch(error){if(stale())throw new ApiError('پاسخ متعلق به حساب قبلی است.',0,'STALE_RESPONSE');throw error;}
+ catch(error){
+  if(stale())throw new ApiError('پاسخ متعلق به حساب قبلی است.',0,'STALE_RESPONSE');
+  const failure=publicPath?error:await accountError(error,viewerId,viewerRole);
+  if(stale())throw new ApiError('پاسخ متعلق به حساب قبلی است.',0,'STALE_RESPONSE');throw failure;
+ }
 }
 // A response may render only into the account and navigation that requested it.
 function beginView(){if(launchAttempt){launchAttempt=null;starting=false;}return {version:++viewVersion,userId:currentUser?.id,role:currentUser?.role};}
@@ -410,16 +422,31 @@ function download(data, type, filename) {
 }
 async function exportProfile() {
   if(currentUser.role!=='admin'||!clients.activeId)return;
-  const data=await request(`/children/${clients.activeId}/export`);download(JSON.stringify(data,null,2),'application/json;charset=utf-8','havaas-profile.json');
+  const view={version:viewVersion,userId:currentUser.id,role:currentUser.role};
+  const data=await viewRequest(view,`/children/${clients.activeId}/export`);
+  if(currentView(view))download(JSON.stringify(data,null,2),'application/json;charset=utf-8','havaas-profile.json');
 }
 async function exportTrials() {
   if(currentUser.role!=='admin')return;
   const view={version:viewVersion,userId:currentUser.id,role:currentUser.role};
   const records=profileRecords(clients).filter(r=>(!reportState.game||r.result.gameId===reportState.game)&&(!reportState.level||r.result.level===reportState.level)&&(!reportState.variant||variantOf(r.result)===reportState.variant)&&(!reportState.kind||r.kind===reportState.kind));
   const record=records.find(r=>r.id===reportState.recordId)||records.at(-1);if(!record)return;
-  const response=await fetch(`/api/children/${clients.activeId}/sessions/${record.id}/export`,{credentials:'same-origin'});
-  if(!currentView(view)||!response.ok){await response.body?.cancel();if(currentView(view)&&!response.ok)throw Error('دریافت خروجی مجاز یا ممکن نیست.');return;}
-  const data=await response.text();if(currentView(view))download('\uFEFF'+data.replace(/^\uFEFF/,''),'text/csv;charset=utf-8','havaas-responses.csv');
+  try{
+    const response=await fetch(`/api/children/${clients.activeId}/sessions/${record.id}/export`,{credentials:'same-origin'});
+    if(!currentView(view)){await response.body?.cancel();return;}
+    if(!response.ok){
+      let error;try{error=await response.json();}catch{}
+      throw new ApiError(typeof error?.error==='string'?error.error:'دریافت خروجی مجاز یا ممکن نیست.',response.status,typeof error?.code==='string'?error.code:'EXPORT_FAILED');
+    }
+    if(response.headers.get('Content-Type')?.split(';',1)[0].trim().toLowerCase()!=='text/csv'){
+      await response.body?.cancel();throw new ApiError('پاسخ خروجی CSV معتبر نیست؛ دوباره تلاش کنید.',response.status,'INVALID_RESPONSE');
+    }
+    const data=await response.text();if(currentView(view))download('\uFEFF'+data.replace(/^\uFEFF/,''),'text/csv;charset=utf-8','havaas-responses.csv');
+  }catch(error){
+    if(!currentView(view))return;
+    if(error instanceof ApiError){const failure=await accountError(error,view.userId,view.role);if(currentView(view))throw failure;return;}
+    throw new ApiError('دریافت خروجی ممکن نشد؛ دوباره تلاش کنید.',0,'NETWORK_ERROR',{cause:error});
+  }
 }
 app.addEventListener('submit',event=>{event.preventDefault();void submitForm(event.target).catch(showError);});
 async function submitForm(form){

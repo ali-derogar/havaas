@@ -25,3 +25,14 @@ test('legacy reports render safely when old stimulus-family metadata is malforme
   assert.ok(html.includes('report-metrics'));assert.ok(!html.includes('[native code]'));assert.ok(!html.includes('[object Object]'));
  }
 });
+
+test('legacy trial metadata cannot break the report table or display internal object values',()=>{
+ const profile={id:'trial-profile',firstName:'سارا',lastName:'آزمون',birthDate:'2016-01-01',grade:'پایهٔ ۳',school:'امید'};
+ const result={gameId:'traffic',level:'easy',protocolVersion:2,score:1,maxScore:1,hits:1,correctResponses:1,correctRejections:0,omissions:0,falseSelections:0,longestStreak:1,durationMs:1000,meanReactionMs:100,completed:true,finishedAt:'2026-10-30T12:00:00Z'};
+ for(const extra of [{item:{toString:null}},{number:{toString:null},round:{toString:null},phase:{toString:null}},{stimulus:{shape:'circle',color:{toString:null}}},{stimulus:{shape:'word',word:{toString:null}}},{stimulus:{shape:'circle',detail:{toString:null}}}]){
+  const outcome={number:1,target:true,response:true,correct:true,atMs:100,reactionMs:100,...extra};
+  const clients={activeId:profile.id,profiles:[profile],records:[{id:'trial-record',profileId:profile.id,kind:'baseline',result:{...result,outcomes:[outcome]}}]};
+  let html;assert.doesNotThrow(()=>{html=reportsView(clients,{game:'',level:'',variant:'',kind:'',recordId:null},{role:'admin'});});
+  assert.ok(html.includes('outcome-details'));assert.ok(!html.includes('[object Object]'));assert.ok(!html.includes('[native code]'));
+ }
+});
