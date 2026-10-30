@@ -6,7 +6,7 @@ import { Session } from '../src/core/session.js';
 import { requireValue as check } from './security.js';
 
 export function normalizeSettings(input={}) {
-  check(GAME_MAP[input.gameId]&&Object.hasOwn(GAME_MAP,input.gameId),'بازی معتبر نیست.');
+  check(input&&typeof input.gameId==='string'&&Object.hasOwn(GAME_MAP,input.gameId),'بازی معتبر نیست.');
   const options={gameId:input.gameId,level:'easy',theme:['star','shape','fish','butterfly','bird'].includes(input.theme)?input.theme:'star',material:['shapes','letters','numbers','toys'].includes(input.material)?input.material:'shapes',layout:input.layout==='scattered'?'scattered':'grid',trafficMode:input.trafficMode==='signs'?'signs':'circles',targetCount:input.targetCount===2?2:1};
   if(options.gameId==='search')options.pacedRounds=true;
   const sample=FACTORIES[options.gameId]({...options,practice:true,now:()=>0,random:seededRandom(0)});
@@ -91,7 +91,7 @@ export function canonicalResult(run,payload) {
       for(const item of engine.items.filter(i=>i.required))check(chosen.has(item.id),'همهٔ وسایل ضروری تعیین تکلیف نشده‌اند.');
       const hits=records.filter(o=>o.target&&o.response).length,wrong=records.filter(o=>!o.target&&o.response).length,limit=LEVELS[settings.level].seconds*1000;
       completed=departedAt!==null;
-      if(completed)check(hits===engine.required.length&&departedAt+wrong*2000<limit&&departedAt>=records.at(-1).atMs,'شرایط خروج به‌موقع برقرار نیست.');
+      if(completed)check(hits===engine.required.length&&departedAt+wrong*PROTOCOL.penaltyMs<limit+tolerance&&departedAt>=records.at(-1).atMs,'شرایط خروج به‌موقع برقرار نیست.');
       else check(payload.durationMs+wrong*2000>=limit,'مأموریت هنوز پایان نیافته است.');
     }
   }

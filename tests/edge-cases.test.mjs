@@ -22,6 +22,17 @@ test('valid mission traces with wrong selections and obstacles remain accepted a
   assert.equal(engine.depart(),true);const result=canonicalResult(run,engine.result);assert.equal(result.completed,true);assert.equal(result.falseSelections,2);assert.equal(result.obstaclesCleared,engine.clearedObstacles);
  }
 });
+test('departures just before the deadline remain valid after millisecond rounding, including penalties',()=>{
+ for(const gameId of ['ark','space'])for(const level of ['easy','medium','hard'])for(const penalised of [false,true]){
+  let now=0;const run=runFor(gameId,level),engine=FACTORIES[gameId]({...run.settings,now:()=>now,random:seededRandom(run.settings.seed)});
+  if(penalised){now+=100;engine.choose(engine.items.find(item=>!item.required).id);}
+  for(const item of engine.items.filter(item=>item.required)){now+=100;if(item.blocked)engine.choose(item.id);engine.choose(item.id);}
+  now=engine.limitMs-engine.penaltyMs-.4;
+  assert.equal(engine.depart(),true);assert.equal(canonicalResult(run,engine.result).completed,true);
+  const late=structuredClone(engine.result);late.durationMs+=3;late.events.at(-1).atMs+=3;
+  assert.throws(()=>canonicalResult(run,late),/شرایط خروج/);
+ }
+});
 test('search results require numeric in-range choice indices and reject array prototype properties',()=>{
  const run=runFor('search'),valid=playSession(run);assert.equal(canonicalResult(run,valid).hits,10);
  const stringIndex=structuredClone(valid);stringIndex.outcomes[0].choiceIndex=String(stringIndex.outcomes[0].choiceIndex);assert.throws(()=>canonicalResult(run,stringIndex),/گزینهٔ جست/);

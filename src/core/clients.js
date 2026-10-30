@@ -39,8 +39,9 @@ export function validateProfile(input, today = new Date()) {
   if(Object.values(profile).some(value=>!isValidText(value)))return {error:'متن مشخصات شامل نویسهٔ نامعتبر است؛ آن بخش را دوباره وارد کنید.'};
   if (!profile.firstName || !profile.lastName || !profile.birthDate || !profile.grade || !profile.school) return { error: 'نام، نام خانوادگی، تاریخ تولد، پایه و مدرسه را کامل کن.' };
   if (Object.values(profile).some(value => value.length > 500)) return { error: 'طول هر بخش باید کمتر از ۵۰۰ نویسه باشد.' };
-  const birthday = new Date(`${profile.birthDate}T12:00:00`);
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(profile.birthDate) || !Number.isFinite(birthday.getTime()) || birthday.toISOString().slice(0,10) !== profile.birthDate || birthday > today || birthday.getFullYear() < today.getFullYear() - 100) return { error: 'یک تاریخ تولد معتبر در گذشته وارد کن.' };
+  const birthday = new Date(`${profile.birthDate}T12:00:00Z`);
+  const todayDate = [today.getFullYear(), String(today.getMonth()+1).padStart(2,'0'), String(today.getDate()).padStart(2,'0')].join('-');
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(profile.birthDate) || !Number.isFinite(birthday.getTime()) || birthday.toISOString().slice(0,10) !== profile.birthDate || profile.birthDate > todayDate || birthday.getUTCFullYear() < today.getFullYear() - 100) return { error: 'یک تاریخ تولد معتبر در گذشته وارد کن.' };
   return { profile };
 }
 export function addRecord(clients, result, kind) {

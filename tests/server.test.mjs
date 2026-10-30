@@ -39,6 +39,14 @@ apiTest('server: CSRF and foreign origins are rejected',async()=>{
  assert.equal((await user.call('/auth/logout',{method:'POST',headers:{'X-CSRF-Token':'wrong'}})).status,403);
  assert.equal((await user.call('/auth/logout',{method:'POST',headers:{Origin:'https://attacker.example'}})).status,403);
 });
+apiTest('server: malformed game identifiers cannot create sessions or difficulty settings',async()=>{
+ const childId=seed.children[0].id,before=await db.pool.query('SELECT (SELECT count(*) FROM game_sessions WHERE child_id=$1) AS sessions,(SELECT count(*) FROM difficulty WHERE child_id=$1) AS settings',[childId]);
+ for(const gameId of [{toString:null},{},['traffic'],[],null,123,'constructor']){
+  const result=await user.call(`/children/${childId}/sessions`,{method:'POST',body:{gameId,kind:'baseline'}});assert.equal(result.status,400,JSON.stringify(result.data));
+  const policy=await admin.call(`/children/${childId}/difficulty`,{method:'PATCH',body:{gameId,mode:'fixed',level:'easy'}});assert.equal(policy.status,400,JSON.stringify(policy.data));
+ }
+ const after=await db.pool.query('SELECT (SELECT count(*) FROM game_sessions WHERE child_id=$1) AS sessions,(SELECT count(*) FROM difficulty WHERE child_id=$1) AS settings',[childId]);assert.deepEqual(after.rows,before.rows);
+});
 apiTest('server: all seven games save canonical metrics and resume assessment from another device',async()=>{
  for(const game of GAMES){const run=await start(admin,game.id);const payload=playSession(run);payload.score=99999;payload.hits=99999;const r=await complete(admin,run,payload);assert.equal(r.status,200,JSON.stringify(r.data));assert.equal(r.data.record.result.score,r.data.record.result.maxScore);assert.notEqual(r.data.record.result.hits,99999);assert.equal(r.data.record.actorId,seed.users.admin.id);assert.equal(r.data.record.result.settingsSnapshot.seed,run.settings.seed);assert.equal(r.data.record.result.stimulusVersion,run.settings.stimulusVersion);}
  const assessment=await user.call(`/children/${seed.children[0].id}/assessment`);assert.equal(assessment.data.steps.filter(s=>s.baseline).length,7);
