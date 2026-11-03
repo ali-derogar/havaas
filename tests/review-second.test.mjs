@@ -80,6 +80,7 @@ test('spoken playback tracks only its own key and stopping removes the active ke
 test('the shipped voice scripts match the rebuilt files and explain reviews without asking for unavailable actions',async()=>{
  const manifest=JSON.parse(await readFile(new URL('../assets/audio/scripts.json',import.meta.url),'utf8'));
  assert.deepEqual(manifest.scripts,GUIDANCE);
+ assert.equal(manifest.voice,'fa-IR-DilaraNeural');assert.equal(manifest.rate,'-6%');
  for(const key of ['water','food','medkit','vest','flashlight','compass','oxygen','suit','fuel','helmet','map'])assert.ok(!GUIDANCE[key].includes('بردار'));
  assert.ok(!GUIDANCE['not-needed'].includes('دکمه'));
 });

@@ -14,6 +14,22 @@ async function leave(page){await click(page,'pause');await click(page,'home');aw
 async function baseline(page,gameId){const {csrfToken}=await(await page.request.get('/api/auth/session')).json();const run=await(await page.request.post(`/api/children/${seed.children[1].id}/sessions`,{headers:{'X-CSRF-Token':csrfToken},data:{gameId,kind:'baseline'}})).json();expect((await page.request.post(`/api/children/${seed.children[1].id}/sessions/${run.id}/complete`,{headers:{'X-CSRF-Token':csrfToken},data:{result:playSession(run)}})).ok()).toBe(true);}
 async function policy(gameId,level){const api=await request.newContext({baseURL:'http://127.0.0.1:4181'});try{let auth=await(await api.get('/api/auth/session')).json();auth=await(await api.post('/api/auth/login',{headers:{'X-CSRF-Token':auth.csrfToken},data:{identifier:seed.users.admin.username,password:seed.password}})).json();expect((await api.patch(`/api/children/${seed.children[1].id}/difficulty`,{headers:{'X-CSRF-Token':auth.csrfToken},data:{gameId,level,mode:'fixed'}})).ok()).toBe(true);}finally{await api.dispose();}}
 
+test('review: all 31 neural Persian clips decode as audible speech without clipping',async({page})=>{
+ await page.goto('/');
+ const clips=await page.evaluate(async()=>{
+  const manifest=await(await fetch('/assets/audio/scripts.json')).json(),context=new OfflineAudioContext(1,1,24000),results=[];
+  for(const key of Object.keys(manifest.scripts)){
+   const response=await fetch(`/assets/audio/${key}.mp3`);if(!response.ok)throw Error(`Audio missing: ${key}`);
+   const buffer=await context.decodeAudioData(await response.arrayBuffer()),samples=buffer.getChannelData(0);
+   let square=0,clipped=0;for(const sample of samples){square+=sample*sample;if(Math.abs(sample)>=.999)clipped++;}
+   results.push({key,duration:buffer.duration,channels:buffer.numberOfChannels,rms:Math.sqrt(square/samples.length),clipped:clipped/samples.length});
+  }
+  return {voice:manifest.voice,results};
+ });
+ expect(clips.voice).toBe('fa-IR-DilaraNeural');expect(clips.results).toHaveLength(31);
+ for(const clip of clips.results){expect(clip.duration,clip.key).toBeGreaterThan(1);expect(clip.duration,clip.key).toBeLessThan(22);expect(clip.channels,clip.key).toBe(1);expect(clip.rms,clip.key).toBeGreaterThan(.01);expect(clip.clipped,clip.key).toBeLessThan(.001);}
+});
+
 test('review: Persian audio really plays, stops before countdown, and traffic reaches its flag without retreating',async({page})=>{
  await clock(page);await login(page);
  await page.evaluate(()=>{const play=HTMLMediaElement.prototype.play;window.playedGuides=[];HTMLMediaElement.prototype.play=function(){window.playedGuides.push(this);return play.call(this);};});

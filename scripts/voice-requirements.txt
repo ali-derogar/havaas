@@ -1,0 +1,2 @@
+# Build-time only. The deployed game has no Python or speech-service dependency.
+edge-tts==7.3.1
