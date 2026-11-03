@@ -571,6 +571,7 @@ async function handleAction(event) {
   const fromReactionPointer=event.type==='click'&&event.detail>0&&reactionPointerInput;if(event.type==='click')reactionPointerInput=false;
   const button = event.target.closest('[data-action]'); if(!button||button.disabled) return;
   const action=button.dataset.action;
+  if(action==='toggle-password'){const input=button.closest('.input-shell')?.querySelector('input');if(input){const show=input.type==='password';input.type=show?'text':'password';button.setAttribute('aria-pressed',String(show));button.setAttribute('aria-label',show?'پنهان‌کردن رمز':'نمایش رمز');button.innerHTML=icon(show?'eye-off':'eye');}return;}
   if(action==='listen-guide'){if(route==='play'&&playPhase==='playing'&&!engine?.paused)return;if(guidance.key===button.dataset.guide&&guidance.audio)return guidance.stop();progress.sound=true;writeProgress(progress);syncSoundControls();return guidance.play(button.dataset.guide);}
   if(['lesson-memory-next','lesson-memory-help','lesson-memory-replay'].includes(action))return changeMemoryLesson(action);
   if(button.tagName==='A')event.preventDefault();

@@ -4,6 +4,8 @@ const ink = '#34443d';
 const svg = (body, viewBox = '0 0 64 64', cls = '') => `<svg class="${cls}" viewBox="${viewBox}" xmlns="http://www.w3.org/2000/svg" fill="none" aria-hidden="true">${body}</svg>`;
 export function icon(name, cls = '') {
   const paths = {
+    eye:'<path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/>',
+    'eye-off':'<path d="m3 3 18 18M10 5a12 12 0 0 1 12 7 16 16 0 0 1-4 5M6 6a17 17 0 0 0-4 6s3 7 10 7a13 13 0 0 0 4-1M10 10a3 3 0 0 0 4 4"/>',
     palette:'<path d="M12 3a9 9 0 1 0 0 18h2a3 3 0 0 0 0-6h-1a2 2 0 0 1 0-4h4a4 4 0 0 0 0-8z"/><circle cx="6" cy="11" r="1"/><circle cx="9" cy="7" r="1"/><circle cx="15" cy="6" r="1"/>',
     read:'<path d="M3 4q5-2 9 2 4-4 9-2v15q-5-2-9 2-4-4-9-2zM12 6v15M6 9h3m6 0h3M6 13h3m6 0h3"/>',
     tap:'<path d="M9 13V4a2 2 0 0 1 4 0v7l2-1 2 2 2-1 2 2v5l-4 4h-6l-7-8a2 2 0 0 1 3-2l2 2M5 6H2m5-4L5 0m12 5 3-2"/>',
