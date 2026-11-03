@@ -48,7 +48,8 @@ async function finishReaction(ui, practice, n=0) {
     if(ui.document.querySelector('[data-action="acknowledge"]'))await ui.click('acknowledge');
     // Exercise the physical Space-key handler, including ignored warm-up presses.
     const event=new ui.window.Event('keydown',{bubbles:true,cancelable:true});Object.defineProperties(event,{code:{value:'Space'},repeat:{value:false}});
-    await ui.advance(180);ui.document.dispatchEvent(event);await ui.advance(820);
+    const interval=Number(ui.document.querySelector('.play-panel').dataset.intervalMs)||1000;
+    await ui.advance(180);ui.document.dispatchEvent(event);await ui.advance(interval-180);
   }
   assert.ok(steps<180,'reaction interface did not finish');
   assert.ok(ui.document.querySelector('.result-card'));
@@ -142,9 +143,9 @@ test('interface: variants teach and complete through the real controls',async()=
 test('interface: hunt renders simultaneous choices and preserves the selected attention mode when changing theme',async()=>{
   const ui=await fixture();await ui.click('open','[data-game="hunt"]');await ui.click('hunt-mode','[data-mode="divided"]');await ui.click('theme','[data-theme="fish"]');
   assert.equal(ui.document.querySelector('.hunt-mode.selected').dataset.mode,'divided');await ui.click('practice');
-  assert.equal(ui.document.querySelectorAll('.hunt-choice').length,3);assert.equal(ui.document.querySelectorAll('.target-mini').length,2);
+  assert.equal(ui.document.querySelectorAll('.hunt-choice').length,4);assert.equal(ui.document.querySelectorAll('.target-mini').length,2);
   const choice=ui.document.querySelector('.hunt-choice');assert.ok(choice.hasAttribute('data-choice'));
-  await ui.click('stimulus-response',`[data-choice="${choice.dataset.choice}"]`);await ui.advance(1000);assert.equal(ui.document.querySelectorAll('.hunt-choice').length,3);
+  await ui.click('stimulus-response',`[data-choice="${choice.dataset.choice}"]`);await ui.advance(1000);assert.equal(ui.document.querySelectorAll('.hunt-choice').length,4);
 });
 test('interface: space explains the mission and reports mandatory obstacle clearing',async()=>{
   const ui=await fixture();await ui.click('open','[data-game="space"]');await ui.click('practice');assert.ok(ui.document.querySelector('.mission-brief').textContent.includes('سفر فضایی'));await finishAdventure(ui,'space',true,'easy');
@@ -294,7 +295,7 @@ test('interface: a session waits for the server and runs its authoritative setti
   };
   await ui.click('open','[data-game="traffic"]');await ui.click('practice');assert.equal(ui.document.querySelector('.play-panel'),null);
   await ui.click('home');assert.ok(ui.document.querySelector('.intro-layout'));release();await ui.advance(0);
-  assert.ok(ui.document.querySelector('.game-preparation'));assert.ok(ui.document.querySelector('.game-preparation h2').textContent.includes('با نشانهٔ درست'));
+  assert.ok(ui.document.querySelector('.game-preparation'));assert.ok(ui.document.querySelector('.game-preparation h2').textContent.includes('فلش آبی'));
   await ui.click('begin-game');await ui.advance(3000);assert.ok(ui.document.querySelector('#instruction').textContent.includes('یک‌طرفه'));
 });
 

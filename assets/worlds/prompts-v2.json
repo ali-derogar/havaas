@@ -1,0 +1,14 @@
+{
+  "generator": "built-in image_gen",
+  "reference": "https://apps.apple.com/us/app/brainhq/id537452201",
+  "assets": [
+    {
+      "file": "meadow-v2.jpg",
+      "prompt": "Use case: photorealistic-natural. Asset type: full-bleed background for a cognitive attention training game inspired by classic BrainHQ nature exercise environments. Create a wide 1536x1024 natural landscape photograph: rolling green grass meadow, distant green hills and a few trees along the far horizon, blue sky with soft white clouds at the upper quarter. Center and foreground a broad open area of smooth green grass with subtle real texture and gentle depth. Bright natural midday daylight, realistic saturated greens and clear blues, calm and legible. Camera level, no extreme wide-angle. This image is a background behind small game symbols, so avoid prominent objects in the central 75 percent. No people, animals, birds, butterflies, buildings, text, UI, borders, logos, watermarks, illustrations or cartoon style. One single continuous photographic scene."
+    },
+    {
+      "file": "shore-v2.jpg",
+      "prompt": "Use case: photorealistic-natural. Asset type: full-bleed background for a cognitive attention training game inspired by classic BrainHQ nature exercise environments. Create a wide 1536x1024 natural landscape photograph of a calm tropical shoreline: clear blue sky in upper quarter, turquoise sea in middle distance, pale sand in foreground, a few palm fronds at the outer right edge and a low green headland far left. The central 75 percent is quiet open sea and sand for game symbols. Natural midday daylight, clear saturated blue and teal colors, realistic photography and restrained detail. No people, boats, animals, birds, shells, furniture, text, UI, borders, logos, watermarks, illustrations or cartoon style. One single continuous photographic scene."
+    }
+  ]
+}

@@ -6,9 +6,19 @@ import { LEVELS } from './config.js';
 import { createLesson } from './lessons.js';
 import { STROOP_RULES } from './games/stroop.js';
 import { EQUIPMENT_NEEDS, EQUIPMENT_REASONS } from './games/adventure.js';
+import { guidanceKey } from './guidance.js';
 
 const fa = value => Number(value).toLocaleString('fa-IR');
 const tokens = values => values.map(value=>`<span class="ready-token">${symbol(value)}</span>`).join('');
+export const guideControl = key => `<button type="button" class="guide-audio-button" data-action="listen-guide" data-guide="${key}" aria-label="پخش راهنمای صوتی فارسی" aria-pressed="false">${icon('sound')}<span>بشنو</span></button><span class="audio-guide-status sr-only" role="status"></span>`;
+export function shortPrompt(session){
+  if(session.gameId==='hunt')return session.targets?.length===2?'هر دو نمونه را پیدا کن و بزن':'مثل نمونه را پیدا کن و بزن';
+  if(session.gameId==='traffic')return session.variant==='signs'?'فلش آبی: بزن؛ قرمز: صبر':'سبز: بزن؛ قرمز: صبر';
+  if(session.gameId==='search')return session.targetCount===2?'هر دو را حفظ کن، هر دو را پیدا کن':'نگاه کن، حفظ کن، پیدا کن';
+  if(session.gameId==='nback')return `مثل ${fa(session.n)} شکل قبل بود؟ بزن`;
+  if(session.gameId==='stroop')return STROOP_RULES[session.current?.phase||0].title;
+  return 'وسایل لازم را بردار، راهی شو';
+}
 export function missionChecklist(session) {
   return `<div class="mission-checklist" aria-label="نیازهای این سفر">${session.required.map(([name],i)=>{
     const packed=session.items.some(item=>item.icon===name&&item.collected);
@@ -42,9 +52,10 @@ export function preparationView(session) {
     sample=gameArtwork(id);tip=`رنگ، شکل و ${session.material==='letters'?'خط کوچک کنار حرف':'علامت داخل شکل'} را به خاطر بسپار. ${fa(LEVELS[session.level].searchSeconds)} ثانیه برای جست‌وجوی هر دور فرصت داری.`;
   } else {
     title=session.mission.title;text=session.mission.story;sample=gameArtwork(id);
-    tip=session.practice?'پنج وسیله را یکی‌یکی بررسی کن؛ وسیلهٔ ضروری را بردار و برای بقیه «لازم نیست» را بزن.':`نیازهای این سفر را برطرف کن و قبل از پایان زمان ${id==='space'?'سفینه را پرتاب کن. مانع‌ها را اول کنار بزن.':'سوار کشتی شو.'}`;
+    tip=session.practice?'پنج وسیله را یکی‌یکی بررسی کن؛ وسیلهٔ ضروری را بردار و برای بقیه «دست نگه دار» را بزن.':`نیازهای این سفر را برطرف کن و قبل از پایان زمان ${id==='space'?'سفینه را پرتاب کن. مانع‌ها را اول کنار بزن.':'سوار کشتی شو.'}`;
   }
-  return `<div class="game-preparation"><span class="section-kicker">اول آماده شو · زمان بازی هنوز شروع نشده</span><h2>${title}</h2><div class="preparation-samples">${sample}</div><p>${text}</p>${['ark','space'].includes(id)&&!session.practice?missionChecklist(session):''}<div class="preparation-tip">${icon('info')}<span>${tip}</span></div>${session.practice?'<small class="guided-note">بعد از هر تمرین، پاسخ را با هم مرور می‌کنیم. برای خواندن توضیح عجله نکن.</small>':''}</div>`;
+  const key=guidanceKey({...session,targetCount:session.targets?.length||session.targetCount});
+  return `<div class="game-preparation"><span class="section-kicker">اول آماده شو</span><h2>${shortPrompt(session)}</h2><div class="preparation-samples">${sample}</div><div class="visual-rule"><span class="do-cue">${icon('tap')}<b>بزن</b></span><span class="wait-cue">${icon('wait')}<b>صبر کن</b></span>${guideControl(key)}</div>${['ark','space'].includes(id)&&!session.practice?missionChecklist(session):''}<details class="companion-guide"><summary>راهنمای همراه</summary><h3>${title}</h3><p>${text}</p><p>${tip}</p>${id==='stroop'?'<p>مرحله‌های کلمه به توانایی خواندن نیاز دارند. راهنمای صوتی قانون را توضیح می‌دهد و کلمهٔ محرک را در بازی نمی‌خواند.</p>':''}</details>${session.practice?'<small class="guided-note">پنج تمرین، با فرصت یادگیری</small>':''}</div>`;
 }
 export function countdownView() {
   return '<div class="game-countdown"><span class="section-kicker">چشم‌ها به محل بازی</span><b id="countdown-number" aria-live="off">۳</b><p>آرام و آماده…</p></div>';
@@ -73,20 +84,27 @@ export function reviewView(session) {
     sample=`<span class="review-equipment">${equipment(item.icon)}</span>`;
     text=item.required?EQUIPMENT_REASONS[item.icon]:`${item.name} برای سرگرمی یا خانه خوب است، اما نیاز ضروری این مأموریت را برطرف نمی‌کند.`;
   }
-  return `<div class="practice-review ${good?'good':'retry'}" role="region" aria-label="مرور تمرین"><span class="review-badge">${icon(good?'check':'info')} ${good?'تصمیم درستی گرفتی':'این بار با هم یاد بگیریم'}</span><h2>${label}</h2><div class="review-samples">${sample}</div><p>${esc(text)}</p><small>زمان متوقف است؛ وقتی آماده شدی، ادامه بده.</small></div>`;
+  const expected=review.kind==='reaction'?review.trial.target:review.kind==='adventure'?review.item.required:true;
+  const audio=review.kind==='adventure'?(review.item.required?review.item.icon:'not-needed'):good?'correct':'retry';
+  return `<div class="practice-review ${good?'good':'retry'}" role="region" aria-label="مرور تمرین"><span class="review-badge">${icon(good?'check':'repeat')} ${good?'آفرین!':'با هم یاد بگیریم'}</span><h2>${label}</h2><div class="review-samples">${sample}</div><div class="review-decision ${expected?'do-cue':'wait-cue'}">${icon(expected?'tap':'wait')}<b>${expected?'این را بزن':'دست نگه دار'}</b>${guideControl(audio)}</div><details class="companion-guide"><summary>چرا؟ راهنمای همراه</summary><p>${esc(text)}</p></details><small>زمان متوقف است</small></div>`;
 }
 export function transitionView(session) {
   const hunt=session.gameId==='hunt', phase=session.current.phase;
   const completed=session.outcomes.filter(o=>o.phase===phase-1),correct=completed.filter(o=>o.correct).length;
-  const rule=hunt?{title:`${fa(session.blockLengths[phase])} ثانیه توجه پیوسته`,text:'هدف‌ها همان‌اند. این بار مدت بیشتری آن‌ها را دنبال کن؛ هر وقت آماده‌ای ادامه بده.'}:STROOP_RULES[phase];
+  const rule=hunt?{title:`${fa(session.blockLengths[phase]*(session.intervalMs||1000)/1000)} ثانیه توجه پیوسته`,text:'هدف‌ها همان‌اند. این بار مدت بیشتری آن‌ها را دنبال کن؛ هر وقت آماده‌ای ادامه بده.'}:STROOP_RULES[phase];
   const examples=hunt?`<div class="rule-example">${tokens(session.targets)}</div>`:`<div class="rule-examples">${createLesson('stroop').slice(phase*2,phase*2+2).map(step=>`<div class="rule-sample">${symbol(step.stimuli[0])}<b>${step.expected?'پاسخ بده':'صبر کن'}</b><small>${step.explanation}</small></div>`).join('')}</div>`;
-  return `<div class="rule-transition"><span class="section-kicker">${hunt?'یک نفس تازه، یک دور تازه':'حالا قانون عوض می‌شود'}</span>${hunt?`<span class="checkpoint-result">${fa(correct)} تصمیم درست از ${fa(completed.length)} نوبت قبلی</span>`:''}<h2>${rule.title}</h2><p>${rule.text}</p>${examples}<button class="button primary" data-action="acknowledge">فهمیدم، ادامه بدیم ${icon('arrow')}</button></div>`;
+  return `<div class="rule-transition"><span class="section-kicker">${hunt?'یک نفس تازه، یک دور تازه':'حالا قانون عوض می‌شود'}</span>${hunt?`<span class="checkpoint-result">${fa(correct)} تصمیم درست از ${fa(completed.length)} نوبت قبلی</span>`:''}<h2>${rule.title}</h2><p>${rule.text}</p>${examples}${guideControl(guidanceKey({...session,phase,targetCount:session.targets?.length}))}<button class="button primary" data-action="acknowledge">آماده‌ام ${icon('play')}</button></div>`;
 }
 export function stroopStages(phase) {
   return `<div class="stroop-stages" aria-label="مرحله‌های استروپ">${['دایره','رنگ نوشته','معنای کلمه','رنگ و معنا'].map((label,i)=>`<span ${i===phase?'aria-current="step"':''} class="${i<phase?'passed':''}"><b>${fa(i+1)}</b>${label}</span>`).join('')}</div>`;
 }
-export function trafficRoad() {
-  return `<svg class="traffic-road" viewBox="0 0 620 100" aria-hidden="true"><rect y="22" width="620" height="66" rx="16" fill="#dce2dc"/><path d="M20 55h580" stroke="#faf9f2" stroke-width="3" stroke-dasharray="24 18"/><g fill="#faf9f2">${[0,1,2,3,4].map(i=>`<rect x="${365+i*18}" y="25" width="10" height="60"/>`).join('')}</g><g class="road-car" stroke="#34443d" stroke-width="2"><path d="m90 43 16-18h40l20 18 13 5v25H78V51z" fill="#c8b9d5"/><path d="m110 30-10 13h53l-12-13z" fill="#eef2ef"/><circle cx="99" cy="72" r="10" fill="#506359"/><circle cx="158" cy="72" r="10" fill="#506359"/></g></svg>`;
+export function trafficProgress(session){
+  const pending=session.response?.selectedTarget===true&&!session.review?1:0;
+  return Math.min(1,Math.max(0,(session.metrics.hits+pending)/session.maxScore));
+}
+export function trafficRoad(session) {
+  const progress=session?trafficProgress(session):0;
+  return `<svg class="traffic-road" viewBox="0 0 620 110" data-progress="${progress}" aria-label="مسیر ماشین تا پرچم مقصد"><rect y="29" width="620" height="66" rx="12" fill="#516f87"/><path d="M20 62h580" stroke="#f8faf1" stroke-width="3" stroke-dasharray="24 18"/><g class="road-destination ${progress===1?'arrived':''}"><path d="M565 12v72" stroke="#273d56" stroke-width="4"/><path d="M567 12h32v25h-32z" fill="#ffe353"/><path d="M568 13h9v8h-9zm18 0h9v8h-9zm-9 8h9v8h-9zm-9 8h9v8h-9zm18 0h9v8h-9z" fill="#334d63"/></g><g class="road-car" transform="translate(${375*progress} 0)" stroke="#233c54" stroke-width="2"><path d="m55 50 16-18h40l20 18 13 5v25H43V58z" fill="#10b8ec"/><path d="m75 37-10 13h53l-12-13z" fill="#dcf9ff"/><circle cx="64" cy="79" r="10" fill="#243e55"/><circle cx="123" cy="79" r="10" fill="#243e55"/><circle cx="64" cy="79" r="4" fill="#fff"/><circle cx="123" cy="79" r="4" fill="#fff"/></g></svg>`;
 }
 
 export function searchTargetStatus(session) {
@@ -102,7 +120,7 @@ export function searchRounds(session) {
   }).join('')}</div>`;
 }
 export function huntBlocks(session) {
-  return `<div class="hunt-blocks" aria-label="مدت دوره‌های توجه پیوسته">${session.blockLengths.map((length,i)=>`<span class="${i<session.current.phase?'block-done':i===session.current.phase?'block-active':''}" ${i===session.current.phase?'aria-current="step"':''}><b>${fa(length)}</b> ثانیه</span>`).join('')}</div>`;
+  return `<div class="hunt-blocks" aria-label="مدت دوره‌های توجه پیوسته">${session.blockLengths.map((length,i)=>`<span class="${i<session.current.phase?'block-done':i===session.current.phase?'block-active':''}" ${i===session.current.phase?'aria-current="step"':''}><b>${fa(length*(session.intervalMs||1000)/1000)}</b> ثانیه</span>`).join('')}</div>`;
 }
 export function learningRecap(session) {
   const mistakes=session.outcomes.map((outcome,i)=>({outcome,i})).filter(({outcome})=>!outcome.correct);

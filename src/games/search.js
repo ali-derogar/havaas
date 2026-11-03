@@ -1,28 +1,31 @@
 import { Session } from '../core/session.js';
 import { pick, shuffle } from '../core/random.js';
-import { LEVELS, PROTOCOL } from '../config.js';
+import { LEVELS, LEGACY_ITEM_COUNTS, PRESENTATION_VERSION, PROTOCOL } from '../config.js';
 
 export const searchVariant = ({ material, layout, targetCount } = {}) => [material === 'letters' ? 'letters' : '', layout === 'scattered' ? 'scattered' : '', targetCount === 2 ? 'dual' : ''].filter(Boolean).join('-') || 'standard';
 const sameStimulus = (a, b) => a.shape === b.shape && a.color === b.color && a.detail === b.detail;
-export function generateSearch(level, random = Math.random, layout = 'grid', material = 'shapes', targetCount = 1) {
+export function generateSearch(level, random = Math.random, layout = 'grid', material = 'shapes', targetCount = 1, stimulusVersion = PRESENTATION_VERSION) {
   const shapes = material === 'letters' ? ['letter-F','letter-E','letter-P','letter-R','letter-L'] : ['star', 'circle', 'diamond', 'square', 'triangle'];
   const colors = ['blue', 'green', 'purple', 'pink'];
-  const target = { shape: pick(shapes, random), color: pick(colors, random), detail: level === 'easy' ? 0 : Math.floor(random() * 4) };
+  const revised=stimulusVersion>=6,letter=material==='letters';
+  const details=letter?[0,1,2,3]:revised?[0,1,2,3,4,5,6,7]:[0,1,2,3];
+  const targetDetails=letter?(level==='easy'?[1]:[1,2,3]):level==='easy'?[1,2]:level==='medium'?[1,2,3,4,5]:[4,5,6,7];
+  const target = { shape: pick(shapes, random), color: pick(colors, random), detail: revised?pick(targetDetails,random):level === 'easy' ? 0 : Math.floor(random() * 4) };
   const targets = [target];
-  if (targetCount === 2) targets.push(level === 'hard' ? { ...target, detail: (target.detail + 1 + Math.floor(random() * 3)) % 4 } : {
+  if (targetCount === 2) targets.push(level === 'hard' ? { ...target, detail: revised?pick(targetDetails.filter(detail=>detail!==target.detail),random):(target.detail + 1 + Math.floor(random() * 3)) % 4 } : {
     shape: level === 'medium' ? target.shape : pick(shapes.filter(shape=>shape!==target.shape), random),
-    color: pick(colors.filter(color=>color!==target.color), random), detail: level === 'easy' ? 0 : Math.floor(random() * 4),
+    color: pick(colors.filter(color=>color!==target.color), random), detail: revised?pick(targetDetails,random):level === 'easy' ? 0 : Math.floor(random() * 4),
   });
-  let pool = shapes.flatMap(shape => colors.flatMap(color => [0, 1, 2, 3].map(detail => ({ shape, color, detail }))));
+  let pool = shapes.flatMap(shape => colors.flatMap(color => details.map(detail => ({ shape, color, detail }))));
   if (level === 'medium') pool = pool.filter(s => s.shape === target.shape);
   if (level === 'hard') pool = pool.filter(s => s.shape === target.shape && s.color === target.color);
   pool = pool.filter(s => !targets.some(target=>sameStimulus(s,target)));
-  const options = Array.from({ length: LEVELS[level].items - targets.length }, () => ({ ...pick(pool, random), target: false }));
+  const options = Array.from({ length: (revised?LEVELS[level].items:LEGACY_ITEM_COUNTS[level]) - targets.length }, () => ({ ...pick(pool, random), target: false }));
   const choices = shuffle([...options, ...targets.map((stimulus,targetIndex)=>({ ...stimulus, target: true, targetIndex }))], random);
   const columns = level === 'hard' ? 5 : 4, rows = Math.ceil(choices.length/columns);
   if (layout === 'scattered') choices.forEach((choice,index)=>{
-    choice.position={x:100*(index%columns+.5+(random()-.5)*.12)/columns,y:100*(Math.floor(index/columns)+.5+(random()-.5)*.34)/rows};
-    choice.angle=(random()-.5)*4;
+    choice.position={x:100*(index%columns+.5+(random()-.5)*(revised ? .10 : .12))/columns,y:100*(Math.floor(index/columns)+.5+(random()-.5)*(revised ? .30 : .34))/rows};
+    choice.angle=(random()-.5)*(revised?10:4);
   });
   return { target, targets, choices, columns, rows };
 }
@@ -41,7 +44,7 @@ export class SearchSession extends Session {
   get remainingMs() { return Math.max(0, this.deadline - this.clock.elapsed); }
   newRound() {
     const paused=this.clock.paused;this.clock.pause();
-    this.current = generateSearch(this.level, this.random, this.layout, this.material, this.targetCount);
+    this.current = generateSearch(this.level, this.random, this.layout, this.material, this.targetCount, this.stimulusVersion);
     this.roundTargets[this.index]=this.current.targets.map(target=>({...target}));
     this.rejected = new Set(); this.found = new Set();this.feedback='نمونهٔ تازه را به خاطر بسپار.';this.feedbackKind='';
     this.revealAt = this.clock.elapsed + PROTOCOL.previewMs;

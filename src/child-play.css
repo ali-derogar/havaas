@@ -1,0 +1,215 @@
+/* Review revision 6: child-facing controls, vivid colors and moving visual search. */
+body[data-panel=client] { --green:#088d79; --cream:#eef9ff; --ink:#163d5f; background:#eef9ff; }
+body[data-panel=client] .client-header { background:linear-gradient(120deg,#084b80,#167ca8); border-color:#ffd54a; }
+body[data-panel=client] .client-welcome { border-top-color:#ffbe31; background:linear-gradient(115deg,#d8f8f3,#f1fdff 65%); border-color:#92d4df; border-radius:18px; }
+body[data-panel=client] .client-welcome h1>span { color:#087c8f; }
+body[data-panel=client] .button.primary { background:linear-gradient(#16bfa7,#078d7e); border-color:#078675; box-shadow:inset 0 2px 0 #8ee4ce,0 3px 0 #076758; border-radius:12px; }
+body[data-panel=client] .button.primary:hover:not(:disabled) { background:linear-gradient(#2bceb5,#068975); }
+.client-welcome p { color:#3f697d; }
+.home-main .game-card { border-radius:15px; border-color:#9cc9db; background:#fff; }
+.home-main .card-content h3 { color:#164b73; font-size:21px; }
+.home-main .card-content .skill-label { font-size:12px; color:#456e85; }
+.home-main .card-content p { font-size:12px; line-height:1.9; color:#537489; }
+.home-main .card-bottom>span:first-child { font-size:11px; }
+.home-main .routine-card { background:#fff2c5; border-color:#edc560; border-radius:15px; }
+.home-main .filter { font-size:13px; }
+.home-main .filter.selected { background:#137a9d; }
+.home-main .little-note { color:#315f79; }
+.training-cover[data-game=hunt] { --exercise-color:#81bd19; }
+.training-cover[data-game=ark] { --exercise-color:#edb116; }
+.training-cover[data-game=space] { --exercise-color:#08a7b9; }
+.training-cover[data-game=traffic] { --exercise-color:#ed8721; }
+.training-cover[data-game=search] { --exercise-color:#188fdd; }
+.training-cover[data-game=nback] { --exercise-color:#984cdb; }
+.training-cover[data-game=stroop] { --exercise-color:#e3488e; }
+body[data-panel=client] .intro-copy h1 { color:#164e74; }
+.intro-copy .guide-audio-button { margin-bottom:16px; }
+.intro-copy .start-row .button { font-size:18px; min-height:58px; }
+.intro-copy .theme-button { min-height:44px; font-size:14px; border-radius:10px; }
+.intro-companion { margin-bottom:22px; }
+.companion-guide { text-align:right; width:100%; max-width:650px; color:#3d637a; background:#f6fbfe; border:1px solid #c0dce8; border-radius:12px; padding:11px 16px; }
+.companion-guide>summary { cursor:pointer; font-size:14px; font-weight:600; min-height:28px; line-height:2; }
+.companion-guide h3 { font-size:18px; margin-top:12px; }
+.companion-guide p { font-size:15px; line-height:2.1; margin-top:10px; color:#48697c; }
+.companion-guide .intro-description,.companion-guide .rules p { font-size:15px; }
+.guide-audio-button { background:linear-gradient(#fff,#e0f5ff); border:2px solid #50afd5; color:#12698d; border-radius:14px; min-width:100px; min-height:56px; display:inline-flex; align-items:center; justify-content:center; gap:10px; padding:10px 18px; font-size:18px; font-weight:750; box-shadow:0 3px 0 #a8d9ea; }
+.guide-audio-button .icon { width:28px; height:28px; }
+.guide-audio-button.listening { background:#d8fae9; border-color:#26b87c; color:#0a7854; }
+.guide-audio-button:focus-visible { outline:3px solid #dd9e19; outline-offset:4px; }
+body[data-screen=play] { background:radial-gradient(ellipse at top,#176e97,#12385e 75%); }
+body[data-screen=play] .play-main { max-width:1120px; }
+.play-panel { --exercise-color:#258fc9; background:#f2fbff; border-color:#6cc0e1; border-radius:15px; }
+.play-panel[data-game=hunt] { --exercise-color:#7bb41d; }
+.play-panel[data-game=ark] { --exercise-color:#d6970b; }
+.play-panel[data-game=space] { --exercise-color:#0b9db6; }
+.play-panel[data-game=traffic] { --exercise-color:#df7615; }
+.play-panel[data-game=nback] { --exercise-color:#9450ce; }
+.play-panel[data-game=stroop] { --exercise-color:#d73f83; }
+.play-panel .play-hud { padding:12px 22px; }
+.play-panel .play-hud span { font-size:12px; }
+.play-panel .play-hud b { font-size:20px; }
+.play-panel .instruction-strip { background:#e1f4ff; border-color:#9fcde2; color:#2d5d78; font-size:15px; line-height:1.8; min-height:58px; }
+.play-panel .instruction-strip b { color:#144668; }
+.play-panel>.arena { background:#f0faff; }
+.play-panel>.play-controls { background:linear-gradient(#20668b,#185575); border-color:#2e86ab; }
+.play-panel>.feedback { background:#185575; font-size:13px; }
+.play-panel .response-button,.play-panel .lesson-yes { background:linear-gradient(#15cba8,#029b7e); border-color:#36dcb8; color:#fff; border-radius:16px; box-shadow:inset 0 2px 0 #88f0d8,0 4px 0 #04664f; min-height:64px; min-width:190px; font-size:22px; gap:14px; padding:12px 24px; }
+.play-panel .response-button:hover:not(:disabled),.lesson-yes:hover { background:linear-gradient(#35d7b9,#089878); }
+.play-panel .begin-button,.play-panel .review-next,.play-panel .rule-transition>.button,.play-panel .next-round-button { font-size:19px; min-height:60px; border-radius:15px; }
+.response-button>.icon,.collect-button>.icon { width:33px; height:33px; }
+.play-panel .wait-button,.lesson-answers .wait-button { min-height:62px; padding:12px 20px; background:linear-gradient(#ffe69b,#ffc74d); border:2px solid #d99a16; color:#684500; border-radius:16px; box-shadow:0 3px 0 #b98214; font-size:20px; }
+.wait-button .icon { width:31px; height:31px; }
+.lesson-answers .lesson-yes { background:linear-gradient(#14c6a2,#029775); color:#fff; min-height:60px; min-width:130px; border-radius:14px; font-size:20px; box-shadow:0 3px 0 #04654d; }
+.lesson-answers .lesson-yes .icon { width:30px; height:30px; }
+.lesson-box { background:#e4f6ff; border-color:#8ecbe2; border-radius:16px; }
+.lesson-box h3 { font-size:20px; }
+.lesson-box>p { font-size:15px; color:#386b84; }
+.lesson-box .lesson-feedback { font-size:16px; }
+.lesson-box .lesson-feedback p { font-size:14px; }
+.visual-rule { display:flex; align-items:center; justify-content:center; gap:16px; flex-wrap:wrap; }
+.do-cue,.wait-cue { display:inline-flex; align-items:center; justify-content:center; gap:10px; font-size:20px; }
+.do-cue { color:#078468; }
+.wait-cue { color:#a66b00; }
+.do-cue>.icon,.wait-cue>.icon { width:40px; height:40px; border-radius:12px; padding:7px; background:#d0f7e9; box-sizing:content-box; }
+.wait-cue>.icon { background:#fff0ba; }
+.review-decision { display:flex; gap:16px; align-items:center; justify-content:center; flex-wrap:wrap; }
+.play-panel .game-preparation,.play-panel .practice-review { gap:17px; padding:26px 28px 22px; }
+.game-preparation h2,.practice-review h2 { font-size:28px; color:#204e6b; }
+.play-panel .ready-token { border:2px solid #91cce2; background:#fff; border-radius:20px; }
+.play-panel .review-badge { font-size:19px; padding:8px 20px; border-radius:14px; color:#076f51; background:#c9f3e3; }
+.play-panel .practice-review.retry .review-badge { color:#966115; background:#fff0c2; }
+.play-panel .practice-review>small { font-size:13px; }
+.play-panel .game-preparation>.guided-note { font-size:13px; }
+.play-panel[data-game=nback] .focus-corners,.play-panel[data-game=stroop] .focus-corners { background:#fff; border:2px solid #99c8df; border-radius:18px; box-shadow:0 5px 0 #bdddeb; }
+.play-panel[data-game=search] .preview-symbol { background:#fff; border-color:#75bedb; box-shadow:0 5px 0 #b7e2f1; border-radius:16px; }
+.play-panel .preview-description { font-size:15px; color:#315e79; }
+.play-panel .preview-countdown { font-size:15px; }
+.play-panel .search-choice { border:2px solid #99c9de; border-radius:12px; background:#fff; }
+.play-panel .search-choice:focus-visible { outline:3px solid #e7b226; }
+.play-panel .search-grid.scattered .search-choice { border-radius:10px; }
+.play-panel .search-tip { font-size:14px; }
+.play-panel .hunt-stage { padding:12px 16px 16px; min-height:350px; }
+.play-panel .hunt-surface { height:310px; border:2px solid #85bad0; border-radius:13px; }
+.play-panel .hunt-stage .stage-caption { font-size:13px; margin:2px 0 8px; }
+.play-panel .hunt-blocks { margin-bottom:10px; }
+.play-panel .hunt-blocks>span { font-size:11px; }
+.hunt-choice.moving-choice { will-change:left,top; }
+.moving-choice .animal-wing { transform:scaleY(var(--wing-flap,1)); transform-origin:32px 32px; }
+.play-panel .traffic-road { height:100px; max-width:700px; width:90%; margin-top:14px; }
+.play-panel .road-car,.play-panel[data-response=good] .road-car { animation:none; }
+.road-destination.arrived { filter:drop-shadow(0 0 4px #ffd736); }
+.play-panel .mission-brief { background:#e0f3ff; border-color:#9bcce0; border-radius:12px; }
+.play-panel .mission-brief b { font-size:16px; }
+.play-panel .mission-brief p { font-size:13px; }
+.play-panel .mission-need { font-size:12px; }
+.play-panel .mission-need>b { width:26px; height:26px; font-size:13px; }
+.play-panel .scene-heading { font-size:15px; background:#164e75d6; }
+.play-panel .scene-heading>span { font-size:11px; }
+.play-panel .scene-object { border-radius:16px; border:2px solid #9bd5e7; }
+.play-panel .scene-object>.equipment { width:50px; height:50px; filter:saturate(1.5); }
+.play-panel .scene-object>span,.play-panel .illustrated-world .scene-object>span { font-size:12px; white-space:normal; line-height:1.6; }
+.object-grid.scattered-objects { display:block; position:relative; padding:0; margin:12px 10px 95px; height:var(--field-height-desktop); min-height:var(--field-height-desktop); }
+.play-panel .scattered-objects .scene-object { min-height:80px; transform:translate(var(--object-x),var(--object-y)) rotate(var(--object-angle)); z-index:var(--object-layer); border:0; background:radial-gradient(ellipse,#ffffffa6 15%,#ffffff26 65%,transparent 75%); box-shadow:none; border-radius:45%; }
+.play-panel .scattered-objects .scene-object:hover:not(:disabled),.play-panel .scattered-objects .scene-object:focus-visible { z-index:10; background:#ffffffd9; outline:2px solid #10a4c1; }
+.play-panel .scattered-objects .scene-object>span { position:absolute; inset-inline:0; bottom:-6px; background:#f9ffffed; color:#244e68; border-radius:7px; padding:2px 3px; font-size:11px; opacity:0; pointer-events:none; }
+.play-panel .scattered-objects .scene-object:hover>span,.play-panel .scattered-objects .scene-object:focus-visible>span { opacity:1; }
+.play-panel .scattered-objects .scene-object>.equipment { width:58px; height:58px; filter:drop-shadow(0 2px 1px #ffffffdb) saturate(1.55); }
+.play-panel .scattered-objects .scene-object.blocked { background:radial-gradient(ellipse,#c1d3e4b3,transparent 75%); }
+.play-panel .adventure-scene .object-grid.scattered-objects .scene-object { position:absolute; left:var(--object-desktop-x); top:var(--object-desktop-y); width:48px; height:48px; min-height:48px; padding:0; border:0; border-radius:45%; background:radial-gradient(ellipse,#ffffffa6 15%,#ffffff26 65%,transparent 75%); box-shadow:none; transform:translate(-50%,-50%) rotate(var(--object-angle)); }
+.play-panel .adventure-scene .object-grid.scattered-objects .scene-object>.equipment { width:68px; height:68px; max-width:none; pointer-events:none; }
+.play-panel .adventure-scene .object-grid.scattered-objects .scene-object:hover:not(:disabled),.play-panel .adventure-scene .object-grid.scattered-objects .scene-object:focus-visible { background:#ffffffd9; }
+.space .scene-vehicle { width:110px; height:100px; bottom:0; }
+.play-panel .inventory-slot { width:42px; height:42px; }
+.play-panel .depart-button { font-size:17px; min-height:56px; }
+.play-panel .visual-feedback { position:absolute; pointer-events:none; inset-inline-start:17px; bottom:24px; display:none; width:52px; height:52px; border-radius:50%; align-items:center; justify-content:center; background:#fff; border:3px solid #2bc89a; color:#07825f; box-shadow:0 3px 12px #14375c40; z-index:5; }
+.play-panel:has(.visual-feedback) { position:relative; }
+.play-panel[data-response] .visual-feedback { display:flex; }
+.play-panel[data-response=wrong] .visual-feedback { color:#ae7004; border-color:#eabc3c; background:#fff6d7; }
+.visual-feedback>span { display:none; }
+.visual-feedback[data-kind=good]>.feedback-good,.visual-feedback[data-kind=wrong]>.feedback-wrong,.visual-feedback[data-kind=cleared]>.feedback-cleared { display:block; }
+.visual-feedback .icon { width:32px; height:32px; }
+.adventure:has(.collect-button) .visual-feedback { display:none; }
+.play-panel[data-phase=review] .visual-feedback { display:none; }
+.play-panel .rule-sample b { display:flex; align-items:center; justify-content:center; gap:6px; font-size:16px; }
+.play-panel .rule-sample small { font-size:12px; }
+.play-panel .memory-token>small { font-size:12px; }
+.play-panel .memory-status>small { font-size:14px; }
+.play-panel .stroop-stages>span { font-size:12px; }
+body[data-panel=client] .result-card .result-caption { font-size:16px; line-height:2; }
+body[data-panel=client] .result-card .result-stats>div>span { font-size:12px; line-height:1.7; }
+body[data-panel=client] .result-card .result-actions .button { font-size:17px; min-height:55px; }
+body[data-panel=client] .result-card .local-note { font-size:12px; }
+body[data-panel=client] .result-card .score-note { font-size:12px; }
+body[data-panel=client] .result-card .level-recommendation { font-size:15px; }
+body[data-panel=client] .result-card .level-recommendation p { font-size:13px; }
+@media(max-width:767px) {
+  .home-main .game-card h3 { font-size:18px; }
+  .home-main .game-card .skill-label { font-size:11px; }
+  .home-main .game-card p { font-size:11px; }
+  .home-main .filter { font-size:11px; padding-inline:8px; }
+  .play-panel .play-hud { min-height:67px; padding:8px 12px; }
+  .play-panel .play-hud span { font-size:10px; }
+  .play-panel .play-hud b { font-size:17px; }
+  .play-panel .instruction-strip { min-height:52px; font-size:13px; padding:8px 10px; }
+  .play-panel .game-preparation,.play-panel .practice-review { padding:22px 15px 18px; gap:14px; }
+  .game-preparation h2,.practice-review h2 { font-size:23px; }
+  .guide-audio-button { min-height:52px; min-width:91px; padding:8px 13px; font-size:17px; }
+  .guide-audio-button .icon { width:25px; height:25px; }
+  .visual-rule { gap:12px; }
+  .do-cue,.wait-cue { font-size:17px; gap:7px; }
+  .do-cue>.icon,.wait-cue>.icon { width:28px; height:28px; padding:6px; }
+  .review-decision { gap:12px; }
+  .companion-guide { padding:9px 12px; }
+  .companion-guide p { font-size:14px; }
+  .play-panel .response-button { min-height:61px; font-size:21px; }
+  .play-panel .hunt-stage { min-height:330px; padding:8px 8px 12px; }
+  .play-panel .hunt-stage .stage-caption { font-size:11px; }
+  .play-panel .hunt-surface { height:270px; min-height:270px; }
+  .play-panel .hunt-blocks>span { font-size:10px; }
+  .play-panel .hunt-choice { width:min(var(--stimulus-size),18vw); height:min(var(--stimulus-size),18vw); }
+  .play-panel .preview-description { font-size:13px; }
+  .play-panel .preview-symbol { width:112px; height:112px; }
+  .play-panel .search-tip { font-size:12px; }
+  .play-panel .scene-object>.equipment { width:42px; height:42px; }
+  .play-panel .scene-object>span { font-size:11px; }
+  .play-panel .object-grid.scattered-objects { height:var(--field-height-mobile); min-height:var(--field-height-mobile); padding:0; }
+  .play-panel .scattered-objects .scene-object { min-height:66px; }
+  .play-panel .adventure-scene .object-grid.scattered-objects .scene-object { left:var(--object-mobile-x); top:var(--object-mobile-y); transform:translate(-50%,-50%) rotate(var(--object-angle)); }
+  .play-panel .adventure-scene .object-grid.scattered-objects .scene-object>.equipment { width:55px; height:55px; }
+  .play-panel .scattered-objects .scene-object>.equipment { width:45px; height:45px; }
+  .play-panel .scattered-objects.hard .scene-object { min-height:61px; }
+  .play-panel .scattered-objects.hard .scene-object>.equipment { width:42px; height:42px; }
+  .play-panel .mission-need { font-size:11px; }
+  .play-panel .mission-checklist { gap:9px; }
+  .play-panel .mission-brief { margin:12px 10px 0; padding:11px; }
+  .play-panel .mission-brief p { font-size:12px; }
+  .play-panel .scene-heading { font-size:13px; }
+  .play-panel .scene-heading>span { font-size:10px; }
+  .play-panel.adventure .play-controls:has(.collect-button) { flex-direction:row; gap:10px; padding:16px 10px; }
+  .play-panel .collect-button,.play-panel .wait-button { min-width:0; width:calc(50% - 6px); font-size:17px; padding:9px 8px; gap:7px; }
+  .play-panel .collect-button .icon,.play-panel .wait-button .icon { width:27px; height:27px; }
+  .play-panel .inventory-slot { width:34px; height:34px; }
+  .play-panel .visual-feedback { width:38px; height:38px; inset-inline-start:8px; bottom:15px; }
+  .visual-feedback .icon { width:23px; height:23px; }
+  .play-panel .rule-sample small { font-size:11px; }
+  .play-panel .stroop-stages>span { font-size:10px; padding:5px 6px; }
+}
+@media(max-height:740px) and (max-width:639px) {
+  .reaction[data-phase=playing] .hunt-stage { min-height:0; padding:6px 8px 10px; }
+  .reaction[data-phase=playing] .hunt-surface { height:250px; min-height:250px; }
+  .reaction[data-phase=playing]>.play-controls { min-height:0; padding:12px 10px; }
+  .reaction[data-phase=playing] .response-button { min-height:59px; }
+  .reaction[data-phase=playing] .play-hud { min-height:58px; padding:6px 12px; }
+}
+@media(max-height:520px) and (min-width:640px) {
+  .reaction[data-phase=playing] .hunt-stage { min-height:250px; padding:5px 0 0; }
+  .reaction[data-phase=playing] .hunt-surface { height:220px; min-height:220px; }
+  .reaction[data-phase=playing] .play-hud { min-height:47px; padding:5px 18px; }
+  .reaction[data-phase=playing]>.instruction-strip { min-height:38px; font-size:12px; padding:4px 12px; }
+  .reaction[data-phase=playing]>.play-controls { background:#185575; padding:10px 10px 42px; }
+  .reaction[data-phase=playing] .response-button { min-height:60px; min-width:0; font-size:20px; }
+}
+@media(prefers-reduced-motion:reduce) {
+  .moving-choice { will-change:auto; }
+  .scene-vehicle { transform:none!important; }
+}

@@ -7,6 +7,7 @@ import { learningRecap,searchTargetStatus,searchRounds } from '../src/play-ui.js
 import { canonicalResult,normalizeSettings } from '../server/domain.js';
 import { playSession } from './helpers/play-session.mjs';
 import { missionOutcomeArt } from '../src/visuals.js';
+import { comparableRecords } from '../src/core/reports.js';
 
 test('search markers reveal only the target already found and leave other memory targets hidden',()=>{
  let now=0;const s=FACTORIES.search({level:'hard',targetCount:2,random:seededRandom(42),now:()=>now});
@@ -51,9 +52,16 @@ test('mission visuals show departure only on a completed mission',()=>{
 
 test('the visual revision is frozen in the start settings and cannot be replaced by the submitted result',()=>{
  for(const gameId of ['hunt','ark','space']){
-  const settings={...normalizeSettings({gameId}),seed:42};assert.equal(settings.stimulusVersion,4);
+  const settings={...normalizeSettings({gameId}),seed:42};assert.equal(settings.stimulusVersion,6);
   const oldRun={id:'older-run',kind:'baseline',settings:{...settings,stimulusVersion:1,reviewEnabled:true}};
   const payload=playSession(oldRun);payload.stimulusVersion=999;
   const result=canonicalResult(oldRun,payload);assert.equal(result.stimulusVersion,1);assert.equal(result.settingsSnapshot.stimulusVersion,1);
  }
+});
+
+test('progress separates the new exercise environments from the previous visual revision',()=>{
+ const previous={kind:'training',result:{gameId:'hunt',level:'easy',variant:'standard',protocolVersion:3,stimulusFamily:'bird',stimulusVersion:4}};
+ const current={...previous,result:{...previous.result,stimulusVersion:5}};
+ assert.deepEqual(comparableRecords([previous,current],current),[current]);
+ assert.deepEqual(comparableRecords([previous,current],previous),[previous]);
 });

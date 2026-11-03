@@ -4,6 +4,9 @@ const ink = '#34443d';
 const svg = (body, viewBox = '0 0 64 64', cls = '') => `<svg class="${cls}" viewBox="${viewBox}" xmlns="http://www.w3.org/2000/svg" fill="none" aria-hidden="true">${body}</svg>`;
 export function icon(name, cls = '') {
   const paths = {
+    tap:'<path d="M9 13V4a2 2 0 0 1 4 0v7l2-1 2 2 2-1 2 2v5l-4 4h-6l-7-8a2 2 0 0 1 3-2l2 2M5 6H2m5-4L5 0m12 5 3-2"/>',
+    wait:'<path d="M7 12V6a1.5 1.5 0 0 1 3 0v5-8a1.5 1.5 0 0 1 3 0v8-7a1.5 1.5 0 0 1 3 0v8-5a1.5 1.5 0 0 1 3 0v10l-4 5H9l-6-8a2 2 0 0 1 3-2l1 1"/>',
+    bag:'<path d="M6 8h12l3 13H3zM8 8V5a4 4 0 0 1 8 0v3m-9 6 4 4 6-7"/>',
     users:'<circle cx="9" cy="8" r="3"/><path d="M3 21v-3a6 6 0 0 1 12 0v3M16 5a3 3 0 0 1 0 6m2 4a5 5 0 0 1 3 5"/>',
     user:'<circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/>',
     link:'<path d="m9 15 6-6M8 17l-1 1a4 4 0 0 1-6-6l5-5a4 4 0 0 1 6 0m0 10a4 4 0 0 0 6 0l5-5a4 4 0 0 0-6-6l-1 1"/>',
@@ -66,19 +69,35 @@ export function symbol(stimulus, cls = '') {
     diamond: '<path d="M28 5a5 5 0 0 1 8 0l23 23a5 5 0 0 1 0 8L36 59a5 5 0 0 1-8 0L5 36a5 5 0 0 1 0-8z"/>',
     heart: '<path d="M32 56 10 35C-9 16 17-3 32 17 47-3 73 16 54 35z"/>',
     fish: '<path d="M15 31C24 7 47 9 59 31 47 54 24 55 15 31L3 44V18z"/><circle cx="45" cy="28" r="3" fill="white"/><circle cx="46" cy="28" r="1.5" fill="#34443d"/><path d="m29 27 7 5-7 5" fill="none"/>',
-    butterfly: '<path d="M30 29C7-7-11 16 21 34-9 42 7 72 30 41M34 29C57-7 75 16 43 34 73 42 57 72 34 41z"/><path d="M32 20v28m0-26-6-9m6 9 6-9" stroke-width="4"/>',
-    bird: '<path d="M8 37C8 18 24 14 36 29 44 8 65 16 54 37 45 56 20 59 8 37L1 28l14 3"/><path d="m54 29 9 4-10 4" fill="#ecc477"/><circle cx="45" cy="27" r="2" fill="#34443d"/><path d="M21 34q13-4 17 6" fill="none"/>',
+    butterfly: '<path class="animal-wing" d="M30 29C7-7-11 16 21 34-9 42 7 72 30 41M34 29C57-7 75 16 43 34 73 42 57 72 34 41z"/><path d="M32 20v28m0-26-6-9m6 9 6-9" stroke-width="4"/>',
+    bird: '<path class="animal-wing" d="M28 32C9 26 6 15 3 7c17 2 26 9 32 20C41 16 50 11 61 9c-3 12-10 23-24 29z"/><path d="M14 41q12-18 28-12c8-15 20-7 15 2l6 5-9 3q-17 21-33 9L6 55z"/><circle cx="51" cy="29" r="2" fill="#183b56"/><path d="m57 31 6 5-8 1" fill="#ffcd35"/>',
   };
   if (shape === 'traffic') {
     body = `<rect x="17" y="2" width="30" height="60" rx="11" fill="#34443d"/><circle cx="32" cy="18" r="10" fill="${color === 'red' ? COLORS.red : '#5b6259'}"/><circle cx="32" cy="46" r="10" fill="${color === 'green' ? '#57c78b' : '#5b6259'}"/>`;
   } else {
     body = `<g fill="${fill}" stroke="${ink}" stroke-width="1.7" stroke-linejoin="round">${shapes[shape] || shapes.star}</g>`;
-    body += detail === 1 ? '<circle cx="32" cy="30" r="4" fill="#fff8e8" stroke="#34443d" stroke-width="1.5"/>' : detail === 2 ? '<path d="m26 35 12-10" stroke="#fff8e8" stroke-width="4" stroke-linecap="round"/>' : detail === 3 ? '<g fill="#fff8e8" stroke="#34443d" stroke-width="1"><circle cx="26" cy="32" r="3"/><circle cx="38" cy="32" r="3"/></g>' : '';
+    body += detail === 1 || detail === 6 ? '<circle cx="32" cy="30" r="4" fill="#fff8e8" stroke="#34443d" stroke-width="1.5"/>' : detail === 2 || detail === 7 ? '<path d="m26 35 12-10" stroke="#fff8e8" stroke-width="4" stroke-linecap="round"/>' : detail === 3 ? '<g fill="#fff8e8" stroke="#34443d" stroke-width="1"><circle cx="26" cy="32" r="3"/><circle cx="38" cy="32" r="3"/></g>' : '';
+    if(detail>=4&&detail<=7){
+      const top=detail===4||detail===6;
+      body+=`<path class="shape-attachment" d="${top?'M27 12V-3h10v15':'M51 26h16v12H51'}" fill="${fill}" stroke="${ink}" stroke-width="2" stroke-linejoin="round"/>`;
+    }
   }
-  return svg(body, '0 0 64 64', `symbol ${cls}`);
+  return svg(body, detail>=4?'-8 -8 80 80':'0 0 64 64', `symbol ${cls}`);
 }
 
 const drawings = {
+  book:'<path d="M6 10q14-6 26 3 12-9 26-3v43q-14-5-26 3-12-8-26-3z" fill="#55a9ee"/><path d="M32 13v43M13 22h12m-12 9h12m14-9h12m-12 9h12"/>',
+  camera:'<rect x="5" y="19" width="54" height="36" rx="7" fill="#e99943"/><path d="m19 19 5-10h17l5 10" fill="#f9c85d"/><circle cx="33" cy="36" r="12" fill="#79d7ec"/><circle cx="33" cy="36" r="6" fill="#2874aa"/><path d="M12 26h5"/>',
+  umbrella:'<path d="M5 30a27 27 0 0 1 54 0q-9-8-18 0-9-8-18 0-9-8-18 0" fill="#e95492"/><path d="M32 4v48q0 13-10 6" stroke-width="3"/>',
+  shoe:'<path d="M9 17h18l5 14 23 11 3 12H5V37z" fill="#4198e3"/><path d="M6 48h50M29 27l-9 4m15 3-9 4" stroke="#f8fafb" stroke-width="4"/>',
+  puzzle:'<path d="M9 9h18q-7 17 6 17t6-17h16v19q-17-7-17 6t17 6v16H37q7-17-6-17t-6 17H9V39q17 7 17-6T9 27z" fill="#a5ce38"/>',
+  glasses:'<path d="M4 26h21l4 20H9zm35 0h21l-5 20H35z" fill="#6058b6"/><path d="M25 30q7-7 14 0M5 26l5-12m49 12-5-12" stroke-width="3"/><path d="m11 30 6 10m26-10 6 10" stroke="#b7e7ef"/>',
+  radio:'<rect x="5" y="18" width="54" height="39" rx="6" fill="#f36552"/><circle cx="24" cy="37" r="13" fill="#476777"/><circle cx="24" cy="37" r="7" fill="#a4d9e4"/><path d="M42 29h10m-10 8h10m-9 11h8M15 18 49 4"/>',
+  cap:'<path d="M12 37q-5-29 23-29t24 29z" fill="#54bd92"/><path d="M11 37h47Q49 60 4 49z" fill="#2c8c69"/><path d="M35 9v27"/>',
+  bucket:'<path d="m12 22 40 0-6 36H18z" fill="#f2b937"/><ellipse cx="32" cy="22" rx="20" ry="6" fill="#ffdd70"/><path d="M14 23C8-2 55-2 50 23M23 35v14"/>',
+  telescope:'<path d="m8 18 43-10 8 25-43 10z" fill="#7c79d5"/><path d="m10 17 7 25m30-33 8 25M34 39v21m0-13L19 62m15-15 16 15" stroke-width="3"/>',
+  watch:'<path d="M22 3h20v58H22z" fill="#ed8150"/><rect x="14" y="15" width="36" height="34" rx="11" fill="#bceaf5"/><path d="M32 22v12l8 4" stroke-width="3"/>',
+  violin:'<path d="m39 24 9-19 7 4-9 19c12 10-4 16-7 16 3 17-22 24-28 8-7-17 12-20 10-20 1-9 13-10 18-8" fill="#dd8c3e"/><path d="m22 51 29-44M13 10l43 47" stroke-width="3"/>',
   notebook: '<rect x="12" y="5" width="42" height="54" rx="5" fill="#b7c7ad"/><path d="M21 5v54M8 15h9M8 26h9M8 37h9M8 48h9"/><path d="m30 43 4-11 13-13 6 6-13 13z" fill="#e7bf78"/>',
   water: '<path d="M24 5h16v10l5 8v34H19V23l5-8z" fill="#b8dfe5"/><path d="M24 5h16v9H24z" fill="#6c9bab"/><path d="M20 34q12-8 24 0v21H20" fill="#77b8cd"/><path d="M25 22v10" stroke="white" stroke-width="4"/>',
   food: '<rect x="8" y="15" width="48" height="41" rx="12" fill="#e7bb7b"/><path d="M11 24h42M24 17l-5 13m19-13-5 13"/><path d="M16 42h32" stroke="#f9e9bc" stroke-width="9"/>',
@@ -170,5 +189,5 @@ export function missionOutcomeArt(gameId, completed) {
   const space=gameId==='space';
   const scene=space?'<rect width="480" height="180" rx="24" fill="#efebf6"/><g fill="#a99abc"><circle cx="48" cy="42" r="2"/><circle cx="169" cy="26" r="2"/><circle cx="378" cy="41" r="3"/><circle cx="410" cy="109" r="2"/></g><circle cx="96" cy="105" r="34" fill="#d9cde8"/><ellipse cx="96" cy="105" rx="53" ry="9" transform="rotate(-20 96 105)" stroke="#b6a4ca" stroke-width="4"/><path d="M0 164q160-24 480 0v16H0" fill="#d4c8e2"/>' : '<rect width="480" height="180" rx="24" fill="#f7efdc"/><circle cx="385" cy="40" r="23" fill="#ead394"/><path d="M0 130q60-18 120 0t120 0 120 0 120 0v50H0" fill="#bcd9d8"/><path d="M0 154q60-15 120 0t120 0 120 0 120 0" stroke="#8fbaba" stroke-width="3"/>';
   const vehicle=missionVehicle(space);
-  return svg(`${scene}<image href="/assets/worlds/${space?'space':'shore'}-v1.png" width="480" height="180" preserveAspectRatio="${space?'xMidYMid slice':'xMidYMax slice'}"/><g class="outcome-vehicle">${vehicle}</g>${completed?'<g class="arrival-check" stroke="#5d7d47" stroke-width="3"><circle cx="406" cy="127" r="20" fill="#f3f8e8"/><path d="m396 127 7 7 13-15"/></g>':''}`, '0 0 480 180', `mission-outcome-art ${space?'space':'ark'} ${completed?'departed':'waiting'}`);
+  return svg(`${scene}<image href="/assets/worlds/${space?'space-v2.svg':'shore-v2.jpg'}" width="480" height="180" preserveAspectRatio="${space?'xMidYMid slice':'xMidYMax slice'}"/><g class="outcome-vehicle">${vehicle}</g>${completed?'<g class="arrival-check" stroke="#5d7d47" stroke-width="3"><circle cx="406" cy="127" r="20" fill="#f3f8e8"/><path d="m396 127 7 7 13-15"/></g>':''}`, '0 0 480 180', `mission-outcome-art ${space?'space':'ark'} ${completed?'departed':'waiting'}`);
 }

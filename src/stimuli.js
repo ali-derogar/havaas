@@ -11,7 +11,7 @@ export function describeStimulus(stimulus) {
   if (shape === 'word') return `کلمهٔ «${labelOf(COLOR_NAMES,word,'رنگ')}» با رنگ ${labelOf(COLOR_NAMES,color)}`;
   if (shape.startsWith('digit-')) return `عدد ${shape.slice(6)}`;
   if (shape.startsWith('toy-')) return labelOf(TOY_NAMES,shape.slice(4),'اسباب‌بازی');
-  const marks = shape.startsWith('letter-') ? ['بدون خط اضافه','با خط بالایی','با خط میانی','با خط پایینی'] : ['بدون علامت','با یک نقطه','با یک خط','با دو نقطه'];
+  const marks = shape.startsWith('letter-') ? ['بدون خط اضافه','با خط بالایی','با خط میانی','با خط پایینی'] : ['بدون علامت','با یک نقطه','با یک خط','با دو نقطه','با زائدهٔ بالا','با زائدهٔ کناری','با زائدهٔ بالا و نقطه','با زائدهٔ کناری و خط'];
   const name = shape.startsWith('letter-') ? `حرف ${shape.slice(7)}` : labelOf(SHAPE_NAMES,shape,'شکل');
   const mark=Number.isInteger(detail)&&detail>=0&&detail<marks.length?marks[detail]:marks[0];
   return `${name} ${labelOf(COLOR_NAMES,color)} ${mark}`;

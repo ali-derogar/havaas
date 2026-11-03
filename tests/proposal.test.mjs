@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { parseHTML } from 'linkedom';
 import { canonicalResult, normalizeSettings, summaryResult } from '../server/domain.js';
-import { PROTOCOL, GAME_MAP, LEVELS, THEMES } from '../src/config.js';
+import { PROTOCOL, GAME_MAP, LEVELS, THEMES, MOVING_THEMES, HUNT_MOTION_TIMING } from '../src/config.js';
 import { comparableRecords, parentNarrative } from '../src/core/reports.js';
 import { reportsView } from '../src/client-ui.js';
 import { playSession } from './helpers/play-session.mjs';
@@ -21,7 +21,7 @@ for(const variant of variants)test(`proposal: ${JSON.stringify(variant)} baselin
     const run=runFor(variant.gameId,kind,{...variant,level}),result=canonicalResult(run,playSession(run)),practice=kind==='baseline',game=GAME_MAP[variant.gameId];
     assert.equal(result.completed,true);assert.equal(result.score,result.maxScore);assert.equal(result.falseSelections,0);assert.equal(result.omissions,0);assert.equal(result.sessionId,run.id);assert.equal(result.level,level);
     assert.equal(result.feedbackMode,practice?'guided':'continuous');
-    if(game.kind==='reaction'){assert.equal(result.outcomes.length,practice?5:150);assert.equal(result.hits,practice?2:30);assert.equal(result.durationMs,(practice?5:150)*1000+(game.id==='nback'?LEVELS[level].n*1000:0));}
+    if(game.kind==='reaction'){const interval=game.id==='hunt'&&MOVING_THEMES.includes(variant.theme)?HUNT_MOTION_TIMING[level].intervalMs:1000;assert.equal(result.outcomes.length,practice?5:150);assert.equal(result.hits,practice?2:30);assert.equal(result.durationMs,(practice?5:150)*interval+(game.id==='nback'?LEVELS[level].n*1000:0));}
     else if(game.kind==='search'){assert.equal(result.rounds,practice?5:10);assert.equal(result.hits,(practice?5:10)*run.settings.targetCount);}
     else if(practice)assert.equal(result.outcomes.length,5);
     else {assert.equal(result.departed,true);assert.equal(result.hits,LEVELS[level].required);if(game.id==='space')assert.equal(result.obstaclesCleared,LEVELS[level].obstacles);}

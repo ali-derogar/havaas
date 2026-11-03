@@ -184,7 +184,7 @@ test('two-target hunt preserves 150 stimuli and exactly 15 appearances of each t
   }
 });
 test('hunt difficulty increases visual similarity and varies position, size and background',()=>{
-  const expected=[0,60,108];let previousSize=Infinity;
+  const expected=[0,72,108];let previousSize=Infinity;
   for(const [index,level] of Object.keys(LEVELS).entries()) {
     const {session:s}=create('hunt',level);const setting=HUNT_SETTINGS[level];
     assert.equal(s.trials.filter(t=>!t.target&&t.stimulus.color==='blue').length,expected[index]);assert.ok(setting.size<previousSize);previousSize=setting.size;

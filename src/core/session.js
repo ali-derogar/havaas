@@ -10,11 +10,11 @@ export class ActiveClock {
 }
 
 export class Session {
-  constructor({ gameId, level = 'easy', practice = false, variant = 'standard', protocolVersion = 2, reviewEnabled = false, now, random = Math.random }) {
+  constructor({ gameId, level = 'easy', practice = false, variant = 'standard', protocolVersion = 2, reviewEnabled = false, stimulusVersion = PRESENTATION_VERSION, now, random = Math.random }) {
     this.gameId = gameId; this.level = level; this.practice = practice; this.random = random;
     this.reviewEnabled = practice && reviewEnabled; this.review = null;
     this.outcomes = []; this.finishedAt = null; this.protocolVersion = protocolVersion;
-    this.stimulusVersion=PRESENTATION_VERSION;this.variant = variant; this.reactionMeasure = 'stimulus-onset';
+    this.stimulusVersion=stimulusVersion;this.variant = variant; this.reactionMeasure = 'stimulus-onset';
     this.clock = new ActiveClock(now); this.done = false; this.completed = false; this.feedback = ''; this.feedbackKind = '';
     this.metrics = { hits: 0, misses: 0, falseAlarms: 0, correctRejects: 0, streak: 0, maxStreak: 0, reactionTimes: [] };
   }

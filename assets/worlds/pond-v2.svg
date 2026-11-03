@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 700" fill="none">
+  <defs><linearGradient id="water" x2="0" y2="1"><stop stop-color="#63bfd3"/><stop offset=".55" stop-color="#319ab7"/><stop offset="1" stop-color="#1b667f"/></linearGradient></defs>
+  <path fill="url(#water)" d="M0 0h1200v700H0z"/>
+  <g stroke="#d3f3ed" stroke-width="2" opacity=".2"><path d="M0 80q150-30 300 0t300 0 300 0 300 0M0 160q150-30 300 0t300 0 300 0 300 0M0 400q150-20 300 0t300 0 300 0 300 0"/></g>
+  <path d="M0 650q180-52 380 0t420 0 400-5v55H0z" fill="#b5bb93"/>
+  <g stroke="#407e6c" stroke-width="15" stroke-linecap="round"><path d="M25 700q45-105 10-209m26 209q-30-120 30-188m1030 188q-35-109 5-204m35 204q35-98 7-173"/></g>
+  <g stroke="#b7e9ec" opacity=".25"><circle cx="100" cy="130" r="13"/><circle cx="112" cy="90" r="7"/><circle cx="1090" cy="260" r="12"/></g>
+</svg>

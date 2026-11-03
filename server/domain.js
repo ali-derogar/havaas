@@ -22,9 +22,9 @@ export function canonicalResult(run,payload) {
   // Engine timestamps are rounded to milliseconds; allow only rounding error.
   const tolerance=2;
   const boards=game.kind==='search'?Array(engine.total):null;
-  if(boards){const random=seededRandom(settings.seed);for(let i=0;i<engine.total;i++)boards[i]=generateSearch(settings.level,random,settings.layout,settings.material,settings.targetCount);}
+  if(boards){const random=seededRandom(settings.seed);for(let i=0;i<engine.total;i++)boards[i]=generateSearch(settings.level,random,settings.layout,settings.material,settings.targetCount,settings.stimulusVersion);}
   const trials=game.kind==='reaction'?engine.trials.filter(t=>t.scored!==false):null;
-  if(trials){check(payload.outcomes.length===trials.length,'تعداد پاسخ‌ها با پروتکل جلسه یکسان نیست.');check(payload.durationMs+tolerance>=engine.trials.length*PROTOCOL.intervalMs,'زمان جلسه از زمان پروتکل کوتاه‌تر است.');}
+  if(trials){check(payload.outcomes.length===trials.length,'تعداد پاسخ‌ها با پروتکل جلسه یکسان نیست.');check(payload.durationMs+tolerance>=engine.trials.length*engine.intervalMs,'زمان جلسه از زمان پروتکل کوتاه‌تر است.');}
   const clearEvents=Array.isArray(payload.events)?payload.events:[];const cleared=new Map();let departedAt=null;
   if(game.kind==='adventure'){
     let lastEventAt=0;
@@ -39,7 +39,7 @@ export function canonicalResult(run,payload) {
     check(o&&typeof o.response==='boolean'&&Number.isFinite(o.atMs)&&o.atMs>=previous&&o.atMs<=payload.durationMs,'ترتیب یا زمان پاسخ معتبر نیست.');previous=o.atMs;
     let target,stimulus,selectedTarget,selectedStimulus,context={};
     if(trials){
-      const earliest=i?payload.outcomes[i-1].atMs+PROTOCOL.intervalMs:(engine.trials.length-trials.length+1)*PROTOCOL.intervalMs;
+      const earliest=i?payload.outcomes[i-1].atMs+engine.intervalMs:(engine.trials.length-trials.length+1)*engine.intervalMs;
       check(o.atMs+tolerance>=earliest,'فاصلهٔ پاسخ‌ها با نوبت‌های بازی یکسان نیست.');
       const trial=trials[i];target=trial.target;stimulus=trial.stimulus;context.phase=trial.phase;
       if(o.response){
@@ -72,7 +72,7 @@ export function canonicalResult(run,payload) {
     const correct=target?o.response&&selectedTarget!==false:!o.response;
     let rt=o.response?o.reactionMs:null;
     if(o.response)check((rt===null&&!correct)||Number.isFinite(rt)&&rt>=0&&rt<=payload.durationMs,'زمان پاسخ معتبر نیست.');
-    if(trials&&o.response)check(rt!==null&&rt<1000,'پاسخ خارج از پنجرهٔ نوبت است.');
+    if(trials&&o.response)check(rt!==null&&rt<engine.intervalMs,'پاسخ خارج از پنجرهٔ نوبت است.');
     if(boards&&o.response&&target)check(rt!==null&&rt<=LEVELS[settings.level].searchSeconds*1000&&Math.abs(o.atMs-roundStartedAt-PROTOCOL.previewMs-rt)<=tolerance,'زمان واکنش با آغاز جست‌وجو یکسان نیست.');
     if(game.kind==='adventure'&&o.response&&target){const onset=Math.max(records.at(-1)?.atMs||0,...[...cleared.values()].filter(at=>at<=o.atMs));rt=Math.max(0,o.atMs-onset);}
     if(game.kind==='adventure'&&!target&&o.response)wrongItems++;
