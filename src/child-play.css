@@ -213,3 +213,77 @@ body[data-panel=client] .result-card .level-recommendation p { font-size:13px; }
   .moving-choice { will-change:auto; }
   .scene-vehicle { transform:none!important; }
 }
+/* Second document review: pictorial rules and self-paced learning. */
+.stroop-rule-picture { display:flex; align-items:center; justify-content:center; gap:14px; min-height:68px; padding:9px 16px; background:#fff9df; border:2px solid #efcf64; border-radius:16px; color:#33566c; max-width:100%; }
+.rule-channel { display:flex; align-items:center; justify-content:center; flex-wrap:wrap; gap:5px; min-width:45px; }
+.rule-channel>.icon { width:27px; height:27px; color:#388ab6; }
+.rule-channel>small { flex-basis:100%; text-align:center; font-size:13px; }
+.rule-picture-arrow { color:#9f8a40; font-size:24px; }
+.rule-picture-target { display:flex; gap:9px; align-items:center; justify-content:center; }
+.rule-picture-target>.symbol { width:42px; height:42px; }
+.rule-swatch { display:block; width:36px; height:36px; border:2px solid #a47b12; background:#ffce24; border-radius:10px; box-shadow:inset 0 2px 0 #fff0a4; }
+.rule-word { font-size:26px; color:#2e5069; padding:2px 8px; border-radius:8px; background:#fff; }
+.rule-word.yellow { color:#b27f00; }
+.rule-picture-tap>.icon { width:31px; height:31px; color:#05946d; }
+.instruction-strip>.stroop-rule-picture { min-height:38px; padding:1px 12px; border:0; background:transparent; gap:11px; }
+.instruction-strip .rule-channel { flex-wrap:nowrap; }
+.instruction-strip .rule-channel>small { flex-basis:auto; }
+.instruction-strip .rule-channel>.icon { width:22px; height:22px; }
+.instruction-strip .rule-picture-target>.symbol,.instruction-strip .rule-swatch { width:29px; height:29px; }
+.instruction-strip .rule-word { font-size:22px; }
+.lesson-box>.guide-audio-button { margin:5px 0 14px; }
+.lesson-box>.stroop-rule-picture { margin:0 auto 16px; width:fit-content; }
+.lesson-feedback>b { display:flex; align-items:center; gap:8px; justify-content:center; font-size:19px; }
+.lesson-feedback>.lesson-expected { display:flex; margin:12px 0; }
+.lesson-feedback>.companion-guide { margin-top:12px; }
+.memory-walkthrough { margin:14px 0; }
+.memory-lesson-path { display:flex; align-items:center; justify-content:center; gap:7px; }
+.memory-lesson-path>span { display:grid; place-items:center; width:39px; height:39px; border:2px solid #b9d5e4; border-radius:12px; background:#f5fbff; color:#68899e; font-size:17px; }
+.memory-lesson-path>span.current { background:#248ec7; border-color:#136a99; color:#fff; box-shadow:0 3px 0 #0f5c88; }
+.memory-lesson-path>span.seen { background:#d6f3ea; color:#18896c; border-color:#9bd2be; }
+.memory-lesson-path>span .icon { width:21px; height:21px; }
+.memory-lesson-path>i { color:#7a9fb4; font-style:normal; }
+.memory-spotlight .lesson-token.current { width:136px; min-height:151px; background:#fff; border:2px solid #79badb; border-radius:20px; box-shadow:0 4px 0 #bfdfed; }
+.memory-spotlight .lesson-token .symbol { width:90px; height:90px; }
+.memory-spotlight .lesson-token small { font-size:15px; color:#3b6e8a; }
+.memory-lesson-tools { display:flex; align-items:center; justify-content:center; gap:18px; flex-wrap:wrap; }
+.memory-lesson-tools>.button { font-size:18px; min-height:53px; }
+.memory-lesson-tools>.text-button { font-size:14px; }
+.memory-question { font-size:18px; color:#245d7e; text-align:center; margin-top:14px; }
+.play-panel .mission-checklist { display:grid; grid-template-columns:repeat(6,minmax(0,1fr)); gap:10px; width:100%; margin-top:14px; }
+.play-panel .game-preparation .mission-checklist { grid-template-columns:repeat(auto-fit,minmax(80px,1fr)); max-width:660px; margin:0; }
+.play-panel .mission-need { position:relative; display:flex; flex-direction:column; gap:5px; align-items:center; justify-content:center; padding:7px 12px; border:1px solid #a1cede; background:#f7fdff; color:#305f78; border-radius:13px; min-width:0; }
+.play-panel .mission-need .need-symbol { width:37px; height:37px; display:block; }
+.play-panel .need-symbol>.need-art { width:100%; height:100%; }
+.play-panel .mission-need .need-copy { font-size:12px; text-align:center; line-height:1.7; }
+.play-panel .mission-need>.need-state { position:absolute; top:3px; inset-inline-end:4px; width:17px; height:17px; border:0; background:#e2eef5; font-size:10px; display:grid; place-items:center; color:#7594a5; border-radius:50%; }
+.play-panel .mission-need.packed { background:#d9f5e8; border-color:#4fba8b; }
+.play-panel .mission-need.packed>.need-state { background:#158e64; color:#fff; width:22px; height:22px; }
+.play-panel .need-state>.icon { width:16px; height:16px; }
+.play-panel .mission-need.need-audio { min-height:105px; width:100%; max-width:142px; justify-self:center; padding:12px 8px 7px; box-shadow:0 3px 0 #b4d9e7; }
+.play-panel .need-audio>.icon { width:19px; height:19px; color:#2189b0; }
+.play-panel .need-audio.listening { background:#cef8e6; border-color:#16ad7f; box-shadow:0 3px 0 #8ed6b8; }
+.mission-needs-heading { font-size:18px; color:#2f6480; width:100%; }
+.mission-needs-heading>small { display:block; font-size:13px; margin-top:7px; }
+.play-panel .mission-story { margin-top:12px; padding:5px 11px; }
+.play-panel .mission-story>summary { font-size:13px; min-height:25px; }
+.hunt-choice.left-field { visibility:hidden; pointer-events:none; }
+.play-panel[data-phase=playing]>.feedback { position:absolute; width:1px; height:1px; padding:0; overflow:hidden; clip-path:inset(50%); }
+@media(max-width:767px) {
+  .stroop-rule-picture { gap:8px; padding:7px 10px; }
+  .rule-word { font-size:23px; padding-inline:5px; }
+  .rule-channel>.icon { width:23px; height:23px; }
+  .rule-channel>small { font-size:12px; }
+  .rule-picture-target { gap:6px; }
+  .rule-picture-tap>.icon { width:25px; height:25px; }
+  .instruction-strip>.stroop-rule-picture { gap:8px; padding-inline:0; }
+  .instruction-strip .rule-channel { min-width:0; }
+  .instruction-strip .rule-channel>small { display:none; }
+  .play-panel .mission-checklist { gap:5px; }
+  .play-panel .mission-brief .mission-need { padding:8px 3px; }
+  .play-panel .mission-brief .need-copy { display:none; }
+  .play-panel .mission-need .need-symbol { width:31px; height:31px; }
+  .play-panel .game-preparation .mission-checklist { grid-template-columns:repeat(3,minmax(0,1fr)); gap:10px; }
+  .play-panel .mission-need.need-audio { min-height:98px; }
+  .play-panel .need-audio .need-copy { font-size:12px; }
+}

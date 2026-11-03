@@ -142,6 +142,7 @@ test('interface: variants teach and complete through the real controls',async()=
 
 test('interface: hunt renders simultaneous choices and preserves the selected attention mode when changing theme',async()=>{
   const ui=await fixture();await ui.click('open','[data-game="hunt"]');await ui.click('hunt-mode','[data-mode="divided"]');await ui.click('theme','[data-theme="fish"]');
+  assert.match(ui.document.querySelector('#session-summary').textContent,/۱٬۶۰۰.*میلی‌ثانیه نمایش.*۴.*شکل هم‌زمان/);
   assert.equal(ui.document.querySelector('.hunt-mode.selected').dataset.mode,'divided');await ui.click('practice');
   assert.equal(ui.document.querySelectorAll('.hunt-choice').length,4);assert.equal(ui.document.querySelectorAll('.target-mini').length,2);
   const choice=ui.document.querySelector('.hunt-choice');assert.ok(choice.hasAttribute('data-choice'));
@@ -172,8 +173,8 @@ test('interface: untimed Stroop and n-back lessons respond interactively without
   const ui=await fixture();await ui.click('open','[data-game="stroop"]');
   for(let i=0;i<8;i++) {await ui.click('lesson-answer',`[data-response="${i%2===0}"]`);assert.ok(ui.document.querySelector('.lesson-feedback.good'));await ui.click('lesson-next');}
   assert.equal(JSON.parse(ui.values.get(CLIENTS_KEY)).records.length,0);
-  await ui.click('home');await ui.click('open','[data-game="nback"]');await ui.setPolicy('hard');assert.equal(ui.document.querySelectorAll('.lesson-token').length,4);
-  await ui.click('lesson-answer','[data-response="false"]');assert.ok(ui.document.querySelector('.lesson-feedback.wrong'));await ui.click('lesson-next');await ui.click('lesson-answer','[data-response="false"]');assert.ok(ui.document.querySelector('.lesson-feedback.good'));
+  await ui.click('home');await ui.click('open','[data-game="nback"]');await ui.setPolicy('hard');assert.equal(ui.document.querySelectorAll('.lesson-token').length,1);assert.equal(ui.document.querySelector('[data-action="lesson-answer"]'),null);await ui.click('lesson-memory-next');await ui.click('lesson-memory-next');await ui.click('lesson-memory-next');
+  await ui.click('lesson-answer','[data-response="false"]');assert.ok(ui.document.querySelector('.lesson-feedback.wrong'));assert.equal(ui.document.querySelectorAll('.lesson-token').length,4);await ui.click('lesson-next');await ui.click('lesson-memory-help');await ui.click('lesson-answer','[data-response="false"]');assert.ok(ui.document.querySelector('.lesson-feedback.good'));
 });
 test('interface: the guided initial assessment completes all seven components and opens baseline reports',async()=>{
   const ui=await fixture();await ui.click('assessment');assert.equal(ui.document.querySelectorAll('.assessment-step').length,7);await ui.click('assessment-next');

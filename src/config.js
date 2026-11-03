@@ -7,7 +7,7 @@ export const LEVELS = {
   medium: { label: 'متوسط', caption: 'یک چالش حسابی', visibleMs: 200, items: 24, required: 5, seconds: 45, obstacles: 3, searchSeconds: 20, n: 2 },
   hard: { label: 'سخت', caption: 'آمادهٔ تمرکز بیشتر؟', visibleMs: 100, items: 36, required: 6, seconds: 30, obstacles: 4, searchSeconds: 15, n: 3 },
 };
-export const PRESENTATION_VERSION = 6;
+export const PRESENTATION_VERSION = 7;
 export const LEGACY_ITEM_COUNTS = {easy:12,medium:18,hard:24};
 export const PROTOCOL = { trials: 150, targets: 30, intervalMs: 1000, practiceTrials: 5, previewMs: 2000, searchRounds: 10, penaltyMs: 2000, huntBlocks: [20,50,80] };
 export const LEGACY_HUNT_SETTINGS = {

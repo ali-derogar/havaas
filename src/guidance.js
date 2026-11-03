@@ -19,18 +19,18 @@ export const GUIDANCE = Object.freeze({
   space:'وسایل لازم برای سفر فضایی را پیدا کن. اگر سنگ روی وسیله بود، اول سنگ را کنار بزن. کوله را کامل کن و دکمه پرتاب را بزن.',
   correct:'آفرین! درست بود. وقتی آماده شدی، ادامه بده.',
   retry:'دوباره با هم نگاه کنیم. نمونه و پاسخ درست را ببین. عجله نکن.',
-  water:'آب برای رفع تشنگی در سفر لازم است. آن را بردار.',
-  food:'خوراک برای انرژی در سفر لازم است. آن را بردار.',
-  medkit:'کمک های اولیه برای رسیدگی به آسیب لازم است. آن را بردار.',
-  vest:'جلیقه نجات برای ایمنی روی آب لازم است. آن را بردار.',
-  flashlight:'چراغ قوه برای دیدن در تاریکی لازم است. آن را بردار.',
-  compass:'قطب نما برای پیدا کردن راه لازم است. آن را بردار.',
-  oxygen:'در فضا هوا نیست. اکسیژن برای نفس کشیدن لازم است. آن را بردار.',
-  suit:'لباس فضایی از بدن تو محافظت می کند. آن را بردار.',
-  fuel:'سوخت برای حرکت سفینه لازم است. آن را بردار.',
-  helmet:'کلاه فضایی از سر تو محافظت می کند. آن را بردار.',
-  map:'نقشه فضایی برای پیدا کردن مسیر لازم است. آن را بردار.',
-  'not-needed':'این وسیله برای این سفر لازم نیست. دکمه دست نگه دار را بزن.',
+  water:'آب برای رفع تشنگی در سفر لازم است.',
+  food:'خوراک برای انرژی در سفر لازم است.',
+  medkit:'کمک های اولیه برای رسیدگی به آسیب لازم است.',
+  vest:'جلیقه نجات برای ایمنی روی آب لازم است.',
+  flashlight:'چراغ قوه برای دیدن در تاریکی لازم است.',
+  compass:'قطب نما برای پیدا کردن راه لازم است.',
+  oxygen:'در فضا هوا نیست. اکسیژن برای نفس کشیدن لازم است.',
+  suit:'لباس فضایی از بدن تو محافظت می کند.',
+  fuel:'سوخت برای حرکت سفینه لازم است.',
+  helmet:'کلاه فضایی از سر تو محافظت می کند.',
+  map:'نقشه فضایی برای پیدا کردن مسیر لازم است.',
+  'not-needed':'این وسیله برای این سفر لازم نیست. وقتی چنین وسیله ای دیدی، دست نگه دار.',
 });
 
 export function guidanceKey(options={}){
@@ -42,18 +42,22 @@ export function guidanceKey(options={}){
   if(gameId==='stroop')return `stroop-${Math.max(0,Math.min(3,phase))}`;
   return Object.hasOwn(GUIDANCE,gameId)?gameId:'retry';
 }
+export function lessonGuidanceKey(gameId,step,options={}){
+  if(step.equipment)return Object.hasOwn(GUIDANCE,step.equipment)?step.equipment:'not-needed';
+  return guidanceKey({...options,gameId,n:step.n,phase:step.phase??0});
+}
 
 export class GuidancePlayer {
-  constructor({AudioClass=globalThis.Audio,onState=()=>{}}={}){this.AudioClass=AudioClass;this.onState=onState;this.audio=null;this.generation=0;}
-  stop(){this.generation++;if(this.audio){this.audio.pause();this.audio=null;}this.onState('idle');}
+  constructor({AudioClass=globalThis.Audio,onState=()=>{}}={}){this.AudioClass=AudioClass;this.onState=onState;this.audio=null;this.key=null;this.generation=0;}
+  stop(){this.generation++;if(this.audio){this.audio.pause();this.audio=null;}this.key=null;this.onState('idle',null);}
   async play(key){
     this.stop();if(!Object.hasOwn(GUIDANCE,key)||!this.AudioClass){this.onState('unavailable');return false;}
     const generation=this.generation;
     try{
-      const audio=new this.AudioClass(`/assets/audio/${key}.mp3`);this.audio=audio;audio.volume=.85;
-      audio.onended=()=>{if(generation===this.generation){this.audio=null;this.onState('idle');}};
-      audio.onerror=()=>{if(generation===this.generation){this.audio=null;this.onState('unavailable');}};
-      await audio.play();if(generation!==this.generation){audio.pause();return false;}this.onState('playing');return true;
-    }catch{if(generation===this.generation){this.audio=null;this.onState('unavailable');}return false;}
+      const audio=new this.AudioClass(`/assets/audio/${key}.mp3`);this.audio=audio;this.key=key;audio.volume=.85;
+      audio.onended=()=>{if(generation===this.generation){this.audio=null;this.key=null;this.onState('idle',null);}};
+      audio.onerror=()=>{if(generation===this.generation){this.audio=null;this.key=null;this.onState('unavailable',null);}};
+      await audio.play();if(generation!==this.generation){audio.pause();return false;}this.onState('playing',key);return true;
+    }catch{if(generation===this.generation){this.audio=null;this.key=null;this.onState('unavailable',null);}return false;}
   }
 }

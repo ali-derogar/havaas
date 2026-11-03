@@ -48,7 +48,7 @@ export class ReactionSession extends Session {
     if (index !== this.index || !this.visible) return null;
     if (choiceIndex !== null) {
       const choice = Number.isInteger(choiceIndex) ? this.current.choices?.[choiceIndex] : null;
-      if (!choice) return null;
+      if (!choice || this.choiceSelectable?.(choice)===false) return null;
       return this.respond(choice.target, choice.stimulus);
     }
     return this.respond();

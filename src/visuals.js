@@ -4,6 +4,8 @@ const ink = '#34443d';
 const svg = (body, viewBox = '0 0 64 64', cls = '') => `<svg class="${cls}" viewBox="${viewBox}" xmlns="http://www.w3.org/2000/svg" fill="none" aria-hidden="true">${body}</svg>`;
 export function icon(name, cls = '') {
   const paths = {
+    palette:'<path d="M12 3a9 9 0 1 0 0 18h2a3 3 0 0 0 0-6h-1a2 2 0 0 1 0-4h4a4 4 0 0 0 0-8z"/><circle cx="6" cy="11" r="1"/><circle cx="9" cy="7" r="1"/><circle cx="15" cy="6" r="1"/>',
+    read:'<path d="M3 4q5-2 9 2 4-4 9-2v15q-5-2-9 2-4-4-9-2zM12 6v15M6 9h3m6 0h3M6 13h3m6 0h3"/>',
     tap:'<path d="M9 13V4a2 2 0 0 1 4 0v7l2-1 2 2 2-1 2 2v5l-4 4h-6l-7-8a2 2 0 0 1 3-2l2 2M5 6H2m5-4L5 0m12 5 3-2"/>',
     wait:'<path d="M7 12V6a1.5 1.5 0 0 1 3 0v5-8a1.5 1.5 0 0 1 3 0v8-7a1.5 1.5 0 0 1 3 0v8-5a1.5 1.5 0 0 1 3 0v10l-4 5H9l-6-8a2 2 0 0 1 3-2l1 1"/>',
     bag:'<path d="M6 8h12l3 13H3zM8 8V5a4 4 0 0 1 8 0v3m-9 6 4 4 6-7"/>',
@@ -131,6 +133,22 @@ const drawings = {
   obstacle: '<path d="m4 47 8-23 16-13 20 6 13 31-16 10H15z" fill="#a9a4b4"/><path d="m13 25 18 9 17-16M31 34l-6 22m8-22 18 13"/>',
 };
 export function equipment(name, cls = '') { return svg(`<g stroke="${ink}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${drawings[name] || drawings.gift}</g>`, '0 0 64 64', `equipment ${cls}`); }
+export function needArt(name){
+  const bodies={
+    water:'<path d="M32 5C22 21 12 30 12 41a20 20 0 0 0 40 0C52 30 42 21 32 5z" fill="#31b7ef"/><path d="M20 37q-5 11 7 15" stroke="#e2fbff" stroke-width="4"/>',
+    food:'<path d="M35 3 12 37h17l-3 24 26-36H35z" fill="#ffca2f"/>',
+    medkit:'<rect x="7" y="7" width="50" height="50" rx="15" fill="#ffedf0"/><path d="M26 15h12v11h11v12H38v11H26V38H15V26h11z" fill="#ed4c65" stroke="none"/>',
+    vest:'<circle cx="32" cy="32" r="26" fill="#ffac40"/><circle cx="32" cy="32" r="13" fill="#e0f7ff"/><path d="m14 14 9 9m18 18 9 9M14 50l9-9m18-18 9-9" stroke="#fff" stroke-width="9"/>',
+    flashlight:'<path d="M20 43C0 24 18 2 34 9c23 5 24 25 9 34l-2 8H22z" fill="#ffe868"/><path d="M23 52h17m-15 7h13M32 18v18m-7-8h14" stroke-width="3"/>',
+    compass:'<circle cx="32" cy="32" r="26" fill="#e1f3ff"/><path d="m41 13-6 22-14 16 7-22z" fill="#ef6370"/><circle cx="32" cy="32" r="3" fill="#1f557b"/>',
+    oxygen:'<path d="M28 12v22q-5-19-12-8C-4 55 8 62 27 49m9-37v22q5-19 12-8c20 29 8 36-11 23M28 18h8" fill="#8cdde6"/><circle cx="14" cy="12" r="5" fill="#caefff"/>',
+    suit:'<path d="m32 5 24 9v19c0 15-24 27-24 27S8 48 8 33V14z" fill="#68d4a2"/><path d="m20 32 8 8 17-20" stroke="#fff" stroke-width="5"/>',
+    fuel:'<path d="M35 4c5 17 18 22 18 37a21 21 0 0 1-42 0c0-11 7-19 13-27l3 17z" fill="#ff9b3d"/><path d="M32 32q23 25 0 25T32 32" fill="#ffe376"/>',
+    helmet:'<path d="M13 34c0-31 38-31 38 0v13H13z" fill="#9cc7ff"/><path d="M19 32h26v12H19z" fill="#f1fcff"/><path d="M18 52h28v7H18z" fill="#527db4"/>',
+    map:'<path d="m5 15 17-8 20 8 17-8v43l-17 8-20-8-17 8z" fill="#b8e2a0"/><path d="M22 7v43m20-35v43"/><path d="m10 35 13-8 10 14 14-17" stroke="#9571dc" stroke-width="3" stroke-dasharray="5 4"/>',
+  };
+  return svg(`<g stroke="#285b79" stroke-width="2" stroke-linejoin="round" stroke-linecap="round">${bodies[name]||bodies.suit}</g>`,'0 0 64 64','need-art');
+}
 
 export function art(id, cls = '') {
   const bodies = {

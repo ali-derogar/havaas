@@ -1,5 +1,5 @@
 import { gameArtwork } from './worlds.js';
-import { icon, art, symbol, equipment } from './visuals.js';
+import { icon, art, symbol, equipment, needArt } from './visuals.js';
 import { escapeHTML as esc } from './core/clients.js';
 import { describeStimulus } from './stimuli.js';
 import { LEVELS } from './config.js';
@@ -7,6 +7,7 @@ import { createLesson } from './lessons.js';
 import { STROOP_RULES } from './games/stroop.js';
 import { EQUIPMENT_NEEDS, EQUIPMENT_REASONS } from './games/adventure.js';
 import { guidanceKey } from './guidance.js';
+import { stroopRulePicture } from './learning-ui.js';
 
 const fa = value => Number(value).toLocaleString('fa-IR');
 const tokens = values => values.map(value=>`<span class="ready-token">${symbol(value)}</span>`).join('');
@@ -19,10 +20,11 @@ export function shortPrompt(session){
   if(session.gameId==='stroop')return STROOP_RULES[session.current?.phase||0].title;
   return 'وسایل لازم را بردار، راهی شو';
 }
-export function missionChecklist(session) {
+export function missionChecklist(session,{interactive=false}={}) {
   return `<div class="mission-checklist" aria-label="نیازهای این سفر">${session.required.map(([name],i)=>{
     const packed=session.items.some(item=>item.icon===name&&item.collected);
-    return `<span class="mission-need ${packed?'packed':''}"><b>${packed?icon('check'):fa(i+1)}</b><span>${EQUIPMENT_NEEDS[name]}</span></span>`;
+    const content=`<span class="need-symbol">${needArt(name)}</span><span class="need-copy">${EQUIPMENT_NEEDS[name]}</span><b class="need-state">${packed?icon('check'):fa(i+1)}</b>`;
+    return interactive?`<button type="button" class="mission-need need-audio ${packed?'packed':''}" data-action="listen-guide" data-guide="${name}" aria-pressed="false" aria-label="شنیدن نیاز: ${EQUIPMENT_NEEDS[name]}">${content}${icon('sound')}</button>`:`<span class="mission-need ${packed?'packed':''}" role="img" aria-label="${EQUIPMENT_NEEDS[name]}${packed?'، آماده شد':''}">${content}</span>`;
   }).join('')}</div>`;
 }
 export function preparationView(session) {
@@ -44,7 +46,7 @@ export function preparationView(session) {
     tip='این فقط یک نمونه است. در بازی، محرک‌های قبلی پنهان می‌شوند؛ آن‌ها را در حافظه نگه دار.';
   } else if(id==='stroop') {
     title='چهار مرحله، چهار قانون';text='در شروع فقط به دایرهٔ زرد پاسخ بده. بین مرحله‌ها، بازی می‌ایستد تا قانون بعدی را یاد بگیری.';
-    sample=tokens([{shape:'circle',color:'yellow'}]);tip='در بعضی مرحله‌ها رنگ نوشته مهم است و در بعضی، معنای کلمه. قانون بالای صفحه را دنبال کن.';
+    sample=stroopRulePicture(0);tip='در بعضی مرحله‌ها رنگ نوشته مهم است و در بعضی، معنای کلمه. قانون بالای صفحه را دنبال کن.';
   } else if(id==='search') {
     title=session.targetCount===2?'دو نمونه را حفظ کن، هر دو را پیدا کن':'نمونه را حفظ کن، پیدایش کن';
     text=`در هر دور، ${session.targetCount===2?'هر دو نمونه':'نمونه'} فقط دو ثانیه دیده می‌شود. بعد از پنهان‌شدن، ${session.targetCount===2?'هر دو را':'آن را'} میان گزینه‌ها پیدا کن.`;
@@ -55,7 +57,7 @@ export function preparationView(session) {
     tip=session.practice?'پنج وسیله را یکی‌یکی بررسی کن؛ وسیلهٔ ضروری را بردار و برای بقیه «دست نگه دار» را بزن.':`نیازهای این سفر را برطرف کن و قبل از پایان زمان ${id==='space'?'سفینه را پرتاب کن. مانع‌ها را اول کنار بزن.':'سوار کشتی شو.'}`;
   }
   const key=guidanceKey({...session,targetCount:session.targets?.length||session.targetCount});
-  return `<div class="game-preparation"><span class="section-kicker">اول آماده شو</span><h2>${shortPrompt(session)}</h2><div class="preparation-samples">${sample}</div><div class="visual-rule"><span class="do-cue">${icon('tap')}<b>بزن</b></span><span class="wait-cue">${icon('wait')}<b>صبر کن</b></span>${guideControl(key)}</div>${['ark','space'].includes(id)&&!session.practice?missionChecklist(session):''}<details class="companion-guide"><summary>راهنمای همراه</summary><h3>${title}</h3><p>${text}</p><p>${tip}</p>${id==='stroop'?'<p>مرحله‌های کلمه به توانایی خواندن نیاز دارند. راهنمای صوتی قانون را توضیح می‌دهد و کلمهٔ محرک را در بازی نمی‌خواند.</p>':''}</details>${session.practice?'<small class="guided-note">پنج تمرین، با فرصت یادگیری</small>':''}</div>`;
+  return `<div class="game-preparation"><span class="section-kicker">اول آماده شو</span><h2>${shortPrompt(session)}</h2><div class="preparation-samples">${sample}</div><div class="visual-rule"><span class="do-cue">${icon('tap')}<b>بزن</b></span><span class="wait-cue">${icon('wait')}<b>صبر کن</b></span>${guideControl(key)}</div>${['ark','space'].includes(id)?`<div class="mission-needs-heading">برای سفر چه لازم است؟ <small>روی هر تصویر بزن و بشنو</small></div>${missionChecklist(session,{interactive:true})}`:''}<details class="companion-guide"><summary>راهنمای همراه</summary><h3>${title}</h3><p>${text}</p><p>${tip}</p>${id==='stroop'?'<p>مرحله‌های کلمه به توانایی خواندن نیاز دارند. راهنمای صوتی قانون را توضیح می‌دهد و کلمهٔ محرک را در بازی نمی‌خواند.</p>':''}</details>${session.practice?'<small class="guided-note">پنج تمرین، با فرصت یادگیری</small>':''}</div>`;
 }
 export function countdownView() {
   return '<div class="game-countdown"><span class="section-kicker">چشم‌ها به محل بازی</span><b id="countdown-number" aria-live="off">۳</b><p>آرام و آماده…</p></div>';
@@ -93,7 +95,7 @@ export function transitionView(session) {
   const completed=session.outcomes.filter(o=>o.phase===phase-1),correct=completed.filter(o=>o.correct).length;
   const rule=hunt?{title:`${fa(session.blockLengths[phase]*(session.intervalMs||1000)/1000)} ثانیه توجه پیوسته`,text:'هدف‌ها همان‌اند. این بار مدت بیشتری آن‌ها را دنبال کن؛ هر وقت آماده‌ای ادامه بده.'}:STROOP_RULES[phase];
   const examples=hunt?`<div class="rule-example">${tokens(session.targets)}</div>`:`<div class="rule-examples">${createLesson('stroop').slice(phase*2,phase*2+2).map(step=>`<div class="rule-sample">${symbol(step.stimuli[0])}<b>${step.expected?'پاسخ بده':'صبر کن'}</b><small>${step.explanation}</small></div>`).join('')}</div>`;
-  return `<div class="rule-transition"><span class="section-kicker">${hunt?'یک نفس تازه، یک دور تازه':'حالا قانون عوض می‌شود'}</span>${hunt?`<span class="checkpoint-result">${fa(correct)} تصمیم درست از ${fa(completed.length)} نوبت قبلی</span>`:''}<h2>${rule.title}</h2><p>${rule.text}</p>${examples}${guideControl(guidanceKey({...session,phase,targetCount:session.targets?.length}))}<button class="button primary" data-action="acknowledge">آماده‌ام ${icon('play')}</button></div>`;
+  return `<div class="rule-transition"><span class="section-kicker">${hunt?'یک نفس تازه، یک دور تازه':'حالا قانون عوض می‌شود'}</span>${hunt?`<span class="checkpoint-result">${fa(correct)} تصمیم درست از ${fa(completed.length)} نوبت قبلی</span>`:''}<h2>${rule.title}</h2>${hunt?'':stroopRulePicture(phase)}<p>${rule.text}</p>${examples}${guideControl(guidanceKey({...session,phase,targetCount:session.targets?.length}))}<button class="button primary" data-action="acknowledge">آماده‌ام ${icon('play')}</button></div>`;
 }
 export function stroopStages(phase) {
   return `<div class="stroop-stages" aria-label="مرحله‌های استروپ">${['دایره','رنگ نوشته','معنای کلمه','رنگ و معنا'].map((label,i)=>`<span ${i===phase?'aria-current="step"':''} class="${i<phase?'passed':''}"><b>${fa(i+1)}</b>${label}</span>`).join('')}</div>`;

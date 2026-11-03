@@ -66,3 +66,50 @@ test('review: crowded mission fields keep every object reachable and the spacecr
   await leave(page);
  }
 });
+
+test('review: second pass keeps spoken Stroop instructions aligned with all four illustrated rules',async({page})=>{
+ await clock(page);await page.addInitScript(()=>{window.guideStarts=[];const play=HTMLMediaElement.prototype.play;HTMLMediaElement.prototype.play=function(){window.guideStarts.push(this.src.split('/').at(-1));return play.call(this);};});
+ await login(page);await click(page,'open','[data-game="stroop"]');let sessions=0;
+ page.on('request',r=>{if(r.method()==='POST'&&r.url().endsWith('/sessions'))sessions++;});
+ for(let index=0;index<8;index++){
+  const phase=Math.floor(index/2),box=page.locator('#lesson-box');
+  await expect(box.locator('.stroop-rule-picture')).toHaveAttribute('data-rule-phase',String(phase));
+  await expect(box.locator('[data-action=listen-guide]')).toHaveAttribute('data-guide',`stroop-${phase}`);
+  if(index===0)await box.locator('[data-action=listen-guide]').click();
+  await expect.poll(()=>page.evaluate(()=>window.guideStarts.at(-1))).toBe(`stroop-${phase}.mp3`);
+  if(index===6){await page.setViewportSize({width:360,height:900});await box.screenshot({path:'.local/verification/review-second-stroop.png'});}
+  await box.locator(`[data-action=lesson-answer][data-response="${index%2===0}"]`).click();
+  await expect(box.locator('.lesson-feedback.good')).toBeVisible();await click(page,'lesson-next');
+ }
+ expect(sessions).toBe(0);
+});
+
+test('review: second pass teaches N-back sequentially without revealing the reference during scored play',async({page})=>{
+ await clock(page);await login(page);await policy('nback','hard');await click(page,'open','[data-game="nback"]');const box=page.locator('#lesson-box');
+ await expect(box.locator('.lesson-token')).toHaveCount(1);await expect(box.locator('[data-action=lesson-answer]')).toHaveCount(0);
+ for(let index=1;index<=3;index++){await click(page,'lesson-memory-next');await expect(box.locator('.memory-walkthrough')).toHaveAttribute('data-memory-step',String(index));await expect(box.locator('.lesson-token')).toHaveCount(1);}
+ await expect(box.locator('[data-action=lesson-answer]')).toHaveCount(2);await expect(box.locator('.reference')).toHaveCount(0);
+ await box.locator('[data-action=lesson-answer][data-response=false]').click();await expect(box.locator('.lesson-feedback.wrong')).toBeVisible();await expect(box.locator('.lesson-token')).toHaveCount(4);
+ await page.setViewportSize({width:360,height:900});await box.screenshot({path:'.local/verification/review-second-memory.png'});
+ await click(page,'lesson-next');await click(page,'lesson-memory-help');await expect(box.locator('.lesson-token.reference')).toHaveCount(1);
+ await box.locator('[data-action=lesson-answer][data-response=false]').click();await expect(box.locator('.lesson-feedback.good')).toBeVisible();
+ await baseline(page,'nback');await click(page,'home');await start(page,'nback',false);await begin(page);
+ await expect(page.locator('.memory-token.reference,.lesson-token')).toHaveCount(0);await expect(page.locator('.stimulus-shell .symbol')).toHaveCount(1);
+});
+
+test('review: second pass presents spoken pictorial needs and automatically explains frozen practice reviews',async({page})=>{
+ await clock(page);await page.addInitScript(()=>{window.guideStarts=[];window.guideMedia=[];const play=HTMLMediaElement.prototype.play;HTMLMediaElement.prototype.play=function(){window.guideStarts.push(this.src.split('/').at(-1));window.guideMedia.push(this);return play.call(this);};});
+ await login(page);await start(page,'ark');
+ const needs=page.locator('.game-preparation .need-audio');await expect(needs).toHaveCount(3);await expect(needs.locator('.need-art')).toHaveCount(3);
+ await page.locator('.need-audio[data-guide=water]').click();await expect.poll(()=>page.evaluate(()=>window.guideStarts.at(-1))).toBe('water.mp3');
+ await expect(page.locator('.need-audio[data-guide=water]')).toHaveAttribute('aria-pressed','true');await advance(page,20000);await expect(page.locator('#time')).toHaveText('۰۰:۰۰');
+ await page.setViewportSize({width:360,height:900});await page.screenshot({path:'.local/verification/review-second-mission-needs.png',fullPage:true});await begin(page);
+ expect(await page.evaluate(()=>window.guideMedia.every(audio=>audio.paused))).toBe(true);
+ const item=page.locator('.scene-object');await item.click();await expect(page.locator('.practice-review')).toBeVisible();
+ await expect.poll(()=>page.evaluate(()=>window.guideStarts.at(-1))).toMatch(/(water|food|medkit|not-needed)\.mp3/);
+ const frozen=await page.locator('#time').textContent();await advance(page,20000);await expect(page.locator('#time')).toHaveText(frozen);
+ await click(page,'continue-review');expect(await page.evaluate(()=>window.guideMedia.every(audio=>audio.paused))).toBe(true);
+ await leave(page);await baseline(page,'ark');await policy('ark','hard');await start(page,'ark',false);await begin(page);
+ await expect(page.locator('.mission-brief .need-art')).toHaveCount(6);await expect(page.locator('.mission-brief [data-action=listen-guide]')).toHaveCount(0);
+ await expect(page.locator('.mission-story')).not.toHaveAttribute('open','');await expect(page.locator('.mission-story p')).toBeHidden();
+});

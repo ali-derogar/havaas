@@ -34,6 +34,7 @@ export function createHunt(options) {
   }
   const session = new ReactionSession({ ...options, gameId:'hunt', protocolVersion:3, variant:targetCount===2?'divided':'standard' },trials);
   if(moving)Object.assign(session,HUNT_MOTION_TIMING[level]);
+  if(moving&&revision>=7)session.choiceSelectable=choice=>huntOnScreen(choice,session.clock.elapsed-session.onset,session.visibleMs);
   session.moving=moving;session.targets=targets;session.target=targets[0];session.theme=theme;session.background=settings.background;session.blockLengths=blockLengths;return session;
 }
 
@@ -41,4 +42,8 @@ export function huntPosition(choice,elapsedMs,visibleMs){
   if(!choice.motion)return {...choice.position};
   const t=Math.max(0,Math.min(1,elapsedMs/visibleMs));
   return {x:choice.position.x+choice.motion.distance*t,y:choice.position.y+Math.sin(t*Math.PI*2+choice.motion.phase)*choice.motion.amplitude};
+}
+export function huntOnScreen(choice,elapsedMs,visibleMs){
+  const position=huntPosition(choice,elapsedMs,visibleMs);
+  return elapsedMs>=0&&elapsedMs<visibleMs&&position.x>=-10&&position.x<=110&&position.y>=-10&&position.y<=110;
 }
