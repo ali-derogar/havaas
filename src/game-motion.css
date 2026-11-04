@@ -37,6 +37,8 @@
 .game-preparation .preparation-samples .ready-token { animation:ready-float 3s ease-in-out infinite; }
 .game-preparation .preparation-samples .ready-token:nth-child(2n) { animation-delay:-1.3s; }
 .game-preparation .visual-rule,.practice-review .review-badge,.round-intermission .round-emblem { animation:cue-arrive .4s cubic-bezier(.2,.8,.2,1.15) both; }
+.game-preparation .do-cue>.icon { animation:teaching-tap 1.8s ease-in-out infinite; }
+.lesson-box .rule-picture-arrow,.rule-transition .rule-picture-arrow { animation:teaching-point 1.6s ease-in-out infinite; }
 .rule-transition .stroop-rule-picture,.rule-transition .rule-example,.round-intermission h2 { animation:cue-arrive .4s ease-out both; }
 .lesson-box .memory-spotlight .lesson-token,.lesson-feedback>.lesson-expected { animation:cue-arrive .28s ease-out both; }
 .game-countdown>b.countdown-odd { animation:countdown-odd .75s ease-out both; }
@@ -60,6 +62,8 @@
 @keyframes countdown-even { from{transform:scale(1.3);opacity:.4} 30%{opacity:1} to{transform:scale(1);opacity:1} }
 @keyframes star-award { from{opacity:0;transform:translateY(8px) scale(.4) rotate(-15deg)} to{opacity:1;transform:scale(1)} }
 @keyframes trophy-arrive { from{opacity:.3;transform:translateY(13px) scale(.85)} to{opacity:1;transform:none} }
+@keyframes teaching-tap { 0%,55%,100%{transform:translateY(0)} 25%{transform:translateY(4px) scale(.95)} }
+@keyframes teaching-point { 0%,100%{transform:translateX(0)} 50%{transform:translateX(-4px)} }
 @media(prefers-reduced-motion:reduce) {
   .play-panel *,.play-panel *::before,.play-panel *::after,.lesson-box *,.result-card * { animation:none!important; }
   .scene-atmosphere,.play-effects { display:none; }

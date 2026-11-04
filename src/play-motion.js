@@ -76,7 +76,7 @@ export class PlayMotion {
   }
   addEffect(node,data){
     if(this.reduced)return;
-    if(this.effects.length>=32)this.effects.shift().node.remove();
+    if(this.effects.length>=32){const oldest=this.effects.shift();if(oldest.retain)oldest.node.style.opacity='0';else oldest.node.remove();}
     this.ensureLayer().append(node);this.effects.push({node,start:this.clock.elapsed,...data});this.updateEffects();
   }
   burst(source,kind='good'){

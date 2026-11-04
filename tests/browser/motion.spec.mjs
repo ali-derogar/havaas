@@ -14,13 +14,22 @@ async function begin(page,game,practice=true){await click(page,'open',`[data-gam
 test('motion: fish tails and animal flight articulate while pause holds the exact pose',async({page})=>{
  await clock(page);await login(page);await click(page,'open','[data-game="hunt"]');await click(page,'theme','[data-theme="fish"]');await click(page,'practice');await click(page,'begin-game');await advance(page,3000);
  await expect(page.locator('.animal-tail')).toHaveCount(5); // Four swimmers and the fixed target sample.
- const swimmer=page.locator('.hunt-choice').first(),initial=await swimmer.getAttribute('style');await advance(page,120);expect(await swimmer.getAttribute('style')).not.toBe(initial);
+ const swimmer=page.locator('.hunt-choice').first(),initial=await swimmer.getAttribute('style'),tail=swimmer.locator('.animal-tail'),tailBefore=await tail.evaluate(node=>getComputedStyle(node).transform);
+ await advance(page,120);expect(await swimmer.getAttribute('style')).not.toBe(initial);expect(await tail.evaluate(node=>getComputedStyle(node).transform)).not.toBe(tailBefore);
  await click(page,'pause');const frozen=await swimmer.getAttribute('style');await advance(page,10000);expect(await swimmer.getAttribute('style')).toBe(frozen);
  await expect(page.locator('.play-panel')).toHaveAttribute('data-motion','paused');
  expect(await page.locator('.pond-bubbles>i').first().evaluate(node=>getComputedStyle(node).animationPlayState)).toBe('paused');
  await click(page,'resume');expect(await swimmer.getAttribute('style')).toBe(frozen);
  await page.emulateMedia({reducedMotion:'reduce'});await advance(page,0);expect(await swimmer.evaluate(node=>node.style.getPropertyValue('--tail-angle'))).toBe('0deg');
  await expect(page.locator('.response-button')).toBeEnabled();
+ await page.emulateMedia({reducedMotion:'no-preference'});await click(page,'pause');await click(page,'home');
+ for(const theme of ['bird','butterfly']){
+  await click(page,'open','[data-game="hunt"]');await click(page,'theme',`[data-theme="${theme}"]`);await click(page,'practice');await click(page,'begin-game');await advance(page,3000);
+  const wing=page.locator('.hunt-choice .animal-wing').first(),before=await wing.evaluate(node=>getComputedStyle(node).transform);
+  await advance(page,150);expect(await wing.evaluate(node=>getComputedStyle(node).transform)).not.toBe(before);
+  if(theme==='butterfly'){await expect(page.locator('.hunt-choice .wing-left')).toHaveCount(4);await expect(page.locator('.hunt-choice .wing-right')).toHaveCount(4);}
+  await click(page,'pause');await click(page,'home');
+ }
 });
 
 test('motion: a collected object flies into its own bag slot and all effects freeze and clean up',async({page})=>{
