@@ -6,6 +6,8 @@ const ink = '#34443d';
 const svg = (body, viewBox = '0 0 64 64', cls = '') => `<svg class="${cls}" viewBox="${viewBox}" xmlns="http://www.w3.org/2000/svg" fill="none" aria-hidden="true">${body}</svg>`;
 export function icon(name, cls = '') {
   const paths = {
+    magnify:'<circle cx="10" cy="10" r="7"/><path d="m15 15 7 7M7 10h6m-3-3v6"/>',
+    memory:'<path d="M12 5C7-1 1 5 4 10c-5 3-1 10 4 9 1 4 4 3 4 0V5m0 0c5-6 11 0 8 5 5 3 1 10-4 9-1 4-4 3-4 0M5 10h3l1-3m-3 8h3l1 3m9-8h-3l-1-3m3 8h-3l-1 3"/>',
     flag:'<path d="M5 22V3m0 1q4-3 8 0t7 0v11q-4 3-7 0t-8 0"/>',
     rocket:'<path d="M8 15C5 8 8 4 12 1c4 3 7 7 4 14zM8 11l-5 6 5-2m8-4 5 6-5-2M10 19l2 4 2-4"/><circle cx="12" cy="9" r="2"/>',
     eye:'<path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/>',

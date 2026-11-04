@@ -88,10 +88,10 @@ body[data-screen=play]:has(.play-panel[data-game=traffic]) { background:radial-g
 .play-panel[data-game=traffic] .review-badge { color:#137e6a; background:#d8f4e5; }
 .play-panel[data-game=traffic] .game-countdown { background:#f0fbf0; }
 .play-panel[data-game=traffic] .game-countdown>b { color:#1c9a8a; }
-.traffic-outcome { position:relative; max-width:620px; margin:0 auto 22px; overflow:hidden; border:2px solid #a0d3c5; border-radius:25px; background:#d8f2cf; }
+.traffic-outcome { position:relative; width:100%; max-width:620px; margin:0 auto 22px; overflow:hidden; border:2px solid #a0d3c5; border-radius:25px; background:#d8f2cf; }
 .traffic-outcome>.traffic-road { display:block; width:100%; height:auto; }
-.traffic-arrival-badge { position:absolute; bottom:7%; right:11%; width:43px; height:43px; display:grid; place-items:center; border:3px solid #fff8ce; border-radius:50%; color:#fff4b4; background:#26b792; font-size:26px; box-shadow:0 3px 8px #2f7c6333; animation:traffic-arrival .55s ease-out both; }
-.result-card:has(>.traffic-outcome) { background:linear-gradient(#fffdf5,#effbf3); border:2px solid #abd8ca; border-radius:28px; }
+.traffic-arrival-badge { position:absolute; top:12%; right:7%; width:43px; height:43px; display:grid; place-items:center; border:3px solid #fff8ce; border-radius:50%; color:#fff4b4; background:#26b792; font-size:26px; box-shadow:0 3px 8px #2f7c6333; animation:traffic-arrival .55s ease-out both; }
+body[data-panel=client] .result-card:has(>.traffic-outcome) { background:linear-gradient(#fffdf5,#effbf3); border:2px solid #abd8ca; border-radius:28px; }
 @keyframes traffic-arrival { from { opacity:0; transform:scale(.5); } to { opacity:1; transform:none; } }
 @media(max-width:767px) {
  .play-panel[data-game=traffic] { border-radius:19px; }

@@ -11,6 +11,7 @@ import { stroopRulePicture } from './learning-ui.js';
 import { arkEquipment } from './ark-ui.js';
 import { spaceEquipment } from './space-ui.js';
 import { trafficRoadArt } from './traffic-art.js';
+import { memoryExample } from './nback-ui.js';
 
 const fa = value => Number(value).toLocaleString('fa-IR');
 const tokens = values => values.map(value=>`<span class="ready-token">${symbol(value)}</span>`).join('');
@@ -66,7 +67,7 @@ export function preparationView(session) {
     title=`مقایسه با ${fa(session.n)} محرک قبل`;
     text=`اول ${fa(session.n)} محرک را فقط به خاطر بسپار. بعد، هر محرک جدید را با دقیقاً ${fa(session.n)} محرک قبل مقایسه کن؛ اگر یکسان بودند پاسخ بده.`;
     const lesson=createLesson(id,{level:session.level,material:session.material})[0];
-    sample=`<div class="memory-sequence" dir="ltr">${lesson.stimuli.map((value,i)=>`<span class="memory-token ${i===0?'reference':''}">${symbol(value)}<small>${i===0?'مرجع':i===lesson.stimuli.length-1?'فعلی':fa(i+1)}</small></span>`).join('<span class="sequence-arrow" aria-hidden="true">→</span>')}</div>`;
+    sample=memoryExample(lesson.stimuli,session.n);
     tip='این فقط یک نمونه است. در بازی، محرک‌های قبلی پنهان می‌شوند؛ آن‌ها را در حافظه نگه دار.';
   } else if(id==='stroop') {
     title='چهار مرحله، چهار قانون';text='در شروع فقط به دایرهٔ زرد پاسخ بده. بین مرحله‌ها، بازی می‌ایستد تا قانون بعدی را یاد بگیری.';
@@ -81,6 +82,8 @@ export function preparationView(session) {
     tip=session.practice?'پنج وسیله را یکی‌یکی بررسی کن؛ وسیلهٔ ضروری را بردار و برای بقیه «دست نگه دار» را بزن.':`نیازهای این سفر را برطرف کن و قبل از پایان زمان ${id==='space'?'سفینه را پرتاب کن. مانع‌ها را اول کنار بزن.':'سوار کشتی شو.'}`;
   }
   const key=guidanceKey({...session,targetCount:session.targets?.length||session.targetCount});
+  if(id==='nback')return `<div class="game-preparation memory-preparation"><span class="section-kicker">یک نگاه، چند گام در حافظه</span><h2>حافظه‌ات آمادهٔ ماجراجویی است؟</h2><div class="preparation-samples">${gameArtwork(id)}</div><div class="memory-preparation-example"><span>یک نمونه با ${fa(session.n)} گام فاصله</span>${sample}</div><div class="memory-preparation-rule"><span class="do-cue">${icon('tap')}<b>مثل هم؟ بزن</b></span><span class="wait-cue">${icon('wait')}<b>فرق داشت؟ صبر کن</b></span></div>${guideControl(key)}<details class="companion-guide"><summary>راهنمای همراه</summary><h3>${title}</h3><p>${text}</p><p>${tip}</p><p>شکل خیلی کوتاه دیده می‌شود؛ تا آمدن شکل بعدی فرصت پاسخ داری. به همهٔ شکل‌های تازه هم دقت کن و آن‌ها را به خاطر بسپار.</p></details>${session.practice?'<small class="guided-note">پنج تمرین، با مرور تصویری</small>':''}</div>`;
+  if(id==='search')return `<div class="game-preparation search-preparation"><span class="section-kicker">کارآگاه کوچک، به جزئیات دقت کن</span><h2>${session.targetCount===2?'دو سرنخ، یک حافظهٔ آماده':'آماده‌ای سرنخ را پیدا کنی؟'}</h2><div class="preparation-samples">${sample}</div><div class="search-preparation-steps" aria-label="نمونه را ببین، به خاطر بسپار، مثل آن را پیدا کن"><span>${icon('eye')}<b>ببین</b></span><i aria-hidden="true">←</i><span>${icon('memory')}<b>یادت بماند</b></span><i aria-hidden="true">←</i><span>${icon('magnify')}<b>پیدا کن</b></span></div><span class="search-preparation-rule">${session.targetCount===2?'هر دو نمونه':'نمونه'} را دو ثانیه ببین؛ بعد ${session.targetCount===2?'هر دو را':'آن را'} از حافظه پیدا کن.</span>${guideControl(key)}<details class="companion-guide"><summary>راهنمای همراه</summary><h3>${title}</h3><p>${text}</p><p>${tip}</p></details>${session.practice?'<small class="guided-note">پنج تمرین، با فرصت یادگیری</small>':''}</div>`;
   if(id==='traffic')return `<div class="game-preparation traffic-preparation"><span class="section-kicker">یک رانندهٔ دقیق، یک سفر شیرین</span><h2>${session.variant==='signs'?'فلش آبی، راهِ پارک':'تا پارک بریم؟'}</h2><div class="preparation-samples">${gameArtwork('traffic')}</div>${trafficRulePicture(session.variant==='signs')}${guideControl(key)}<div class="traffic-preparation-trip">${icon('tap')}<span>هر حرکت درست، یک قدم به مقصد</span>${icon('flag')}</div><details class="companion-guide"><summary>راهنمای همراه</summary><h3>${title}</h3><p>${text}</p><p>${tip}</p></details>${session.practice?'<small class="guided-note">پنج تمرین، با فرصت یادگیری</small>':''}</div>`;
   if(id==='space')return `<div class="game-preparation space-preparation"><span class="section-kicker">فضانورد کوچک، نوبت توست!</span><h2>تا ستاره‌ها بریم؟</h2><div class="preparation-samples">${sample}</div><div class="space-preparation-steps" aria-label="سنگ را کنار بزن، وسایل لازم را بردار، سفینه را پرتاب کن"><span><i>${spaceEquipment('obstacle')}${icon('tap')}</i><b>کنار بزن</b></span><em aria-hidden="true">←</em><span><i>${icon('bag')}</i><b>بردار</b></span><em aria-hidden="true">←</em><span><i>${icon('rocket')}</i><b>پرتاب کن</b></span></div><div class="mission-needs-heading">برای پرواز چه لازم است؟<small>روی تصویر بزن و بشنو</small></div>${missionChecklist(session,{interactive:true})}${guideControl(key)}<details class="companion-guide"><summary>راهنمای همراه</summary><h3>${title}</h3><p>${text}</p><p>${tip}</p><p>اگر روی وسیله سنگ بود، اول روی سنگ بزن؛ بعد وسیلهٔ نمایان‌شده را بررسی کن.</p></details>${session.practice?'<small class="guided-note">پنج تمرین، با فرصت یادگیری</small>':''}</div>`;
   if(id==='ark')return `<div class="game-preparation ark-preparation"><span class="section-kicker">یک کوله، یک کشتی، یک ماجراجویی</span><h2>آماده‌ای راهی سفر شویم؟</h2><div class="preparation-samples">${sample}</div><div class="ark-preparation-steps" aria-label="وسایل را پیدا کن، در کوله بگذار، سوار کشتی شو"><span>${icon('eye')}<b>پیدا کن</b></span><i aria-hidden="true">←</i><span>${icon('bag')}<b>بردار</b></span><i aria-hidden="true">←</i><span>${icon('arrow')}<b>راهی شو</b></span></div><div class="mission-needs-heading">برای این سفر چه لازم است؟<small>روی تصویر بزن و بشنو</small></div>${missionChecklist(session,{interactive:true})}${guideControl(key)}<details class="companion-guide"><summary>راهنمای همراه</summary><h3>${title}</h3><p>${text}</p><p>${tip}</p></details>${session.practice?'<small class="guided-note">پنج تمرین، با فرصت یادگیری</small>':''}</div>`;
@@ -100,7 +103,7 @@ export function reviewView(session) {
     } else if(session.gameId==='traffic')text=trial.target?'این نشانه اجازهٔ حرکت می‌داد؛ باید دکمهٔ حرکت را می‌زدی.':'این نشانه توقف بود؛ درست این بود که هیچ دکمه‌ای نزنی.';
     else if(session.gameId==='nback') {
       text=trial.target?`محرک فعلی با ${fa(session.n)} محرک قبل یکسان بود؛ باید پاسخ می‌دادی.`:`محرک فعلی با ${fa(session.n)} محرک قبل فرق داشت؛ باید صبر می‌کردی.`;
-      sample=`<div class="memory-sequence" dir="ltr">${[...trial.history,trial.stimulus].map((value,i)=>`<span class="memory-token ${i===0?'reference':''}">${symbol(value)}<small>${i===0?'مرجع':i===session.n?'فعلی':fa(i+1)}</small></span>`).join('<span class="sequence-arrow" aria-hidden="true">→</span>')}</div>`;
+      sample=memoryExample([...trial.history,trial.stimulus],session.n);
     } else text=`قانون این مرحله: ${STROOP_RULES[trial.phase].text} ${trial.target?'این محرک شرط را داشت؛ باید پاسخ می‌دادی.':'این محرک شرط را نداشت؛ باید صبر می‌کردی.'}`;
     if(outcome.response&&outcome.selectedTarget===false&&trial.target)text+=' هدف در صحنه بود، اما شکلی که انتخاب کردی مزاحم بود.';
   } else if(review.kind==='search') {
@@ -138,7 +141,7 @@ export function trafficRoad(session) {
 export function searchTargetStatus(session) {
   return `<div class="search-target-status" aria-label="هدف‌های پیدا‌شدهٔ این دور">${session.current.targets.map((_target,i)=>{
     const found=[...session.found].map(index=>session.current.choices[index]).find(choice=>choice.targetIndex===i);
-    return `<span class="target-status ${found?'discovered':''}">${found?symbol(found):'<b aria-hidden="true">؟</b>'}<small>${found?'پیدا شد':`هدف ${fa(i+1)}`}</small>${found?icon('check'):''}</span>`;
+    return `<span class="target-status ${found?'discovered':''}" data-target-index="${i}">${found?symbol(found):'<b aria-hidden="true">؟</b>'}<small>${found?'پیدا شد':`هدف ${fa(i+1)}`}</small>${found?icon('check'):''}</span>`;
   }).join('')}</div>`;
 }
 export function searchRounds(session) {

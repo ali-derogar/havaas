@@ -4,6 +4,9 @@ import { WORLD_ASSETS,worldFor,preloadWorld,worldBackground } from '../src/world
 
 test('visual worlds match the selected family and retain abstract backgrounds at hard difficulty',()=>{
  assert.equal(worldFor({gameId:'ark'}),WORLD_ASSETS.ark);assert.equal(worldFor({gameId:'space'}),WORLD_ASSETS.space);
+ assert.equal(worldFor({gameId:'search'}),WORLD_ASSETS.search);
+ assert.equal(worldFor({gameId:'nback'}),WORLD_ASSETS.nback);
+ assert.equal(worldFor({gameId:'stroop'}),WORLD_ASSETS.desk);
  assert.equal(worldFor({gameId:'hunt',theme:'fish',level:'medium'}),WORLD_ASSETS.pond);
  for(const theme of ['star','butterfly'])assert.equal(worldFor({gameId:'hunt',theme}),WORLD_ASSETS.meadow);
  assert.equal(worldFor({gameId:'hunt',theme:'bird'}),WORLD_ASSETS.birdShore);

@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 460" preserveAspectRatio="xMidYMid slice" fill="none">
+ <defs>
+  <linearGradient id="clue-wall" x2="1200" y2="460" gradientUnits="userSpaceOnUse"><stop stop-color="#d9edfa"/><stop offset=".5" stop-color="#eee7fc"/><stop offset="1" stop-color="#f8e9df"/></linearGradient>
+  <linearGradient id="clue-table" x2="0" y1="310" y2="460" gradientUnits="userSpaceOnUse"><stop stop-color="#f5dfaa"/><stop offset="1" stop-color="#e8c98c"/></linearGradient>
+ </defs>
+ <path d="M0 0h1200v460H0z" fill="url(#clue-wall)"/>
+ <path d="M40 0v302m1130-302v302" stroke="#ffffff40" stroke-width="14"/>
+ <g stroke="#79aab8" stroke-width="4" stroke-linejoin="round"><rect x="70" y="42" width="179" height="191" rx="25" fill="#fff8e4"/><rect x="81" y="53" width="157" height="166" rx="18" fill="#9bdeec"/><path d="M160 54v164M83 137h154" stroke="#e9faf1" stroke-width="8"/><path d="M75 226h170" stroke="#c5cce0" stroke-width="10"/></g>
+ <path d="M83 185q40-40 77-6t77-5v42H83" fill="#9ad6b8"/>
+ <g fill="#f7ffff" opacity=".8"><path d="M93 97q0-12 14-10 8-14 19-1 16-1 17 11z"/><path d="M181 159q0-10 13-8 8-12 18 0 10-2 11 8z"/></g>
+ <g stroke="#9b8bbf" stroke-width="3" stroke-linejoin="round"><path d="M935 88h211v14H935z" fill="#c7b5e2"/><path d="M955 88V24h26v64" fill="#f9c970"/><path d="M985 88V14h32v74" fill="#9bd7db"/><path d="M1020 88V33h28v55" fill="#ee9cb2"/><path d="m1054 84 20-65 26 8-20 64z" fill="#b9b2f0"/><path d="M962 37h12m19-6h16m18 17h14" stroke="#fff8e9" stroke-width="4"/></g>
+ <g stroke="#68a495" stroke-width="3"><path d="M1095 312v-67m0 33-17-19m17-1 18-21"/><path d="M1093 267c-37 0-34-34-10-27l13 20c-8-36 23-47 26-23-2 14-15 24-27 26" fill="#81d5ae"/><path d="M1069 286h49l-7 40h-35z" fill="#f5a89b"/></g>
+ <path d="M0 308q300-12 600 0t600-1v153H0z" fill="url(#clue-table)"/>
+ <path d="M0 307q300-12 600 0t600-1" stroke="#fff4cb" stroke-width="8"/>
+ <g stroke="#d3ac70" stroke-linecap="round" opacity=".45"><path d="M0 347h170m-50 25h86m778-27h216m-130 38h130M32 423h171m741 2h206" stroke-width="3"/><path d="M24 381h40m810 14h33" stroke-width="2"/></g>
+ <g transform="rotate(-8 117 338)" stroke="#8e8ab3" stroke-width="3" stroke-linejoin="round"><rect x="38" y="292" width="139" height="80" rx="12" fill="#c1b6ec"/><rect x="49" y="281" width="139" height="80" rx="12" fill="#fffcf0"/><path d="M68 302h72m-72 14h94m-94 14h49" stroke="#c3cce3" stroke-width="4"/></g>
+ <g transform="rotate(12 1010 350)" stroke="#a68165" stroke-width="2"><path d="m966 339 99 0 19 7-19 7h-99z" fill="#f5be61"/><path d="M1065 339v14m-91-14v14"/><path d="m1084 346-8-3v6z" fill="#617e9f"/><path d="M966 339h10v14h-10z" fill="#ee9ba6"/></g>
+</svg>

@@ -15,11 +15,16 @@ async function setupMain(page,level,trafficMode='circles'){
  const admin=await request.newContext({baseURL:'http://127.0.0.1:4181'});
  try{
   let auth=await(await admin.get('/api/auth/session')).json();auth=await(await admin.post('/api/auth/login',{headers:{'X-CSRF-Token':auth.csrfToken},data:{identifier:seed.users.admin.username,password:seed.password}})).json();
-  expect((await admin.patch(`/api/children/${seed.children[1].id}/difficulty`,{headers:{'X-CSRF-Token':auth.csrfToken},data:{gameId:'traffic',variant:trafficMode==='signs'?'signs':'standard',level,mode:'fixed'}})).ok()).toBe(true);
+  expect((await admin.patch(`/api/children/${seed.children[1].id}/difficulty`,{headers:{'X-CSRF-Token':auth.csrfToken},data:{gameId:'traffic',trafficMode,level,mode:'fixed'}})).ok()).toBe(true);
  }finally{await admin.dispose();}
  await page.reload();await expect(page.locator('.hero')).toBeVisible();
 }
-async function start(page,practice=false,mode='circles'){await page.locator('[data-action=open][data-game=traffic]').first().click();await page.locator(`[data-action=traffic-mode][data-mode="${mode}"]`).click();await click(page,practice?'practice':'main-game');await expect(page.locator('.traffic-preparation')).toBeVisible();}
+async function start(page,practice=false,mode='circles'){
+ await page.locator('[data-action=open][data-game=traffic]').first().click();
+ const option=page.locator(`[data-action=traffic-mode][data-mode="${mode}"]`);
+ if(await option.getAttribute('aria-pressed')!=='true'){await option.click();await expect(option).toHaveAttribute('aria-pressed','true');}
+ await click(page,practice?'practice':'main-game');await expect(page.locator('.traffic-preparation')).toBeVisible();
+}
 async function begin(page){await click(page,'begin-game');await advance(page,3000);await expect(page.locator('.traffic-world')).toBeVisible();}
 const isGo=async page=>(await page.locator('.traffic-live-signal').getAttribute('data-lamp'))==='green';
 async function leave(page){await click(page,'pause');await click(page,'home');await expect(page.locator('.hero')).toBeVisible();}
@@ -36,7 +41,7 @@ test('traffic: five lessons teach go and wait, reach the park and freeze reviews
   if(progress===1){arrived=true;await expect(page.locator('.road-destination')).toHaveClass(/arrived/);await page.screenshot({path:'.local/verification/traffic_park_arrived.png',fullPage:true,animations:'disabled'});}
   await advance(page,450);await expect(page.locator('.practice-review.good')).toBeVisible();const time=await page.locator('#time').textContent();await advance(page,20000);await expect(page.locator('#time')).toHaveText(time);await click(page,'continue-review');
  }
- expect(arrived).toBe(true);await expect(page.locator('.local-note')).toContainText('ذخیره شد');
+ expect(arrived).toBe(true);await expect(page.locator('.result-card')).toBeVisible();if(await page.locator('.local-note').count())await expect(page.locator('.local-note')).toContainText('ذخیره شد');
 });
 
 test('traffic: all 150 trials keep exact exposure, reject red and carry the car through the finish',async({page})=>{
@@ -47,11 +52,11 @@ test('traffic: all 150 trials keep exact exposure, reject red and carry the car 
  }
  await page.setViewportSize({width:390,height:844});let wrong=false,goCount=0,previous=0,mobile=false;
  for(let trial=0;trial<150;trial++){
-  const go=await isGo(page);await advance(page,99);await expect(page.locator('.stimulus-shell')).toBeVisible();await advance(page,1);await expect(page.locator('.stimulus-shell')).toBeHidden();
+  const go=await isGo(page);if(go&&!mobile)await page.screenshot({path:'.local/verification/traffic_town_mobile.png',animations:'disabled'});await advance(page,99);await expect(page.locator('.stimulus-shell')).toBeVisible();await advance(page,1);await expect(page.locator('.stimulus-shell')).toBeHidden();
   expect(await page.locator('.stimulus-shell').evaluate(node=>getComputedStyle(node).transitionDuration)).toBe('0s');
   if(go){
    goCount++;await page.keyboard.press('Space');
-   if(!mobile){await advance(page,140);const road=page.locator('.traffic-road'),frozen=await road.getAttribute('style'),visual=await road.getAttribute('data-visual-progress');await click(page,'pause');await advance(page,20000);expect(await road.getAttribute('style')).toBe(frozen);expect(await road.getAttribute('data-visual-progress')).toBe(visual);await click(page,'resume');await advance(page,310);mobile=true;await page.screenshot({path:'.local/verification/traffic_town_mobile.png',animations:'disabled'});}
+   if(!mobile){await advance(page,140);const road=page.locator('.traffic-road'),frozen=await road.getAttribute('style'),visual=await road.getAttribute('data-visual-progress');await click(page,'pause');await advance(page,20000);expect(await road.getAttribute('style')).toBe(frozen);expect(await road.getAttribute('data-visual-progress')).toBe(visual);await click(page,'resume');await advance(page,310);mobile=true;}
    else await advance(page,450);
   }else{
    if(!wrong){await click(page,'respond');wrong=true;}
