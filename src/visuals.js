@@ -1,6 +1,7 @@
 import { COLORS, COLOR_NAMES } from './config.js';
 import { arkBoatArt, arkOutcomeArt } from './ark-art.js';
 import { spaceShipArt, spaceOutcomeArt } from './space-art.js';
+import { memoryToyBody } from './nback-stimuli.js';
 
 const ink = '#34443d';
 const svg = (body, viewBox = '0 0 64 64', cls = '') => `<svg class="${cls}" viewBox="${viewBox}" xmlns="http://www.w3.org/2000/svg" fill="none" aria-hidden="true">${body}</svg>`;
@@ -62,7 +63,7 @@ export function symbol(stimulus, cls = '') {
   const fill = COLORS[color] || color;
   if (shape === 'word') return `<span class="word-stimulus ${cls}" style="color:${fill}">${COLOR_NAMES[word]}</span>`;
   if (shape.startsWith('digit-')) return svg(`<text x="32" y="48" text-anchor="middle" font-size="48" font-weight="750" fill="${fill}">${shape.slice(6)}</text>`, '0 0 64 64', `symbol ${cls}`);
-  if (shape.startsWith('toy-')) return equipment(shape.slice(4)).replace(/class="equipment[^"]*"/, `class="symbol ${cls}"`);
+  if (shape.startsWith('toy-')) { const toy=memoryToyBody(shape.slice(4));return toy?svg(toy,'0 0 64 64',`symbol ${cls}`):equipment(shape.slice(4)).replace(/class="equipment[^"]*"/, `class="symbol ${cls}"`); }
   if (shape.startsWith('letter-')) {
     const letters={F:'M19 52V12H46M19 31H40',E:'M19 52V12H46M19 31H40M19 52H46',L:'M19 12V52H46',P:'M19 52V12H33C52 12 52 33 33 33H19',R:'M19 52V12H33C52 12 52 33 33 33H19M33 33L48 52'};
     const marks=[[],[14],[31],[50],[14,31],[31,50],[14,50]][detail]||[];
