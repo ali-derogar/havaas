@@ -6,7 +6,7 @@ test('visual worlds match the selected family and retain abstract backgrounds at
  assert.equal(worldFor({gameId:'ark'}),WORLD_ASSETS.ark);assert.equal(worldFor({gameId:'space'}),WORLD_ASSETS.space);
  assert.equal(worldFor({gameId:'hunt',theme:'fish',level:'medium'}),WORLD_ASSETS.pond);
  for(const theme of ['star','butterfly'])assert.equal(worldFor({gameId:'hunt',theme}),WORLD_ASSETS.meadow);
- assert.equal(worldFor({gameId:'hunt',theme:'bird'}),WORLD_ASSETS.ark);
+ assert.equal(worldFor({gameId:'hunt',theme:'bird'}),WORLD_ASSETS.birdShore);
  assert.equal(worldFor({gameId:'hunt',theme:'fish',level:'hard'}),null);assert.equal(worldFor({gameId:'hunt',theme:'shape'}),null);
  assert.equal(worldBackground({gameId:'ark'},WORLD_ASSETS.space),'');assert.ok(worldBackground({gameId:'ark'},WORLD_ASSETS.ark).includes('world-backdrop'));
 });

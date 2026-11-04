@@ -17,6 +17,22 @@ export function vehiclePose(gameId,elapsedMs,limitMs=60000){
     thrust:.82+.18*Math.sin(elapsed/90),wave:Math.sin(elapsed/1700)*15};
 }
 
+export function arkSceneryPose(elapsedMs){
+  const t=Math.max(0,elapsedMs);
+  return {
+    '--ark-cloud-far':`${Math.sin(t/70000)*35}px`,
+    '--ark-cloud-near':`${Math.sin(t/45000)*50}px`,
+    '--ark-gull-x':`${590+Math.sin(t/15000)*120}px`,
+    '--ark-gull-y':`${48+Math.sin(t/2500)*8}px`,
+    '--ark-gull-second-x':`${640+Math.sin(t/15000)*120}px`,
+    '--ark-gull-second-y':`${65+Math.sin(t/2500+1)*8}px`,
+    '--ark-wing-flap':String(.65+Math.sin(t/180)*.3),
+    '--ark-flag-skew':`${Math.sin(t/340)*5}deg`,
+    '--ark-surf-y':`${Math.sin(t/1600)*2}px`,
+    '--ark-glint':String(.55+Math.sin(t/1300)*.2),
+  };
+}
+
 export class ForwardMotion {
   constructor(){this.from=0;this.to=0;this.startedAt=0;}
   value(now){return this.from+(this.to-this.from)*easeOut((now-this.startedAt)/420);}
@@ -59,6 +75,9 @@ export class PlayMotion {
       vehicle.style.transform=reduced?'none':`translateY(${pose.y}px) rotate(${pose.angle}deg)`;
       vehicle.style.setProperty('--thrust-scale',String(reduced?1:pose.thrust));
       panel.style.setProperty('--wave-shift',`${reduced?0:pose.wave}px`);
+    }
+    if(session.gameId==='ark'&&panel.querySelector('.ark-panorama')){
+      for(const [property,value] of Object.entries(arkSceneryPose(reduced?0:elapsed)))panel.style.setProperty(property,value);
     }
     const road=panel.querySelector('.traffic-road');
     if(road){

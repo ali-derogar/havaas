@@ -1,0 +1,204 @@
+/* Hope Shore: a self-contained visual world for the first adventure. */
+body[data-screen=play]:has(.play-panel[data-game=ark]) {
+  background:radial-gradient(ellipse at 12% 8%,#c4f4e5,transparent 48%),radial-gradient(ellipse at 90% 70%,#c4eaff,transparent 55%),#f0fbff;
+}
+.play-panel[data-game=ark] { --exercise-color:#119eaa; border:2px solid #87ced8; border-radius:24px; background:#fffaf0; box-shadow:0 16px 45px #226d8226; }
+.play-panel[data-game=ark]>.play-hud { background:linear-gradient(115deg,#148fa5,#087986); border:0; padding:15px 25px; color:#fff; }
+.play-panel[data-game=ark]>.play-hud span { color:#d8ffff; font-size:12px; }
+.play-panel[data-game=ark]>.play-hud b { color:#fff; font-size:22px; }
+.play-panel[data-game=ark] #hits { color:#087b85; background:#effffa; border-color:#8ee5c9; }
+.play-panel[data-game=ark]>.progress-track { height:5px; background:#cdf2e4; }
+.play-panel[data-game=ark]>.progress-track>span { background:#ffcf51; }
+.play-panel[data-game=ark]>.instruction-strip { background:#f2fffc; border-color:#c4e8df; min-height:48px; font-size:15px; color:#376d77; }
+.play-panel[data-game=ark]>.instruction-strip b { color:#17676d; }
+.play-panel[data-game=ark]>.arena { background:#fffcf4; border:0; }
+.play-panel[data-game=ark]>.play-controls { background:linear-gradient(#fffdf5,#fff5d9); border-top:2px solid #e6ce96; padding:17px 24px; }
+.play-panel[data-game=ark]>.feedback { background:#fff5d9; color:#3a6c73; font-size:14px; }
+.play-panel[data-game=ark] .ark-time-track { height:4px; background:#f8e7ba; }
+.play-panel[data-game=ark] .ark-time-track>span { background:linear-gradient(90deg,#ffc84a,#14c7a0); }
+.play-panel[data-game=ark] .ark-mission-brief { margin:18px 20px 14px; padding:14px 18px 10px; border:1px solid #e6d7b2; border-radius:18px; background:#fffdf4; box-shadow:0 3px 0 #eadfbe42; }
+.ark-mission-heading { display:flex; align-items:center; gap:11px; }
+.ark-mission-mark { display:grid; place-items:center; flex-shrink:0; width:43px; height:43px; color:#128f87; background:#d9f8e9; border-radius:14px; transform:rotate(5deg); }
+.ark-mission-mark>.icon { width:27px; height:27px; }
+.ark-mission-heading>div { display:flex; flex-direction:column; gap:2px; }
+.ark-mission-heading small { font-size:11px; color:#7b8f82; }
+.play-panel[data-game=ark] .ark-mission-heading b { font-size:19px; color:#285b65; }
+.ark-mission-count { margin-right:auto; direction:ltr; color:#118c82; background:#e4f9ed; border:1px solid #a8dfc5; border-radius:22px; padding:4px 14px; font-weight:800; font-size:17px; white-space:nowrap; }
+.play-panel[data-game=ark] .ark-mission-brief .mission-checklist { margin-top:12px; gap:8px; }
+.play-panel[data-game=ark] .ark-mission-brief .mission-need { flex-direction:row; justify-content:flex-start; padding:8px 9px; background:#fff9e8; border-color:#eddfbb; border-radius:12px; }
+.play-panel[data-game=ark] .ark-mission-brief .need-symbol { width:30px; height:30px; flex-shrink:0; }
+.play-panel[data-game=ark] .ark-mission-brief .need-copy { color:#52746b; font-size:11px; }
+.play-panel[data-game=ark] .ark-mission-brief .need-state { top:-4px; inset-inline-end:-3px; }
+.play-panel[data-game=ark] .ark-mission-brief .mission-need.packed { background:#dff8e8; border-color:#62c99a; }
+.play-panel[data-game=ark] .mission-story { border:0; background:none; padding:0; margin:5px 0 0; }
+.play-panel[data-game=ark] .mission-story>summary { font-size:11px; min-height:22px; color:#6f897c; }
+.play-panel[data-game=ark] .mission-story p { font-size:14px; }
+.play-panel[data-game=ark] .ark-world { margin:0 20px; min-height:0; border:1px solid #dec897; border-radius:22px 22px 0 0; background:#fbe8b6; overflow:hidden; }
+.ark-panorama { position:relative; height:195px; overflow:hidden; isolation:isolate; background:linear-gradient(#8ee3f4 55%,#3acbd1 56%,#a4edd2); }
+.ark-panorama>.world-backdrop { z-index:-2; object-position:center 70%; }
+.ark-atmosphere { position:absolute; inset:0; width:100%; height:100%; pointer-events:none; }
+.ark-shore-sign { position:absolute; top:24px; right:8%; display:flex; flex-direction:column; align-items:center; gap:3px; transform:rotate(-3deg); color:#186f83; text-shadow:0 2px 0 #ffffff80; }
+.ark-shore-sign>span { font-size:11px; letter-spacing:.3px; }
+.ark-shore-sign>strong { font-size:34px; font-weight:900; line-height:1.8; }
+.ark-shore-sign>small { font-size:12px; background:#ffffefc9; padding:4px 14px; border:1px solid #ffffffbf; border-radius:20px; }
+.play-panel[data-game=ark] .ark-panorama>.scene-vehicle { width:280px; height:174px; bottom:0; left:7%; opacity:1; z-index:1; }
+.ark-boat-art { filter:drop-shadow(0 5px 3px #20799730); }
+.ark-pennant { transform-origin:169px 26px; transform:skewY(var(--ark-flag-skew,0deg)); }
+.ark-cloud-far { transform:translateX(var(--ark-cloud-far,0px)); }
+.ark-cloud-near { transform:translateX(var(--ark-cloud-near,0px)); }
+.ark-gull-wings { transform:scaleY(var(--ark-wing-flap,1)); }
+.ark-gull { transform:translate(var(--ark-gull-x,610px),var(--ark-gull-y,47px)); }
+.ark-gull.second { transform:translate(var(--ark-gull-second-x,650px),var(--ark-gull-second-y,66px)); }
+.ark-water-glints { opacity:var(--ark-glint,.7); transform:translateX(var(--wave-shift,0px)); }
+.ark-surf { transform:translate(var(--wave-shift,0px),var(--ark-surf-y,0px)); }
+.play-panel[data-game=ark] .ark-world .scene-heading { display:flex; align-items:center; justify-content:space-between; gap:12px; background:linear-gradient(#fff0c9,#fff0c900); color:#486d69; padding:13px 24px 6px; font-size:14px; text-shadow:none; }
+.play-panel[data-game=ark] .ark-world .scene-heading>span { margin:0; opacity:1; color:#7d896a; font-size:11px; }
+.play-panel[data-game=ark] .ark-world .scene-heading>.ark-find-cue { display:inline-flex; align-items:center; gap:8px; color:#3b7271; font-size:15px; font-weight:700; }
+.ark-find-cue>.icon { width:22px; height:22px; }
+.play-panel[data-game=ark] .ark-world .object-grid { padding:16px 28px 24px; min-height:300px; gap:19px 28px; background-image:radial-gradient(#d6ae6b55 .8px,transparent .8px); background-size:29px 31px; }
+.play-panel[data-game=ark] .ark-world .scene-object { min-height:85px; border:0; border-radius:24px; padding:6px 4px; gap:3px; background:radial-gradient(ellipse at 50% 65%,#fff9dfb3,transparent 74%); box-shadow:none; transform:rotate(var(--shore-turn,0deg)); touch-action:manipulation; }
+.play-panel[data-game=ark] .ark-world .scene-object::before { content:''; position:absolute; bottom:17px; left:20%; right:20%; height:8px; background:#a9773840; border-radius:50%; filter:blur(3px); z-index:-1; }
+.play-panel[data-game=ark] .ark-world .scene-object>.equipment { width:62px; height:62px; filter:drop-shadow(0 2px 0 #fff8d7) drop-shadow(0 3px 1px #97794d35) saturate(1.3); transition:transform .18s ease; }
+.play-panel[data-game=ark] .ark-world .scene-object>span { font-size:12px; line-height:1.7; color:#4f6e65; font-weight:650; white-space:normal; background:none; padding:0 4px; }
+.play-panel[data-game=ark] .ark-world .scene-object:hover:not(:disabled) { background:#fffaf0b3; }
+.play-panel[data-game=ark] .ark-world .scene-object:hover:not(:disabled)>.equipment { transform:translateY(-4px) rotate(4deg) scale(1.08); }
+.play-panel[data-game=ark] .ark-world .scene-object:focus-visible { background:#fffae6; outline:3px solid #139eac; outline-offset:3px; }
+.play-panel[data-game=ark] .ark-world .scene-object.collected { opacity:1; border:0; background:none; }
+.play-panel[data-game=ark] .ark-world .scene-object.collected>.equipment { opacity:.12; filter:grayscale(1); }
+.play-panel[data-game=ark] .ark-world .scene-object.collected>span { opacity:0; }
+.play-panel[data-game=ark] .ark-world .scene-object.collected>.icon { top:24px; width:27px; height:27px; border-radius:50%; color:#fff; background:#1ab78a; border:3px solid #fff9dd; padding:3px; box-sizing:content-box; }
+.play-panel[data-game=ark] .ark-world .scene-object.rejected { opacity:.35; background:none; }
+.play-panel[data-game=ark] .ark-world .scene-object.rejected>.equipment { filter:grayscale(.7); }
+.play-panel[data-game=ark] .ark-world .scene-object.rejected>.icon { position:absolute; width:23px; height:23px; color:#9a7635; background:#fff0c4; border:2px solid #e7bf67; border-radius:50%; padding:3px; }
+.play-panel[data-game=ark] .scene-object[data-effect=rejected] { animation:none; }
+.play-panel[data-game=ark] .scene-object[data-effect=rejected]>.equipment { animation:ark-reconsider .25s ease-in-out; }
+.play-panel[data-game=ark] .ark-world .scattered-objects { padding:0; margin:12px 30px 18px; min-height:var(--field-height-desktop); height:var(--field-height-desktop); }
+.play-panel[data-game=ark] .ark-world .scattered-objects .scene-object { width:80px; min-height:78px; height:78px; left:var(--object-desktop-x); top:var(--object-desktop-y); transform:translate(-50%,-50%) rotate(var(--object-angle)); }
+.play-panel[data-game=ark] .ark-world .scattered-objects .scene-object>.equipment { width:62px; height:62px; }
+.play-panel[data-game=ark] .ark-world .scattered-objects .scene-object>span { position:absolute; inset-inline:-8px; bottom:-9px; padding:2px 5px; background:#fffdf3f2; color:#486d66; border-radius:7px; font-size:11px; opacity:0; pointer-events:none; }
+.play-panel[data-game=ark] .ark-world .scattered-objects .scene-object:hover>span,.play-panel[data-game=ark] .ark-world .scattered-objects .scene-object:focus-visible>span { opacity:1; }
+.play-panel[data-game=ark] .ark-world.practice-scene .object-grid { min-height:210px; padding:20px 0 25px; }
+.play-panel[data-game=ark] .ark-world.practice-scene .scene-object { width:160px; min-height:150px; border-radius:32px; background:linear-gradient(150deg,#fffdf3,#fff2cb); border:2px solid #eac680; box-shadow:0 6px 0 #c99c4730,0 10px 24px #9e7f3420; transform:rotate(-4deg); }
+.play-panel[data-game=ark] .ark-world.practice-scene .scene-object>.equipment { width:92px; height:92px; }
+.play-panel[data-game=ark] .ark-world.practice-scene .scene-object>span { font-size:17px; }
+.ark-sand-edge { position:relative; height:15px; background:linear-gradient(transparent,#ddbb7430); }
+.ark-sand-edge>i { position:absolute; bottom:5px; left:6%; width:16px; height:5px; background:#cead7466; border-radius:50%; }
+.ark-sand-edge>i:nth-child(2) { left:63%; width:10px; }
+.ark-sand-edge>i:nth-child(3) { left:90%; width:21px; }
+.play-panel[data-game=ark] .inventory>span { color:#4f736e; font-size:13px; }
+.play-panel[data-game=ark] .inventory>span>b { font-size:15px; color:#197d78; }
+.play-panel[data-game=ark] .inventory-slot { width:45px; height:45px; background:#fffbec; border:2px dashed #cbb578; border-radius:13px; }
+.play-panel[data-game=ark] .inventory-slot.filled { background:#dff7e7; border:2px solid #37ba88; box-shadow:0 2px 0 #a1d6b6; }
+.play-panel[data-game=ark] .inventory-slot>.equipment { filter:saturate(1.4); }
+.play-panel[data-game=ark] .depart-button { min-height:59px; min-width:200px; font-size:18px; border-radius:17px; gap:11px; }
+.play-panel[data-game=ark] .depart-button:disabled { opacity:1; background:#eae6d5; border-color:#d1cbb3; box-shadow:0 3px 0 #ccc4a7; color:#899180; }
+.play-panel[data-game=ark] .depart-button:not(:disabled) { background:linear-gradient(#ffdc68,#ffbf40); color:#73501c; border:2px solid #f3b735; box-shadow:inset 0 2px 0 #fff1b8,0 4px 0 #c49228; outline:3px solid #ffc84a44; animation:ark-ready-button 1.9s ease-in-out infinite; }
+.play-panel[data-game=ark] .depart-button>.icon { width:26px; height:26px; }
+.play-panel[data-game=ark] .vehicle-ready>span { display:flex; align-items:center; gap:5px; white-space:nowrap; bottom:4px; right:20%; font-size:12px; background:#fff9dc; border:2px solid #36b791; color:#117b68; box-shadow:0 3px 8px #246f6b22; }
+.vehicle-ready .ark-pennant { fill:#31c79a; stroke:#198d75; }
+.play-panel[data-game=ark] .time-urgent #time { background:#fff0c7; color:#8a5015; padding:0 7px; }
+.play-panel[data-game=ark] .time-urgent>svg { color:#ffdc7c; }
+.play-panel[data-game=ark] .feedback.wrong { color:#8c6528; }
+
+/* The same illustration carries through the cover, teaching and arrival. */
+.ark-cover { background:#a7eadc; }
+.ark-cover::after { display:none; }
+.ark-cover>img { object-position:center 60%; filter:none; }
+.ark-cover>.ark-atmosphere { z-index:0; }
+.ark-cover-boat { position:absolute; width:61%; height:87%; left:6%; bottom:-3%; }
+.ark-cover-boat>.vehicle-art { width:100%; height:100%; }
+.ark-cover-label { position:absolute; top:12%; right:12%; font-size:clamp(12px,1.4vw,22px); font-weight:900; color:#1b7b89; text-shadow:0 1px 0 #edfff7; }
+.intro-art-bubble>.ark-cover { border-radius:28px; }
+.play-panel[data-game=ark] .ark-preparation { background:radial-gradient(ellipse at top,#e8fbf2,transparent 65%),#fffdf6; gap:18px; padding:30px 26px 24px; }
+.ark-preparation>.section-kicker { color:#208d86; font-size:13px; }
+.ark-preparation h2 { color:#215e69; font-weight:850; }
+.ark-preparation .preparation-samples { width:100%; }
+.ark-preparation .preparation-samples>.ark-cover { max-width:530px; height:185px; border:2px solid #9bd9d3; border-radius:25px; box-shadow:0 5px 0 #c4e9d8; }
+.ark-preparation-steps { display:flex; align-items:center; justify-content:center; gap:15px; margin:3px 0; }
+.ark-preparation-steps>span { display:flex; align-items:center; gap:8px; font-size:17px; color:#30716e; }
+.ark-preparation-steps>span>.icon { width:32px; height:32px; padding:8px; border-radius:16px; background:#e0f6e8; color:#159b86; box-sizing:content-box; }
+.ark-preparation-steps>span:nth-of-type(2)>.icon { color:#b58124; background:#fff0c4; }
+.ark-preparation-steps>span:nth-of-type(3)>.icon { color:#288eae; background:#e0f4fc; }
+.ark-preparation-steps>i { font-style:normal; font-size:23px; color:#a3bcb0; }
+.play-panel[data-game=ark] .ark-preparation .mission-needs-heading { color:#426f6a; font-size:18px; }
+.play-panel[data-game=ark] .ark-preparation .mission-needs-heading>small { font-size:13px; color:#7a9183; }
+.play-panel[data-game=ark] .ark-preparation .need-audio { border:2px solid #dfd2a9; background:#fffaf0; box-shadow:0 4px 0 #e8dbb8; border-radius:19px; }
+.play-panel[data-game=ark] .ark-preparation .need-audio.listening { border-color:#39bfa1; background:#e7fff1; }
+.play-panel[data-game=ark] .ark-preparation .need-copy { font-size:14px; color:#416f69; }
+.play-panel[data-game=ark] .ark-preparation .need-symbol { width:43px; height:43px; }
+.play-panel[data-game=ark] .ark-preparation .companion-guide { background:#fff9e9; border-color:#e9dbb5; }
+.play-panel[data-game=ark] .begin-button { min-height:60px; font-size:21px; }
+.result-card:has(>.mission-outcome-art.ark) { background:linear-gradient(#fffdf4,#effcf6); border:2px solid #a8dcd0; border-radius:28px; }
+.result-card>.mission-outcome-art.ark { max-width:600px; max-height:245px; border:2px solid #a2dcd2; border-radius:25px; }
+.mission-outcome-art.ark.departed .outcome-vehicle { animation:ark-sail 2.4s cubic-bezier(.2,.5,.35,1) both; }
+.mission-outcome-art.ark .ark-arrival-check { animation:cue-arrive .5s .3s ease-out both; transform-origin:0 0; }
+.ark-celebration { animation:ark-celebrate 1.7s ease-out both; }
+@keyframes ark-ready-button { 50% { box-shadow:inset 0 2px 0 #fff1b8,0 4px 0 #c49228,0 0 0 6px #ffd35833; } }
+@keyframes ark-sail { from { transform:translateX(-65px); } to { transform:translateX(48px); } }
+@keyframes ark-celebrate { from { opacity:0; transform:translateY(12px); } 35% { opacity:1; } to { opacity:1; transform:none; } }
+@keyframes ark-reconsider { 30% { transform:rotate(-8deg); } 70% { transform:rotate(8deg); } }
+@media(max-width:767px) {
+  .play-panel[data-game=ark] { border-radius:19px; }
+  .play-panel[data-game=ark]>.play-hud { padding:11px 14px; }
+  .play-panel[data-game=ark]>.play-hud span { font-size:10px; }
+  .play-panel[data-game=ark]>.play-hud b { font-size:18px; }
+  .play-panel[data-game=ark]>.instruction-strip { font-size:13px; min-height:44px; padding:8px 12px; }
+  .play-panel[data-game=ark] .ark-mission-brief { margin:10px 10px; padding:10px 12px 6px; border-radius:15px; }
+  .ark-mission-mark { width:33px; height:33px; border-radius:11px; }
+  .ark-mission-mark>.icon { width:23px; height:23px; }
+  .ark-mission-heading { gap:8px; }
+  .ark-mission-heading small { font-size:10px; }
+  .play-panel[data-game=ark] .ark-mission-heading b { font-size:16px; }
+  .ark-mission-count { font-size:14px; padding:4px 10px; }
+  .play-panel[data-game=ark] .ark-mission-brief .mission-checklist { gap:6px; margin-top:9px; }
+  .play-panel[data-game=ark] .ark-mission-brief .mission-need { padding:5px 1px; justify-content:center; border-radius:10px; }
+  .play-panel[data-game=ark] .ark-mission-brief .need-symbol { width:28px; height:28px; }
+  .play-panel[data-game=ark] .ark-world { margin:0 8px; border-radius:17px 17px 0 0; }
+  .ark-panorama { height:155px; }
+  .ark-panorama>.world-backdrop { object-position:64% 60%; }
+  .play-panel[data-game=ark] .ark-panorama>.scene-vehicle { width:175px; height:119px; bottom:0; }
+  .ark-shore-sign { right:6%; top:17px; gap:1px; }
+  .ark-shore-sign>span { font-size:8px; }
+  .ark-shore-sign>strong { font-size:24px; }
+  .ark-shore-sign>small { font-size:10px; padding:3px 9px; max-width:145px; }
+  .play-panel[data-game=ark] .ark-world .scene-heading { padding:10px 12px 5px; gap:6px; }
+  .play-panel[data-game=ark] .ark-world .scene-heading>.ark-find-cue { font-size:12px; gap:5px; }
+  .ark-find-cue>.icon { width:18px; height:18px; }
+  .play-panel[data-game=ark] .ark-world .scene-heading>span { font-size:9px; }
+  .play-panel[data-game=ark] .ark-world .object-grid { grid-template-columns:repeat(4,minmax(0,1fr)); padding:13px 13px 18px; gap:16px 8px; min-height:0; }
+  .play-panel[data-game=ark] .ark-world .scene-object { min-height:72px; padding:3px 0; border-radius:16px; }
+  .play-panel[data-game=ark] .ark-world .scene-object>.equipment { width:49px; height:49px; }
+  .play-panel[data-game=ark] .ark-world .scene-object>span { font-size:10px; }
+  .play-panel[data-game=ark] .ark-world .scattered-objects { margin:8px 20px 16px; padding:0; height:var(--field-height-mobile); min-height:var(--field-height-mobile); }
+  .play-panel[data-game=ark] .ark-world .scattered-objects .scene-object { width:54px; height:54px; min-height:54px; left:var(--object-mobile-x); top:var(--object-mobile-y); transform:translate(-50%,-50%) rotate(var(--object-angle)); }
+  .play-panel[data-game=ark] .ark-world .scattered-objects .scene-object>.equipment { width:49px; height:49px; }
+  .play-panel[data-game=ark] .ark-world .scene-object.collected>.icon { width:20px; height:20px; top:13px; border-width:2px; }
+  .play-panel[data-game=ark] .ark-world.practice-scene .object-grid { min-height:190px; padding:20px 0; }
+  .play-panel[data-game=ark] .ark-world.practice-scene .scene-object { width:144px; min-height:140px; }
+  .play-panel[data-game=ark] .ark-world.practice-scene .scene-object>.equipment { width:82px; height:82px; }
+  .play-panel[data-game=ark] .ark-world.practice-scene .scene-object>span { font-size:16px; }
+  .play-panel[data-game=ark]>.play-controls { padding:12px 13px max(13px,env(safe-area-inset-bottom)); }
+  .play-panel[data-game=ark] .inventory { gap:7px; }
+  .play-panel[data-game=ark] .inventory>span { font-size:11px; }
+  .play-panel[data-game=ark] .inventory>span>b { font-size:13px; }
+  .play-panel[data-game=ark] .inventory>div { gap:4px; }
+  .play-panel[data-game=ark] .inventory-slot { width:32px; height:36px; border-radius:10px; padding:3px; }
+  .play-panel[data-game=ark] .depart-button { min-height:51px; font-size:17px; }
+  .play-panel[data-game=ark] .vehicle-ready>span { font-size:10px; right:8%; bottom:0; }
+  .play-panel[data-game=ark] .ark-preparation { padding:22px 14px 18px; gap:16px; }
+  .ark-preparation h2 { font-size:23px; }
+  .ark-preparation>.section-kicker { font-size:11px; }
+  .ark-preparation .preparation-samples>.ark-cover { height:155px; border-radius:21px; }
+  .ark-preparation-steps { gap:8px; width:100%; }
+  .ark-preparation-steps>span { flex-direction:column; gap:6px; font-size:13px; }
+  .ark-preparation-steps>span>.icon { width:26px; height:26px; padding:9px; border-radius:15px; }
+  .ark-preparation-steps>i { font-size:19px; }
+  .play-panel[data-game=ark] .ark-preparation .need-copy { font-size:12px; }
+  .play-panel[data-game=ark] .ark-preparation .need-audio { min-height:105px; border-radius:15px; padding-inline:4px; }
+  .play-panel[data-game=ark] .ark-preparation .need-symbol { width:37px; height:37px; }
+  .play-panel[data-game=ark] .begin-button { font-size:18px; width:100%; }
+  .ark-cover-label { font-size:16px; }
+}
+@media(prefers-reduced-motion:reduce) {
+  .ark-cover *, .ark-preparation *, .mission-outcome-art.ark *, .play-panel[data-game=ark] * { animation:none!important; transition:none!important; }
+}

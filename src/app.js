@@ -6,6 +6,8 @@ import { GuidancePlayer, guidanceKey, lessonGuidanceKey } from './guidance.js';
 import {memoryLessonState,memoryLessonView,stroopRulePicture} from './learning-ui.js';
 import {capturePlayFocus,restorePlayFocus,moveFieldFocus} from './play-input.js';
 import {PlayMotion,animalPose,captureMotionSource,sceneAtmosphere} from './play-motion.js';
+import { arkScene } from './ark-ui.js';
+import { spaceScene } from './space-ui.js';
 import { huntPosition,huntOnScreen } from './games/hunt.js';
 import { accountView, loginView, importPreviewView, roleName, reportLinksView, passwordView } from './account-ui.js';
 import {adminShell,adminOverview,adminUsersView,createUserView,registrationView,invitationsView,userDetailsView,clientWelcome} from './dashboard-ui.js';
@@ -23,7 +25,7 @@ import { activeProfile, readClients, profileRecords, latestBaseline, validatePro
 import { describeStimulus } from './stimuli.js';
 import { recommendLevel, comparableRecords } from './core/reports.js';
 import { reportsView, assessmentView, variantLabel } from './client-ui.js';
-import { icon, logo, art, heroArt, symbol, equipment, trophyArt, sceneBackground, huntBackground, missionOutcomeArt, vehicleArt } from './visuals.js';
+import { icon, logo, art, heroArt, symbol, equipment, trophyArt, huntBackground, missionOutcomeArt } from './visuals.js';
 
 const app = document.querySelector('#app');
 const modal = document.querySelector('#modal');
@@ -382,10 +384,9 @@ function renderArena(game) {
     else arena.innerHTML = `${searchRounds(engine)}${searchTargetStatus(engine)}${searchBoard()}`;
     controls.innerHTML = `<span class="search-tip">${icon('info')} ${engine.preview ? 'هنوز گزینه‌ها نمایش داده نشدن.' : dual?`${fa(engine.found.size)} از ۲ هدف این دور پیدا شده؛ به جزئیات دقت کن.`:'روی شکل درست بزن؛ به جزئیات دقت کن.'}</span>`;
   } else {
-    instruction.innerHTML = `${icon('target')}<span>${engine.practice ? 'این وسیله برای سفر لازمه؟ <b>لازم است؟ «بردار»؛ لازم نیست؟ «دست نگه دار».</b>' : engine.ready ? '<b>کوله آماده‌ست! قبل از پایان زمان راهی شو.</b>' : `<b>${fa(engine.required.length)} وسیلهٔ ضروری</b> رو پیدا کن.${game.id==='space'?' اول موانع رو کنار بزن.':''}`}</span>`;
-    const items = engine.practice ? [engine.currentItem] : engine.items;
-    arena.innerHTML = `<div class="mission-time-track" aria-hidden="true"><span id="mission-time-fill"></span></div><div class="mission-brief"><b>${engine.mission.title}</b>${engine.practice?'<p>برای سفر لازم است؟</p>':`${missionChecklist(engine)}<details class="companion-guide mission-story"><summary>داستان سفر</summary><p>${engine.mission.story}</p></details>`}</div><div class="adventure-scene ${game.id} ${engine.level} ${loadedWorld?'illustrated-world':''} ${engine.practice?'practice-scene':''}">${sceneBackground(game.id,engine.level)}${worldBackground(engine,loadedWorld)}${sceneAtmosphere(game.id)}<div class="scene-heading">${game.id==='space'?'ایستگاه فضایی حواس':'ساحل امید'} <span>${engine.practice?'آموزش انتخاب وسایل':'وسایل رو با دقت بررسی کن'}</span></div><div class="object-grid ${selectedLevel} ${engine.scattered?'scattered-objects':''}" ${engine.scattered?`style="--field-height-desktop:${engine.fieldHeights.desktop}px;--field-height-mobile:${engine.fieldHeights.mobile}px"`:""}>${items.map(item=>`<button class="scene-object ${item.collected?'collected':''} ${item.rejected?'rejected':''} ${item.blocked?'blocked':''}" data-action="item" data-index="${item.id}" ${item.layout?`style="--object-desktop-x:${item.layout.desktop.x}%;--object-desktop-y:${item.layout.desktop.y}%;--object-mobile-x:${item.layout.mobile.x}%;--object-mobile-y:${item.layout.mobile.y}%;--object-angle:${item.layout.angle}deg;--object-layer:${item.layout.layer}"`:""} aria-label="${item.blocked?'کنار زدن مانع':item.name}${item.collected?'، در کوله قرار گرفت':''}" ${item.collected||item.rejected?'disabled':''}>${equipment(item.blocked?'obstacle':item.icon)}<span>${item.blocked?'کنار بزن':item.name}</span>${item.blocked?'<b class="obstacle-plus">+</b>':''}${item.collected?icon('check'):''}</button>`).join('')}</div><div class="scene-vehicle ${engine.ready?'vehicle-ready':''}">${vehicleArt(game.id)}${engine.ready?'<span>آمادهٔ حرکت!</span>':''}</div></div>`;
-    controls.innerHTML = engine.practice ? `<button class="button response-button collect-button" data-action="item" data-index="${engine.currentItem.id}" ${engine.currentItem.blocked?'disabled':''}>${icon('bag')} بردار</button><button class="button wait-button" data-action="reject-item" ${engine.currentItem.blocked?'disabled':''}>${icon('wait')} دست نگه دار</button>` : `${missionInventory(engine)}<button class="button primary depart-button" data-action="depart" ${engine.ready?'':'disabled'}>${game.id==='space'?'پرتاب سفینه':'سوار کشتی شو'} ${icon('arrow')}</button>`;
+    instruction.innerHTML = `${icon('target')}<span>${engine.practice ? 'این وسیله برای سفر لازمه؟ <b>لازم است؟ «بردار»؛ لازم نیست؟ «دست نگه دار».</b>' : engine.ready ? (game.id==='space'?'<b>سفینه آماده‌ست! حالا پرتاب کن.</b>':'<b>کوله آماده‌ست! قبل از پایان زمان راهی شو.</b>') : `<b>${fa(engine.required.length)} وسیلهٔ ضروری</b> رو پیدا کن.${game.id==='space'?' اول موانع رو کنار بزن.':''}`}</span>`;
+    arena.innerHTML=game.id==='ark'?arkScene(engine,missionChecklist(engine)):spaceScene(engine,missionChecklist(engine));
+    controls.innerHTML = engine.practice ? `<button class="button response-button collect-button" data-action="item" data-index="${engine.currentItem.id}" ${engine.currentItem.blocked?'disabled':''}>${icon('bag')} بردار</button><button class="button wait-button" data-action="reject-item" ${engine.currentItem.blocked?'disabled':''}>${icon('wait')} دست نگه دار</button>` : `${missionInventory(engine)}<button class="button primary depart-button" data-action="depart" ${engine.ready?'':'disabled'}>${icon(game.id==='space'?'rocket':engine.ready?'check':'bag')}${game.id==='space'?'پرتاب سفینه':'سوار کشتی شو'} ${icon('arrow')}</button>`;
   }
 }
 

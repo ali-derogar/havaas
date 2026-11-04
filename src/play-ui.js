@@ -8,6 +8,8 @@ import { STROOP_RULES } from './games/stroop.js';
 import { EQUIPMENT_NEEDS, EQUIPMENT_REASONS } from './games/adventure.js';
 import { guidanceKey } from './guidance.js';
 import { stroopRulePicture } from './learning-ui.js';
+import { arkEquipment } from './ark-ui.js';
+import { spaceEquipment } from './space-ui.js';
 
 const fa = value => Number(value).toLocaleString('fa-IR');
 const tokens = values => values.map(value=>`<span class="ready-token">${symbol(value)}</span>`).join('');
@@ -17,9 +19,9 @@ export function trafficRulePicture(signs=false) {
 }
 
 export function missionInventory(session) {
-  return `<div class="inventory"><span>${icon('bag')} کولهٔ تو <b>${fa(session.metrics.hits)} از ${fa(session.required.length)}</b></span><div>${session.required.map(([name])=>{
+  return `<div class="inventory"><span>${icon(session.gameId==='space'?'rocket':'bag')} ${session.gameId==='space'?'تجهیزات سفینه':'کولهٔ تو'} <b>${fa(session.metrics.hits)} از ${fa(session.required.length)}</b></span><div>${session.required.map(([name])=>{
     const item=session.items.find(item=>item.icon===name&&item.collected);
-    return `<span class="inventory-slot ${item?'filled':''}" data-equipment="${name}" role="img" aria-label="${item?`${item.name}، آماده شد`:`${EQUIPMENT_NEEDS[name]}، هنوز آماده نشده`}">${item?equipment(name):needArt(name)}${item?icon('check'):''}</span>`;
+    return `<span class="inventory-slot ${item?'filled':''}" data-equipment="${name}" role="img" aria-label="${item?`${item.name}، آماده شد`:`${EQUIPMENT_NEEDS[name]}، هنوز آماده نشده`}">${item?(session.gameId==='ark'?arkEquipment(name):spaceEquipment(name)):needArt(name)}${item?icon('check'):''}</span>`;
   }).join('')}</div></div>`;
 }
 
@@ -32,6 +34,8 @@ export function stroopScorecard(session) {
   }).join('')}</div></div>`;
 }
 export function shortPrompt(session){
+  if(session.gameId==='ark')return 'وسایل سفر را پیدا کن';
+  if(session.gameId==='space')return 'سفینه را برای پرواز آماده کن';
   if(session.gameId==='hunt')return session.targets?.length===2?'هر دو نمونه را پیدا کن و بزن':'مثل نمونه را پیدا کن و بزن';
   if(session.gameId==='traffic')return session.variant==='signs'?'فلش آبی: بزن؛ قرمز: صبر':'سبز: بزن؛ قرمز: صبر';
   if(session.gameId==='search')return session.targetCount===2?'هر دو را حفظ کن، هر دو را پیدا کن':'نگاه کن، حفظ کن، پیدا کن';
@@ -76,6 +80,8 @@ export function preparationView(session) {
     tip=session.practice?'پنج وسیله را یکی‌یکی بررسی کن؛ وسیلهٔ ضروری را بردار و برای بقیه «دست نگه دار» را بزن.':`نیازهای این سفر را برطرف کن و قبل از پایان زمان ${id==='space'?'سفینه را پرتاب کن. مانع‌ها را اول کنار بزن.':'سوار کشتی شو.'}`;
   }
   const key=guidanceKey({...session,targetCount:session.targets?.length||session.targetCount});
+  if(id==='space')return `<div class="game-preparation space-preparation"><span class="section-kicker">فضانورد کوچک، نوبت توست!</span><h2>تا ستاره‌ها بریم؟</h2><div class="preparation-samples">${sample}</div><div class="space-preparation-steps" aria-label="سنگ را کنار بزن، وسایل لازم را بردار، سفینه را پرتاب کن"><span><i>${spaceEquipment('obstacle')}${icon('tap')}</i><b>کنار بزن</b></span><em aria-hidden="true">←</em><span><i>${icon('bag')}</i><b>بردار</b></span><em aria-hidden="true">←</em><span><i>${icon('rocket')}</i><b>پرتاب کن</b></span></div><div class="mission-needs-heading">برای پرواز چه لازم است؟<small>روی تصویر بزن و بشنو</small></div>${missionChecklist(session,{interactive:true})}${guideControl(key)}<details class="companion-guide"><summary>راهنمای همراه</summary><h3>${title}</h3><p>${text}</p><p>${tip}</p><p>اگر روی وسیله سنگ بود، اول روی سنگ بزن؛ بعد وسیلهٔ نمایان‌شده را بررسی کن.</p></details>${session.practice?'<small class="guided-note">پنج تمرین، با فرصت یادگیری</small>':''}</div>`;
+  if(id==='ark')return `<div class="game-preparation ark-preparation"><span class="section-kicker">یک کوله، یک کشتی، یک ماجراجویی</span><h2>آماده‌ای راهی سفر شویم؟</h2><div class="preparation-samples">${sample}</div><div class="ark-preparation-steps" aria-label="وسایل را پیدا کن، در کوله بگذار، سوار کشتی شو"><span>${icon('eye')}<b>پیدا کن</b></span><i aria-hidden="true">←</i><span>${icon('bag')}<b>بردار</b></span><i aria-hidden="true">←</i><span>${icon('arrow')}<b>راهی شو</b></span></div><div class="mission-needs-heading">برای این سفر چه لازم است؟<small>روی تصویر بزن و بشنو</small></div>${missionChecklist(session,{interactive:true})}${guideControl(key)}<details class="companion-guide"><summary>راهنمای همراه</summary><h3>${title}</h3><p>${text}</p><p>${tip}</p></details>${session.practice?'<small class="guided-note">پنج تمرین، با فرصت یادگیری</small>':''}</div>`;
   return `<div class="game-preparation"><span class="section-kicker">اول آماده شو</span><h2>${shortPrompt(session)}</h2><div class="preparation-samples">${sample}</div><div class="visual-rule"><span class="do-cue">${icon('tap')}<b>بزن</b></span><span class="wait-cue">${icon('wait')}<b>صبر کن</b></span>${guideControl(key)}</div>${['ark','space'].includes(id)?`<div class="mission-needs-heading">برای سفر چه لازم است؟ <small>روی هر تصویر بزن و بشنو</small></div>${missionChecklist(session,{interactive:true})}`:''}<details class="companion-guide"><summary>راهنمای همراه</summary><h3>${title}</h3><p>${text}</p><p>${tip}</p>${id==='stroop'?'<p>مرحله‌های کلمه به توانایی خواندن نیاز دارند. راهنمای صوتی قانون را توضیح می‌دهد و کلمهٔ محرک را در بازی نمی‌خواند.</p>':''}</details>${session.practice?'<small class="guided-note">پنج تمرین، با فرصت یادگیری</small>':''}</div>`;
 }
 export function countdownView() {
@@ -102,7 +108,7 @@ export function reviewView(session) {
     sample=`<div class="review-targets">${tokens(review.targets)}</div>`;
   } else {
     const {item,outcome}=review;good=outcome.correct;label=item.required?'این وسیله لازم بود':'این وسیله ضروری نبود';
-    sample=`<span class="review-equipment">${equipment(item.icon)}</span>`;
+    sample=`<span class="review-equipment">${session.gameId==='ark'?arkEquipment(item.icon):spaceEquipment(item.icon)}</span>`;
     text=item.required?EQUIPMENT_REASONS[item.icon]:`${item.name} برای سرگرمی یا خانه خوب است، اما نیاز ضروری این مأموریت را برطرف نمی‌کند.`;
   }
   const expected=review.kind==='reaction'?review.trial.target:review.kind==='adventure'?review.item.required:true;
