@@ -26,7 +26,7 @@ export function spaceShipBody(){
 export const spaceShipArt=()=>svg(spaceShipBody(),'0 0 220 280','vehicle-art space-ship-art');
 
 export function spaceAtmosphere(){
-  return `<svg class="space-atmosphere" viewBox="0 0 1000 250" preserveAspectRatio="xMidYMid slice" aria-hidden="true">
+  return `<svg class="space-atmosphere" viewBox="0 0 1000 250" fill="none" preserveAspectRatio="xMidYMid slice" aria-hidden="true">
     <g class="space-twinkling-stars" fill="#e2eaff">${[75,184,296,413,538,653,772,890,958].map((x,i)=>`<path d="m${x} ${25+i%4*29} 1.5 4 4 1.5-4 1.5-1.5 4-1.5-4-4-1.5 4-1.5z"/>`).join('')}</g>
     <g class="space-satellite" stroke="#496697" stroke-width="1.7" stroke-linejoin="round"><path d="M-12-6h24v20h-24z" fill="#ffe196"/><path d="M-49-15h30v34h-30zm68 0h30v34H19z" fill="#6f90e0"/><path d="M-39-15v34m10-34v34m58-34v34m10-34v34M-49-4h30m-30 12h30m38-12h30m-30 12h30" stroke="#b3ccff"/><path d="M-19 2h7m24 0h7M0-6v-7l12-9"/><circle cx="12" cy="-22" r="3" fill="#a5f1ed" stroke="none"/></g>
     <path class="space-orbit-trail" d="M200 168Q400 35 647 68" stroke="#d5cbff" stroke-width="1.3" stroke-dasharray="4 7" opacity=".2"/>

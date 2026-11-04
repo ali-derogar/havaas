@@ -1,0 +1,168 @@
+/* Rainbow Town: presentation is scoped to traffic; cue timing stays in the engine. */
+body[data-screen=play]:has(.play-panel[data-game=traffic]) { background:radial-gradient(ellipse at 10% 10%,#caf4e8,transparent 50%),radial-gradient(ellipse at 90% 70%,#ffedc5,transparent 55%),#f0fbff; }
+.play-panel[data-game=traffic] { --exercise-color:#f0ad44; border:2px solid #8eced5; border-radius:24px; background:#fffcf2; box-shadow:0 16px 45px #467c8826; }
+.play-panel[data-game=traffic]>.play-hud { background:linear-gradient(115deg,#168eaa,#207c97); border:0; padding:15px 25px; color:#fff; }
+.play-panel[data-game=traffic]>.play-hud span { color:#d9f8ff; font-size:12px; }
+.play-panel[data-game=traffic]>.play-hud b { color:#fff; font-size:22px; }
+.play-panel[data-game=traffic] #hits { color:#168495; background:#f1fffa; border-color:#a0e7d3; }
+.play-panel[data-game=traffic]>.progress-track { height:5px; background:#d8efdf; }
+.play-panel[data-game=traffic]>.progress-track>span { background:#ffd05a; }
+.play-panel[data-game=traffic]>.instruction-strip { background:#f0fbf2; border-color:#c4e6d7; min-height:60px; padding:8px 20px; }
+.play-panel[data-game=traffic] .traffic-rule-picture { gap:22px; }
+.play-panel[data-game=traffic] .traffic-rule-picture>span { border:1px solid #d5eadd; border-radius:14px; padding:6px 15px; background:#fffefa; }
+.play-panel[data-game=traffic] .traffic-rule-picture b { font-size:18px; }
+.play-panel[data-game=traffic] .traffic-rule-picture .symbol { width:34px; height:34px; }
+.play-panel[data-game=traffic] .traffic-rule-picture .icon { width:27px; height:27px; }
+.play-panel[data-game=traffic]>.arena { background:linear-gradient(#fffdf5,#f3fcef); border:0; }
+.play-panel[data-game=traffic]>.play-controls { background:linear-gradient(#fff8e1,#fff1c5); border-top:2px solid #e7cb8a; padding:17px 24px; }
+.play-panel[data-game=traffic]>.feedback { background:#fff1c5; color:#437175; }
+.play-panel[data-game=traffic][data-phase=playing] { overflow:clip; }
+.play-panel[data-game=traffic][data-phase=playing]>.play-controls { position:sticky; bottom:0; z-index:15; box-shadow:0 -4px 16px #507b7b15; }
+.play-panel[data-game=traffic] .response-button { background:linear-gradient(#29c8a4,#0b9e83); border:2px solid #5ce0b6; box-shadow:inset 0 2px 0 #b5f7d9,0 4px 0 #077c6a; border-radius:19px; min-height:65px; min-width:220px; font-size:23px; }
+.play-panel[data-game=traffic] .response-button>.icon { width:35px; height:35px; }
+.play-panel[data-game=traffic] .keyboard-hint { color:#668981; }
+.play-panel[data-game=traffic] .reaction-stage.traffic-world { display:grid; grid-template-columns:160px minmax(0,1fr); grid-template-rows:auto 1fr; align-items:center; gap:9px 22px; height:auto; min-height:360px; padding:22px 22px 0; overflow:visible; isolation:isolate; direction:ltr; }
+.traffic-signal-area { display:flex; flex-direction:column; align-items:center; justify-content:center; gap:11px; grid-column:1; grid-row:1 / span 2; align-self:stretch; padding-bottom:15px; direction:rtl; }
+.play-panel[data-game=traffic] .traffic-signal-area>.stage-caption { position:static; font-size:15px; color:#477a83; margin:0; padding:0; font-weight:650; }
+.traffic-signal { position:relative; display:flex; align-items:center; flex-direction:column; filter:drop-shadow(0 5px 3px #355b6c19); }
+.traffic-signal-case { position:relative; width:110px; height:248px; border:3px solid #476e83; border-radius:30px; background:linear-gradient(110deg,#55768a,#2c4e66 65%); box-shadow:inset 4px 0 0 #8fa8ae66,inset -3px 0 0 #25455b,0 3px 0 #254e62; }
+.traffic-signal-case::before { content:''; position:absolute; inset:5px; border:1px solid #93adb04d; border-radius:23px; pointer-events:none; }
+.traffic-socket { position:absolute; width:62px; height:62px; left:21px; border-radius:50%; background:linear-gradient(150deg,#203e54,#36556b); border:2px solid #638296; box-shadow:inset 0 4px 4px #132e4b55; }
+.traffic-socket.red { top:20px; }
+.traffic-socket.amber { top:90px; }
+.traffic-socket.green { top:160px; }
+.traffic-signal-pole { display:block; height:23px; width:15px; background:linear-gradient(90deg,#66939b,#3c7280); border-inline:2px solid #497c8c; }
+.traffic-signal-base { display:block; height:9px; width:85px; border-radius:50%; background:#94b9ab; border:1px solid #76a297; }
+.traffic-look-hint { display:inline-flex; align-items:center; gap:6px; color:#78958b; font-size:12px; }
+.traffic-look-hint>.icon { width:19px; height:19px; }
+/* Every colored or reflective part of a live cue is inside .stimulus-shell.
+   Nothing animates its arrival, disappearance, opacity or size. */
+.play-panel[data-game=traffic] .traffic-live-signal { position:absolute; left:12px; top:11px; width:80px; height:80px; display:grid; place-items:center; transition:none; animation:none; }
+.play-panel[data-game=traffic] .light-mode .traffic-live-signal[data-lamp=green] { top:151px; }
+.play-panel[data-game=traffic] .traffic-live-signal .stimulus-tap { position:relative; display:block; width:80px; height:80px; min-height:0; padding:0; border:0; border-radius:50%; background:none; box-shadow:none; transform:none; transition:none; animation:none; }
+.play-panel[data-game=traffic] .traffic-live-signal .symbol { display:block; width:100%; height:100%; filter:none; transform:none; transition:none; animation:none; }
+.traffic-cue-halo { position:absolute; inset:11px; border-radius:50%; pointer-events:none; }
+.traffic-live-signal[data-lamp=green]>.traffic-cue-halo { box-shadow:0 0 22px 5px #45ecae66; }
+.traffic-live-signal[data-lamp=red]>.traffic-cue-halo { box-shadow:0 0 22px 5px #ff777066; }
+.traffic-cue-sheen { position:absolute; top:21px; left:23px; width:22px; height:12px; border-top:4px solid #ffffff8c; border-radius:50%; transform:rotate(-30deg); pointer-events:none; }
+.traffic-live-signal .stimulus-tap:focus-visible { outline:3px solid #ffe19a; outline-offset:2px; }
+.sign-mode .traffic-signal-case { width:140px; height:140px; border-radius:25px; }
+.traffic-sign-socket { position:absolute; inset:14px; background:#243f59; border:2px solid #65869b; border-radius:18px; box-shadow:inset 0 3px 5px #172b4466; }
+.play-panel[data-game=traffic] .sign-mode .traffic-live-signal { top:17px; left:17px; width:100px; height:100px; }
+.play-panel[data-game=traffic] .sign-mode .traffic-live-signal .stimulus-tap { width:100px; height:100px; border-radius:15px; }
+.sign-mode .traffic-cue-sheen { display:none; }
+.sign-mode .traffic-cue-halo { inset:11px; border-radius:15px; }
+.sign-mode .traffic-live-signal[data-lamp=green]>.traffic-cue-halo { box-shadow:0 0 18px 4px #8cc7ff55; }
+.traffic-route-heading { display:flex; align-items:center; justify-content:space-between; gap:12px; grid-column:2; grid-row:1; direction:rtl; padding:0 3px; }
+.traffic-route-heading>span:first-child { display:inline-flex; align-items:center; gap:7px; color:#3d747c; font-size:15px; font-weight:750; }
+.traffic-route-heading .icon { width:23px; height:23px; color:#bd8b2c; }
+.traffic-trip-note { font-size:11px; color:#7a9587; }
+.traffic-town { position:relative; grid-column:2; grid-row:2; width:100%; border:2px solid #a8d9ca; border-radius:22px 22px 0 0; overflow:hidden; isolation:isolate; direction:ltr; align-self:end; background:#c4e8b0; }
+.play-panel[data-game=traffic] .traffic-town>.traffic-road { display:block; width:100%; height:auto; max-width:none; max-height:none; min-width:0; margin:0; overflow:visible; transform:translateX(var(--traffic-camera-x,0px)); transition:none; }
+.traffic-road .car-chassis,.play-panel[data-response=good] .traffic-road .road-car { animation:none; }
+.traffic-road .road-destination { filter:none; }
+.traffic-road .destination-star { opacity:.35; }
+.traffic-road .road-destination.arrived .destination-star { opacity:1; filter:drop-shadow(0 0 5px #ffe889); }
+.traffic-road .road-destination.arrived .destination-pennant { fill:#ffde62; }
+.traffic-cover { background:#b4e9df; }
+.traffic-cover::after { display:none; }
+.traffic-cover>img { filter:none; object-position:center 35%; }
+.traffic-cover-art { position:absolute; inset:0; width:100%; height:100%; }
+.traffic-cover-label { position:absolute; top:9%; left:9%; font-size:clamp(12px,1.3vw,21px); color:#237c8c; font-weight:850; text-shadow:0 1px 0 #effff6; }
+.intro-art-bubble>.traffic-cover { border-radius:28px; }
+.play-panel[data-game=traffic] .traffic-preparation { background:radial-gradient(ellipse at top,#def8ee,transparent 65%),#fffdf6; padding:29px 26px 23px; gap:19px; }
+.play-panel[data-game=traffic] .traffic-preparation>.section-kicker { color:#278c87; font-size:13px; }
+.traffic-preparation h2 { color:#246672; font-size:30px; font-weight:850; }
+.traffic-preparation .preparation-samples { width:100%; }
+.traffic-preparation .preparation-samples>.traffic-cover { height:200px; max-width:530px; border:2px solid #a0d6cb; border-radius:25px; box-shadow:0 5px 0 #c7e9d8; }
+.traffic-preparation .traffic-rule-picture { gap:23px; }
+.play-panel[data-game=traffic] .traffic-preparation .traffic-rule-picture>span { gap:12px; padding:12px 20px; border-width:2px; min-width:170px; box-shadow:0 3px 0 #d8e9d8; }
+.play-panel[data-game=traffic] .traffic-preparation .traffic-rule-picture .symbol { width:52px; height:52px; }
+.play-panel[data-game=traffic] .traffic-preparation .traffic-rule-picture .icon { width:36px; height:36px; }
+.play-panel[data-game=traffic] .traffic-preparation .traffic-rule-picture b { font-size:22px; }
+.traffic-preparation-trip { display:flex; align-items:center; justify-content:center; gap:13px; color:#67867b; font-size:15px; }
+.traffic-preparation-trip>.icon { width:25px; height:25px; color:#328f88; }
+.play-panel[data-game=traffic] .traffic-preparation .companion-guide { background:#fff8e9; border-color:#e4d8b7; }
+.play-panel[data-game=traffic] .begin-button { min-height:60px; font-size:21px; }
+.play-panel[data-game=traffic] .practice-review { background:linear-gradient(#fffef5,#effbf1); }
+.play-panel[data-game=traffic] .review-badge { color:#137e6a; background:#d8f4e5; }
+.play-panel[data-game=traffic] .game-countdown { background:#f0fbf0; }
+.play-panel[data-game=traffic] .game-countdown>b { color:#1c9a8a; }
+.traffic-outcome { position:relative; max-width:620px; margin:0 auto 22px; overflow:hidden; border:2px solid #a0d3c5; border-radius:25px; background:#d8f2cf; }
+.traffic-outcome>.traffic-road { display:block; width:100%; height:auto; }
+.traffic-arrival-badge { position:absolute; bottom:7%; right:11%; width:43px; height:43px; display:grid; place-items:center; border:3px solid #fff8ce; border-radius:50%; color:#fff4b4; background:#26b792; font-size:26px; box-shadow:0 3px 8px #2f7c6333; animation:traffic-arrival .55s ease-out both; }
+.result-card:has(>.traffic-outcome) { background:linear-gradient(#fffdf5,#effbf3); border:2px solid #abd8ca; border-radius:28px; }
+@keyframes traffic-arrival { from { opacity:0; transform:scale(.5); } to { opacity:1; transform:none; } }
+@media(max-width:767px) {
+ .play-panel[data-game=traffic] { border-radius:19px; }
+ .play-panel[data-game=traffic]>.play-hud { padding:10px 14px; }
+ .play-panel[data-game=traffic]>.play-hud span { font-size:10px; }
+ .play-panel[data-game=traffic]>.play-hud b { font-size:18px; }
+ .play-panel[data-game=traffic]>.instruction-strip { min-height:52px; padding:7px 9px; }
+ .play-panel[data-game=traffic] .traffic-rule-picture { gap:9px; }
+ .play-panel[data-game=traffic] .traffic-rule-picture>span { gap:6px; padding:4px 9px; }
+ .play-panel[data-game=traffic] .traffic-rule-picture .symbol { width:27px; height:27px; }
+ .play-panel[data-game=traffic] .traffic-rule-picture .icon { width:23px; height:23px; }
+ .play-panel[data-game=traffic] .traffic-rule-picture b { font-size:16px; }
+ .play-panel[data-game=traffic] .reaction-stage.traffic-world { display:block; min-height:0; padding:10px 10px 0; }
+ .traffic-signal-area { padding-bottom:0; gap:6px; }
+ .play-panel[data-game=traffic] .traffic-signal-area>.stage-caption { font-size:12px; }
+ .traffic-signal-case { width:90px; height:184px; border-radius:24px; }
+ .traffic-signal-case::before { border-radius:18px; }
+ .traffic-socket { width:50px; height:50px; left:17px; }
+ .traffic-socket.red { top:10px; }
+ .traffic-socket.amber { top:63px; }
+ .traffic-socket.green { top:116px; }
+ .play-panel[data-game=traffic] .traffic-live-signal { width:64px; height:64px; left:10px; top:3px; }
+ .play-panel[data-game=traffic] .traffic-live-signal .stimulus-tap { width:64px; height:64px; }
+ .play-panel[data-game=traffic] .light-mode .traffic-live-signal[data-lamp=green] { top:109px; }
+ .traffic-cue-halo { inset:9px; }
+ .traffic-cue-sheen { top:17px; left:19px; width:17px; height:10px; border-top-width:3px; }
+ .traffic-signal-pole { height:13px; width:12px; }
+ .traffic-signal-base { height:6px; width:71px; }
+ .traffic-look-hint { display:none; }
+ .sign-mode .traffic-signal-case { width:128px; height:128px; }
+ .play-panel[data-game=traffic] .sign-mode .traffic-live-signal { width:94px; height:94px; left:14px; top:14px; }
+ .play-panel[data-game=traffic] .sign-mode .traffic-live-signal .stimulus-tap { width:94px; height:94px; }
+ .traffic-route-heading { margin:8px 0 5px; padding:0 4px; min-height:23px; }
+ .traffic-route-heading>span:first-child { gap:5px; font-size:12px; }
+ .traffic-route-heading .icon { width:19px; height:19px; }
+ .traffic-trip-note { font-size:9px; }
+ .traffic-town { height:180px; border-radius:16px 16px 0 0; }
+ .play-panel[data-game=traffic] .traffic-town>.traffic-road { width:620px; height:300px; min-width:620px; transform:translate(var(--traffic-camera-x,0px),-105px); }
+ .play-panel[data-game=traffic]>.play-controls { padding:12px 12px max(14px,env(safe-area-inset-bottom)); gap:8px; }
+ .play-panel[data-game=traffic] .response-button { min-width:200px; min-height:58px; font-size:21px; }
+ .play-panel[data-game=traffic] .response-button>.icon { width:30px; height:30px; }
+ .play-panel[data-game=traffic][data-phase=playing] .keyboard-hint { display:none; }
+ .play-panel[data-game=traffic] .traffic-preparation { padding:22px 14px 18px; gap:17px; }
+ .play-panel[data-game=traffic] .traffic-preparation>.section-kicker { font-size:11px; }
+ .traffic-preparation h2 { font-size:25px; }
+ .traffic-preparation .preparation-samples>.traffic-cover { height:160px; border-radius:21px; }
+ .play-panel[data-game=traffic] .traffic-preparation .traffic-rule-picture { gap:10px; flex-wrap:nowrap; }
+ .play-panel[data-game=traffic] .traffic-preparation .traffic-rule-picture>span { gap:6px; padding:10px 9px; min-width:0; border-radius:15px; }
+ .play-panel[data-game=traffic] .traffic-preparation .traffic-rule-picture .symbol { width:39px; height:39px; }
+ .play-panel[data-game=traffic] .traffic-preparation .traffic-rule-picture .icon { width:27px; height:27px; }
+ .play-panel[data-game=traffic] .traffic-preparation .traffic-rule-picture b { font-size:18px; }
+ .traffic-preparation-trip { gap:8px; font-size:12px; }
+ .traffic-preparation-trip>.icon { width:22px; height:22px; }
+ .play-panel[data-game=traffic] .begin-button { font-size:18px; width:100%; }
+ .traffic-cover-label { font-size:15px; }
+ .traffic-arrival-badge { width:31px; height:31px; font-size:20px; }
+}
+@media(max-height:760px) and (max-width:767px) {
+ .play-panel[data-game=traffic] .traffic-signal-area>.stage-caption { font-size:11px; }
+ .traffic-signal-case { width:78px; height:160px; border-radius:22px; }
+ .traffic-socket { width:42px; height:42px; left:15px; }
+ .traffic-socket.red { top:8px; }
+ .traffic-socket.amber { top:56px; }
+ .traffic-socket.green { top:104px; }
+ .play-panel[data-game=traffic] .traffic-live-signal { width:56px; height:56px; left:8px; top:1px; }
+ .play-panel[data-game=traffic] .traffic-live-signal .stimulus-tap { width:56px; height:56px; }
+ .play-panel[data-game=traffic] .light-mode .traffic-live-signal[data-lamp=green] { top:97px; }
+ .traffic-cue-sheen { top:15px; left:17px; width:14px; }
+ .traffic-town { height:167px; }
+ .play-panel[data-game=traffic] .traffic-town>.traffic-road { transform:translate(var(--traffic-camera-x,0px),-116px); }
+}
+@media(prefers-reduced-motion:reduce) {
+ .traffic-cover *, .traffic-preparation *, .traffic-outcome *, .play-panel[data-game=traffic] * { animation:none!important; transition:none!important; }
+}

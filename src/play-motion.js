@@ -1,5 +1,6 @@
 import {ActiveClock} from './core/session.js';
 import {icon} from './visuals.js';
+import {TRAFFIC_TRAVEL} from './traffic-art.js';
 
 const clamp=value=>Math.max(0,Math.min(1,value));
 const easeOut=value=>1-(1-clamp(value))**3;
@@ -30,6 +31,19 @@ export function arkSceneryPose(elapsedMs){
     '--ark-flag-skew':`${Math.sin(t/340)*5}deg`,
     '--ark-surf-y':`${Math.sin(t/1600)*2}px`,
     '--ark-glint':String(.55+Math.sin(t/1300)*.2),
+  };
+}
+
+export function spaceSceneryPose(elapsedMs){
+  const t=Math.max(0,elapsedMs);
+  return {
+    '--space-satellite-x':`${490+Math.sin(t/14000)*95}px`,
+    '--space-satellite-y':`${47+Math.sin(t/3300)*7}px`,
+    '--space-satellite-turn':`${-14+Math.sin(t/5500)*9}deg`,
+    '--space-stars':String(.55+Math.sin(t/1800)*.18),
+    '--space-beacon':String(.72+Math.sin(t/1000)*.25),
+    '--space-orbit-offset':String(-t/250),
+    '--space-engine-opacity':String(.75+Math.sin(t/180)*.2),
   };
 }
 
@@ -79,13 +93,19 @@ export class PlayMotion {
     if(session.gameId==='ark'&&panel.querySelector('.ark-panorama')){
       for(const [property,value] of Object.entries(arkSceneryPose(reduced?0:elapsed)))panel.style.setProperty(property,value);
     }
+    if(session.gameId==='space'&&panel.querySelector('.space-panorama')){
+      for(const [property,value] of Object.entries(spaceSceneryPose(reduced?0:elapsed)))panel.style.setProperty(property,value);
+    }
     const road=panel.querySelector('.traffic-road');
     if(road){
       const target=Number(road.dataset.progress)||0,visual=this.traffic.sample(target,elapsed,reduced);
       road.dataset.visualProgress=String(visual);road.dataset.moving=String(target-visual>.00001);
-      road.querySelector('.road-car')?.setAttribute('transform',`translate(${375*visual} 0)`);
+      road.querySelector('.road-car')?.setAttribute('transform',`translate(${TRAFFIC_TRAVEL*visual} 0)`);
       road.querySelectorAll('.car-wheel').forEach((wheel,i)=>wheel.setAttribute('transform',`rotate(${visual*3600} ${i?123:64} 79)`));
       const chassis=road.querySelector('.car-chassis');if(chassis)chassis.style.transform=`translateY(${reduced?0:-Math.sin(clamp((elapsed-this.traffic.startedAt)/420)*Math.PI)*2}px)`;
+      const town=road.closest('.traffic-town'),cameraRoom=Math.max(0,(road.clientWidth||0)-(town?.clientWidth||0));
+      road.style.setProperty('--traffic-camera-x',`${town?-cameraRoom*visual:0}px`);
+      road.querySelector('.town-cloud-drift')?.setAttribute('transform',`translate(${reduced?0:Math.sin(elapsed/17000)*9} 0)`);
     }
     this.updateEffects();
   }
@@ -100,7 +120,7 @@ export class PlayMotion {
   }
   burst(source,kind='good'){
     if(!source||this.reduced)return;
-    const node=this.document.createElement('div');node.className=`choice-burst ${kind}`;
+    const node=this.document.createElement('div');node.className=`choice-burst ${kind}${kind==='cleared'&&source.picture?.classList.contains('space-rock')?' rock-burst':''}`;
     node.innerHTML=`<span class="burst-ring"></span>${Array.from({length:kind==='wrong'?4:7},(_,i)=>`<i style="--spark-color:${['#ffca3a','#1bcba0','#53b8ff','#b16af0'][i%4]}"></i>`).join('')}<b>${icon(kind==='wrong'?'repeat':kind==='cleared'?'spark':'check')}</b>`;
     const point=center(source.rect);node.style.left=`${point.x}px`;node.style.top=`${point.y}px`;
     this.addEffect(node,{kind:'burst',duration:650,tone:kind});

@@ -1,0 +1,236 @@
+/* Orbit Station: its colors and motion are scoped to the second adventure. */
+body[data-screen=play]:has(.play-panel[data-game=space]) { background:radial-gradient(ellipse at 10% 10%,#293770,transparent 55%),radial-gradient(ellipse at 90% 60%,#413173,transparent 55%),#141f44; }
+body:has(.play-panel[data-game=space]) .play-heading h1 { color:#e8f6ff; }
+body:has(.play-panel[data-game=space]) .play-heading .section-kicker { color:#a9c9ed; }
+body:has(.play-panel[data-game=space]) .play-footnote { color:#adc6e9; }
+.play-panel[data-game=space] { --exercise-color:#74a6f7; background:#1c2a52; border:2px solid #5977ad; border-radius:25px; box-shadow:0 16px 55px #080e2d66,0 0 40px #8075ff12; }
+.play-panel[data-game=space]>.play-hud { background:linear-gradient(115deg,#30457c,#3c3f7f); border:0; padding:15px 25px; color:#fff; }
+.play-panel[data-game=space]>.play-hud span { color:#c9dafa; font-size:12px; }
+.play-panel[data-game=space]>.play-hud b { color:#f2fcff; font-size:22px; }
+.play-panel[data-game=space] #hits { color:#315a9a; background:#e4faff; border-color:#8bdde8; }
+.play-panel[data-game=space]>.progress-track { height:5px; background:#2d4070; }
+.play-panel[data-game=space]>.progress-track>span { background:linear-gradient(90deg,#b99bff,#6ae2e1); }
+.play-panel[data-game=space]>.instruction-strip { background:#233861; border-color:#45618c; min-height:48px; font-size:15px; color:#c5e0f6; }
+.play-panel[data-game=space]>.instruction-strip b { color:#a0fff0; }
+.play-panel[data-game=space]>.instruction-strip>.icon { color:#8adbe9; }
+.play-panel[data-game=space]>.arena { background:#1d2b53; border:0; }
+.play-panel[data-game=space]>.play-controls { background:linear-gradient(#2a3c6b,#23365e); border-top:2px solid #6477a3; padding:17px 24px; }
+.play-panel[data-game=space]>.feedback { background:#23365e; color:#c2daef; font-size:14px; }
+.play-panel[data-game=space] .space-time-track { height:4px; background:#2e3d68; }
+.play-panel[data-game=space] .space-time-track>span { background:linear-gradient(90deg,#ac93ff,#6bdfdc); }
+.play-panel[data-game=space] .space-mission-brief { margin:17px 20px 14px; padding:13px 18px 9px; border:1px solid #526b98; border-radius:18px; background:linear-gradient(115deg,#293b67,#2c386a); box-shadow:inset 0 1px 0 #8fa4d21c; }
+.space-mission-heading { display:flex; align-items:center; gap:11px; }
+.space-mission-mark { display:grid; place-items:center; flex-shrink:0; width:43px; height:43px; color:#a4eff4; background:#365783; border:1px solid #6387b5; border-radius:15px; transform:rotate(-7deg); }
+.space-mission-mark>.icon { width:27px; height:27px; }
+.space-mission-heading>div { display:flex; flex-direction:column; gap:2px; }
+.space-mission-heading small { color:#a6bddf; font-size:11px; }
+.play-panel[data-game=space] .space-mission-heading b { font-size:19px; color:#e9f6ff; }
+.space-mission-count { margin-right:auto; direction:ltr; color:#9bf1df; background:#244e62; border:1px solid #518c99; border-radius:22px; padding:4px 14px; font-size:17px; font-weight:800; white-space:nowrap; }
+.play-panel[data-game=space] .space-mission-brief .mission-checklist { margin-top:12px; gap:8px; }
+.play-panel[data-game=space] .space-mission-brief .mission-need { flex-direction:row; justify-content:flex-start; padding:8px 9px; background:#20345c; border-color:#4c6590; border-radius:12px; }
+.play-panel[data-game=space] .space-mission-brief .need-symbol { width:31px; height:31px; flex-shrink:0; }
+.play-panel[data-game=space] .space-mission-brief .need-copy { color:#c4d8f1; font-size:11px; }
+.play-panel[data-game=space] .space-mission-brief .need-state { top:-4px; inset-inline-end:-3px; color:#cadcf5; background:#455c8c; }
+.play-panel[data-game=space] .space-mission-brief .mission-need.packed { background:#215a63; border-color:#55bea8; }
+.play-panel[data-game=space] .space-mission-brief .mission-need.packed>.need-state { background:#269e8b; color:#fff; }
+.play-panel[data-game=space] .mission-story { border:0; background:none; padding:0; margin:5px 0 0; }
+.play-panel[data-game=space] .mission-story>summary { font-size:11px; min-height:22px; color:#acc3e3; }
+.play-panel[data-game=space] .mission-story p { color:#d4e6f8; font-size:14px; }
+.play-panel[data-game=space] .space-world { margin:0 20px; min-height:0; border:1px solid #5f7daf; border-radius:22px 22px 0 0; background:#2c3c6b; overflow:hidden; }
+.space-panorama { position:relative; height:235px; isolation:isolate; overflow:hidden; background:linear-gradient(#252c64,#3a4c7d); }
+.space-panorama>.world-backdrop { z-index:-2; object-position:center 50%; }
+.space-atmosphere { position:absolute; inset:0; width:100%; height:100%; pointer-events:none; }
+.space-twinkling-stars { opacity:var(--space-stars,.7); }
+.space-satellite { transform:translate(var(--space-satellite-x,500px),var(--space-satellite-y,45px)) rotate(var(--space-satellite-turn,-14deg)) scale(.65); }
+.space-beacons { opacity:var(--space-beacon,.8); }
+.space-orbit-trail { stroke-dashoffset:var(--space-orbit-offset,0); }
+.space-station-sign { position:absolute; top:21px; right:7%; display:flex; flex-direction:column; align-items:center; gap:3px; color:#e7f7ff; text-shadow:0 2px 6px #101c4c80; }
+.space-station-sign>span { color:#bfcaee; font-size:11px; }
+.space-station-sign>strong { font-size:33px; font-weight:900; line-height:1.8; }
+.space-station-sign>small { display:flex; align-items:center; gap:7px; font-size:12px; background:#1c315dcc; color:#d0efff; border:1px solid #708abb; border-radius:20px; padding:4px 13px; }
+.space-station-sign>small>i { width:6px; height:6px; border-radius:50%; background:#ffd987; box-shadow:0 0 7px #ffd98755; }
+.space-world[data-ready=true] .space-station-sign>small { color:#abffdd; border-color:#6bd3bc; background:#154d60; }
+.space-world[data-ready=true] .space-station-sign>small>i { background:#75f9ce; }
+.space-charge { position:absolute; right:10%; bottom:14px; display:flex; gap:5px; direction:rtl; padding:5px 9px; background:#1d2d53ba; border:1px solid #526b98; border-radius:20px; }
+.space-charge>i { width:15px; height:5px; border-radius:3px; background:#53658f; }
+.space-charge>i.charged { background:#76f2cd; box-shadow:0 0 5px #62d6c14d; }
+.play-panel[data-game=space] .space-panorama>.scene-vehicle { width:150px; height:192px; bottom:-2px; left:6%; z-index:1; opacity:1; }
+.space-ship-art { overflow:visible; filter:drop-shadow(0 3px 4px #09143255); }
+.play-panel[data-game=space] .space-world .scene-vehicle .launch-flame,.space-cover .launch-flame,.mission-outcome-art.space .launch-flame { display:initial; transform-origin:110px 205px; transform:scaleY(var(--thrust-scale,1)); filter:drop-shadow(0 0 5px #62d9f3aa); }
+.space-engine-glow { opacity:var(--space-engine-opacity,.6); }
+.space-world[data-ready=true] .space-engine-glow { opacity:1; }
+.space-world[data-ready=true] .launch-flame { filter:drop-shadow(0 0 7px #81f5e7)!important; }
+.play-panel[data-game=space] .space-world .scene-heading { display:flex; align-items:center; justify-content:space-between; gap:12px; padding:13px 24px 7px; background:linear-gradient(#3d4d7b,#34436f00); color:#d9e9fb; text-shadow:none; border-top:1px solid #8ca3d05c; }
+.play-panel[data-game=space] .space-world .scene-heading>span { color:#acbfdf; font-size:11px; margin:0; opacity:1; }
+.play-panel[data-game=space] .space-world .scene-heading>.space-find-cue { display:inline-flex; align-items:center; gap:8px; color:#d4f7fc; font-size:15px; font-weight:700; }
+.space-find-cue>.icon { width:22px; height:22px; color:#8fe4ed; }
+.play-panel[data-game=space] .space-world .object-grid { padding:17px 28px 24px; min-height:300px; gap:19px 28px; background-image:radial-gradient(ellipse at 25% 25%,#6671b52b,transparent 65%),linear-gradient(#8199cb0e 1px,transparent 1px),linear-gradient(90deg,#8199cb0e 1px,transparent 1px); background-size:auto,43px 43px,43px 43px; }
+.play-panel[data-game=space] .space-world .scene-object { min-height:85px; border:0; padding:6px 4px; gap:3px; border-radius:23px; background:radial-gradient(ellipse at center,#9cbaee15,transparent 75%); box-shadow:none; transform:rotate(var(--space-item-turn,0deg)); touch-action:manipulation; }
+.play-panel[data-game=space] .space-world .scene-object::before { content:''; position:absolute; bottom:15px; left:16%; right:16%; height:8px; background:#13224b5c; border-radius:50%; filter:blur(3px); z-index:-1; }
+.play-panel[data-game=space] .space-world .scene-object>.equipment { width:63px; height:63px; filter:drop-shadow(0 1px 1px #d1edff77) drop-shadow(0 4px 2px #0c1a3f66) saturate(1.15); transition:transform .18s ease; }
+.play-panel[data-game=space] .space-world .scene-object>span { font-size:12px; color:#e2edff; font-weight:650; white-space:normal; line-height:1.7; background:none; padding:0 4px; text-shadow:0 1px 3px #101b3d; }
+.play-panel[data-game=space] .space-world .scene-object:hover:not(:disabled) { background:#bbddff24; }
+.play-panel[data-game=space] .space-world .scene-object:hover:not(:disabled)>.equipment { transform:translateY(-4px) rotate(4deg) scale(1.08); }
+.play-panel[data-game=space] .space-world .scene-object:focus-visible { background:#b4ddff2e; outline:3px solid #93eaf0; outline-offset:3px; }
+.play-panel[data-game=space] .space-world .scene-object.collected { opacity:1; border:0; background:none; }
+.play-panel[data-game=space] .space-world .scene-object.collected>.equipment { opacity:.13; filter:grayscale(1); }
+.play-panel[data-game=space] .space-world .scene-object.collected>span { opacity:0; }
+.play-panel[data-game=space] .space-world .scene-object.collected>.icon { position:absolute; top:24px; width:27px; height:27px; padding:3px; border:3px solid #71dac1; border-radius:50%; color:#e2fff3; background:#267d7e; box-sizing:content-box; }
+.play-panel[data-game=space] .space-world .scene-object.rejected { opacity:.3; background:none; }
+.play-panel[data-game=space] .space-world .scene-object.rejected>.equipment { filter:grayscale(.6); }
+.play-panel[data-game=space] .space-world .scene-object.rejected>.icon { position:absolute; width:23px; height:23px; color:#ffe1a3; background:#6d5c65; border:2px solid #c4a16b; border-radius:50%; padding:3px; }
+.play-panel[data-game=space] .space-world .scene-object.blocked { background:radial-gradient(ellipse,#9ba2d438,transparent 72%); }
+.play-panel[data-game=space] .space-world .obstacle-plus { position:absolute; top:-2px; right:0; display:grid; place-items:center; width:26px; height:26px; border:2px solid #cfb27c; border-radius:50%; background:#ffdfa0; color:#6c5686; padding:3px; box-shadow:0 2px 6px #11244b55; }
+.play-panel[data-game=space] .space-world .obstacle-plus>.icon { width:17px; height:17px; }
+.play-panel[data-game=space] .scene-object[data-effect=cleared]>.equipment { animation:space-uncover .4s ease-out; }
+.play-panel[data-game=space] .scene-object[data-effect=rejected] { animation:none; }
+.play-panel[data-game=space] .scene-object[data-effect=rejected]>.equipment { animation:space-reconsider .25s ease-in-out; }
+.play-panel[data-game=space] .space-world .scattered-objects { padding:0; margin:12px 30px 18px; height:var(--field-height-desktop); min-height:var(--field-height-desktop); }
+.play-panel[data-game=space] .space-world .scattered-objects .scene-object { width:80px; height:78px; min-height:78px; left:var(--object-desktop-x); top:var(--object-desktop-y); transform:translate(-50%,-50%) rotate(var(--object-angle)); background:radial-gradient(ellipse,#a3c3f017,transparent 75%); }
+.play-panel[data-game=space] .space-world .scattered-objects .scene-object:hover:not(:disabled) { background:#bbddff24; }
+.play-panel[data-game=space] .space-world .scattered-objects .scene-object:is(.collected,.rejected) { background:none; }
+.play-panel[data-game=space] .space-world .scattered-objects .scene-object>.equipment { width:63px; height:63px; }
+.play-panel[data-game=space] .space-world .scattered-objects .scene-object>span { position:absolute; inset-inline:-8px; bottom:-9px; padding:2px 5px; background:#1a3159f2; color:#e4f7ff; border-radius:7px; font-size:11px; opacity:0; pointer-events:none; }
+.play-panel[data-game=space] .space-world .scattered-objects .scene-object:hover>span,.play-panel[data-game=space] .space-world .scattered-objects .scene-object:focus-visible>span { opacity:1; }
+.play-panel[data-game=space] .space-world.practice-scene .object-grid { min-height:212px; padding:20px 0 26px; }
+.play-panel[data-game=space] .space-world.practice-scene .scene-object { width:160px; min-height:150px; border:2px solid #779bc6; border-radius:30px; background:linear-gradient(145deg,#405a88,#31456f); box-shadow:0 5px 0 #192a4a66,inset 0 1px 0 #b6daff33,0 10px 25px #101b3c44; transform:rotate(-4deg); }
+.play-panel[data-game=space] .space-world.practice-scene .scene-object>.equipment { width:92px; height:92px; }
+.play-panel[data-game=space] .space-world.practice-scene .scene-object>span { font-size:17px; }
+.play-panel[data-game=space] .space-world.practice-scene .obstacle-plus { width:36px; height:36px; top:4px; right:4px; }
+.play-panel[data-game=space] .space-world.practice-scene .obstacle-plus>.icon { width:23px; height:23px; }
+.space-floor-edge { display:flex; justify-content:space-around; align-items:center; height:16px; background:linear-gradient(transparent,#1b2b53); border-bottom:1px solid #829bd033; }
+.space-floor-edge>i { width:13px; height:3px; background:#99c3dd66; border-radius:3px; }
+.play-panel[data-game=space] .inventory>span { color:#c2d9f4; font-size:12px; }
+.play-panel[data-game=space] .inventory>span>b { color:#a7f2df; font-size:15px; }
+.play-panel[data-game=space] .inventory-slot { width:45px; height:45px; background:#203259; border:2px dashed #708db5; border-radius:13px; }
+.play-panel[data-game=space] .inventory-slot.filled { background:#2c6174; border:2px solid #65d6bd; box-shadow:0 0 8px #77e0ca15; }
+.play-panel[data-game=space] .inventory-slot>.need-art { opacity:.9; }
+.play-panel[data-game=space] .inventory-slot>.icon { background:#259b89; }
+.play-panel[data-game=space] .depart-button { min-width:210px; min-height:59px; font-size:18px; border-radius:17px; gap:11px; }
+.play-panel[data-game=space] .depart-button>.icon { width:27px; height:27px; }
+.play-panel[data-game=space] .depart-button:disabled { opacity:1; color:#9daecf; background:#3d4b71; border:2px solid #596c96; box-shadow:0 3px 0 #1c2c50; }
+.play-panel[data-game=space] .depart-button:not(:disabled) { color:#f8ffff; background:linear-gradient(#29c9bb,#119a9e); border:2px solid #91efdb; box-shadow:inset 0 2px 0 #b7fff144,0 4px 0 #0e6a82; outline:3px solid #67ded333; animation:space-ready-pulse 2s ease-in-out infinite; }
+.play-panel[data-game=space] .vehicle-ready>span { display:flex; align-items:center; justify-content:center; gap:5px; bottom:0; right:0; width:100%; padding:3px 5px; color:#b3ffe4; background:#214967ed; border:1px solid #69d3bd; font-size:11px; white-space:nowrap; }
+.play-panel[data-game=space] .time-urgent #time { background:#ffe8b8; color:#824f2f; padding:0 7px; }
+.play-panel[data-game=space] .time-urgent>svg { color:#ffe1a3; }
+.choice-burst.rock-burst { color:#6bc9f5; }
+.choice-burst.rock-burst>i { width:12px; height:11px; background:#a6bce5; border-radius:0; clip-path:polygon(18% 0,80% 9%,100% 67%,40% 100%,0 60%); box-shadow:inset 3px 3px 0 #d7e2ff; }
+
+/* Cover and unscored teaching retain the same rocket and world. */
+.space-cover { background:#293361; }
+.space-cover::after { display:none; }
+.space-cover>img { filter:none; object-position:center 65%; }
+.space-cover-ship { position:absolute; width:37%; height:105%; left:15%; bottom:-9%; transform:rotate(12deg); }
+.space-cover-ship>.space-ship-art { width:100%; height:100%; }
+.space-cover-label { position:absolute; right:8%; top:20%; font-size:clamp(12px,1.4vw,22px); font-weight:850; color:#d4fcff; text-shadow:0 2px 4px #162a5b; }
+.intro-art-bubble>.space-cover { border-radius:28px; }
+.play-panel[data-game=space] .space-preparation { background:radial-gradient(ellipse at top,#41417a,transparent 65%),#21315b; gap:18px; padding:30px 26px 24px; }
+.play-panel[data-game=space] .space-preparation>.section-kicker { color:#b5d4fa; font-size:13px; }
+.space-preparation h2 { color:#e1faff; font-weight:850; }
+.space-preparation .preparation-samples { width:100%; }
+.space-preparation .preparation-samples>.space-cover { max-width:530px; height:190px; border:2px solid #7b8fbf; border-radius:24px; box-shadow:0 5px 0 #101e404d; }
+.space-preparation-steps { display:flex; align-items:center; justify-content:center; gap:15px; margin:3px 0; }
+.space-preparation-steps>span { display:flex; align-items:center; gap:9px; color:#d2e8fb; font-size:17px; }
+.space-preparation-steps>span>i { position:relative; display:grid; place-items:center; width:48px; height:48px; background:#3a4f80; border:1px solid #7792bd; border-radius:16px; font-style:normal; }
+.space-preparation-steps>span>i>.icon { width:31px; height:31px; color:#a8eceb; }
+.space-preparation-steps>span>i>.equipment { width:38px; height:38px; }
+.space-preparation-steps>span:first-child>i>.icon { position:absolute; width:18px; height:18px; bottom:-5px; left:-3px; color:#fff0c9; background:#795f86; border-radius:8px; padding:2px; }
+.space-preparation-steps>em { color:#8eadd2; font-style:normal; font-size:23px; }
+.play-panel[data-game=space] .space-preparation .mission-needs-heading { color:#d6eafb; font-size:18px; }
+.play-panel[data-game=space] .space-preparation .mission-needs-heading>small { color:#a6bfdc; font-size:13px; }
+.play-panel[data-game=space] .space-preparation .need-audio { background:#2f4773; border:2px solid #6a88b2; box-shadow:0 4px 0 #12234466; border-radius:19px; }
+.play-panel[data-game=space] .space-preparation .need-symbol { width:43px; height:43px; }
+.play-panel[data-game=space] .space-preparation .need-copy { color:#e0edff; font-size:14px; }
+.play-panel[data-game=space] .space-preparation .need-state { color:#d7e8ff; background:#45638f; }
+.play-panel[data-game=space] .space-preparation .need-audio>.icon { color:#9ee9ec; }
+.play-panel[data-game=space] .space-preparation .need-audio.listening { background:#246575; border-color:#7ae9d2; }
+.play-panel[data-game=space] .guide-audio-button { color:#daf6ff; background:linear-gradient(#3b5c88,#2b4973); border-color:#71aacb; box-shadow:0 3px 0 #142b4d; }
+.play-panel[data-game=space] .guide-audio-button.listening { color:#d7fff1; background:#246b73; border-color:#75d8bd; }
+.play-panel[data-game=space] .space-preparation .companion-guide { background:#293e68; border-color:#55739f; color:#cadff2; }
+.play-panel[data-game=space] .space-preparation .companion-guide p,.play-panel[data-game=space] .space-preparation .companion-guide h3 { color:#d9e6f5; }
+.play-panel[data-game=space] .space-preparation>.guided-note { color:#a7bfdc; }
+.play-panel[data-game=space] .begin-button { min-height:60px; font-size:21px; }
+.play-panel[data-game=space] .game-countdown { color:#c2dfff; background:#263661; }
+.play-panel[data-game=space] .game-countdown>b { color:#9cebe9; }
+.play-panel[data-game=space] .game-countdown p { color:#c3d8ed; }
+.play-panel[data-game=space] .practice-review { background:linear-gradient(#e8f5ff,#f6f4ff); }
+.result-card:has(>.mission-outcome-art.space) { border:2px solid #a6b9df; border-radius:28px; background:linear-gradient(#f7fbff,#f2f0ff); }
+.result-card>.mission-outcome-art.space { max-width:600px; max-height:263px; border:2px solid #96acd6; border-radius:25px; }
+.mission-outcome-art.space.departed .outcome-vehicle { animation:space-lift-off 2.2s cubic-bezier(.3,0,.3,1) both; transform-origin:110px 140px; }
+.mission-outcome-art.space .space-arrival-check { animation:space-arrival .6s .4s ease-out both; transform-origin:0 0; }
+.mission-outcome-art.space.waiting .launch-flame,.mission-outcome-art.space.waiting .space-engine-glow { display:none; }
+@keyframes space-ready-pulse { 50% { box-shadow:inset 0 2px 0 #b7fff144,0 4px 0 #0e6a82,0 0 0 6px #7be6d422; } }
+@keyframes space-uncover { from { opacity:.1; transform:scale(.7); } to { opacity:1; transform:none; } }
+@keyframes space-reconsider { 30% { transform:rotate(-8deg); } 70% { transform:rotate(8deg); } }
+@keyframes space-lift-off { from { transform:translate(-25px,25px) rotate(-8deg) scale(.85); } to { transform:translate(28px,-24px) rotate(13deg); } }
+@keyframes space-arrival { from { opacity:0; transform:scale(.3); } to { opacity:1; transform:scale(1); } }
+@media(max-width:767px) {
+ .play-panel[data-game=space] { border-radius:19px; }
+ .play-panel[data-game=space]>.play-hud { padding:11px 14px; }
+ .play-panel[data-game=space]>.play-hud span { font-size:10px; }
+ .play-panel[data-game=space]>.play-hud b { font-size:18px; }
+ .play-panel[data-game=space]>.instruction-strip { min-height:44px; font-size:13px; padding:8px 12px; }
+ .play-panel[data-game=space] .space-mission-brief { margin:10px; padding:10px 12px 6px; border-radius:15px; }
+ .space-mission-heading { gap:8px; }
+ .space-mission-mark { width:33px; height:33px; border-radius:11px; }
+ .space-mission-mark>.icon { width:23px; height:23px; }
+ .space-mission-heading small { font-size:10px; }
+ .play-panel[data-game=space] .space-mission-heading b { font-size:16px; }
+ .space-mission-count { font-size:14px; padding:4px 10px; }
+ .play-panel[data-game=space] .space-mission-brief .mission-checklist { margin-top:9px; gap:6px; }
+ .play-panel[data-game=space] .space-mission-brief .mission-need { padding:5px 1px; justify-content:center; border-radius:10px; }
+ .play-panel[data-game=space] .space-mission-brief .need-symbol { width:28px; height:28px; }
+ .play-panel[data-game=space] .space-world { margin:0 8px; border-radius:17px 17px 0 0; }
+ .space-panorama { height:168px; }
+ .space-panorama>.world-backdrop { object-position:57% 65%; }
+ .space-station-sign { right:5%; top:13px; gap:1px; }
+ .space-station-sign>span { font-size:8px; }
+ .space-station-sign>strong { font-size:23px; }
+ .space-station-sign>small { font-size:9px; padding:3px 8px; }
+ .space-charge { right:8%; bottom:9px; padding:4px 7px; gap:3px; }
+ .space-charge>i { width:10px; height:4px; }
+ .play-panel[data-game=space] .space-panorama>.scene-vehicle { width:87px; height:118px; bottom:-2px; }
+ .play-panel[data-game=space] .vehicle-ready>span { font-size:8px; padding:3px 2px; }
+ .play-panel[data-game=space] .vehicle-ready>span>.icon { width:11px; height:11px; }
+ .play-panel[data-game=space] .space-world .scene-heading { padding:10px 12px 5px; gap:6px; }
+ .play-panel[data-game=space] .space-world .scene-heading>.space-find-cue { font-size:12px; gap:5px; }
+ .space-find-cue>.icon { width:18px; height:18px; }
+ .play-panel[data-game=space] .space-world .scene-heading>span { font-size:9px; }
+ .play-panel[data-game=space] .space-world .object-grid { grid-template-columns:repeat(4,minmax(0,1fr)); padding:13px 13px 18px; gap:16px 8px; min-height:0; }
+ .play-panel[data-game=space] .space-world .scene-object { min-height:72px; padding:3px 0; border-radius:16px; }
+ .play-panel[data-game=space] .space-world .scene-object>.equipment { width:49px; height:49px; }
+ .play-panel[data-game=space] .space-world .scene-object>span { font-size:10px; }
+ .play-panel[data-game=space] .space-world .scene-object.collected>.icon { width:20px; height:20px; top:13px; border-width:2px; }
+ .play-panel[data-game=space] .space-world .scattered-objects { margin:8px 20px 16px; padding:0; height:var(--field-height-mobile); min-height:var(--field-height-mobile); }
+ .play-panel[data-game=space] .space-world .scattered-objects .scene-object { width:54px; height:54px; min-height:54px; left:var(--object-mobile-x); top:var(--object-mobile-y); transform:translate(-50%,-50%) rotate(var(--object-angle)); }
+ .play-panel[data-game=space] .space-world .scattered-objects .scene-object>.equipment { width:49px; height:49px; }
+ .play-panel[data-game=space] .space-world .obstacle-plus { width:21px; height:21px; padding:2px; top:-5px; right:-4px; }
+ .play-panel[data-game=space] .space-world .obstacle-plus>.icon { width:14px; height:14px; }
+ .play-panel[data-game=space] .space-world.practice-scene .object-grid { min-height:190px; padding:20px 0; }
+ .play-panel[data-game=space] .space-world.practice-scene .scene-object { width:144px; min-height:140px; }
+ .play-panel[data-game=space] .space-world.practice-scene .scene-object>.equipment { width:82px; height:82px; }
+ .play-panel[data-game=space] .space-world.practice-scene .scene-object>span { font-size:16px; }
+ .play-panel[data-game=space]>.play-controls { padding:12px 13px max(13px,env(safe-area-inset-bottom)); }
+ .play-panel[data-game=space] .inventory { gap:7px; }
+ .play-panel[data-game=space] .inventory>span { font-size:10px; }
+ .play-panel[data-game=space] .inventory>span>b { font-size:13px; }
+ .play-panel[data-game=space] .inventory>div { gap:4px; }
+ .play-panel[data-game=space] .inventory-slot { width:32px; height:36px; padding:3px; border-radius:10px; }
+ .play-panel[data-game=space] .depart-button { min-height:51px; font-size:17px; }
+ .play-panel[data-game=space] .space-preparation { padding:22px 14px 18px; gap:16px; }
+ .space-preparation h2 { font-size:24px; }
+ .play-panel[data-game=space] .space-preparation>.section-kicker { font-size:11px; }
+ .space-preparation .preparation-samples>.space-cover { height:155px; border-radius:21px; }
+ .space-preparation-steps { gap:10px; width:100%; }
+ .space-preparation-steps>span { flex-direction:column; gap:6px; font-size:13px; }
+ .space-preparation-steps>span>i { width:43px; height:43px; border-radius:15px; }
+ .space-preparation-steps>em { font-size:19px; }
+ .play-panel[data-game=space] .space-preparation .need-symbol { width:37px; height:37px; }
+ .play-panel[data-game=space] .space-preparation .need-copy { font-size:12px; }
+ .play-panel[data-game=space] .space-preparation .need-audio { min-height:105px; border-radius:15px; padding-inline:4px; }
+ .play-panel[data-game=space] .begin-button { font-size:18px; width:100%; }
+ .space-cover-label { font-size:15px; }
+}
+@media(prefers-reduced-motion:reduce) {
+ .space-cover *, .space-preparation *, .mission-outcome-art.space *, .play-panel[data-game=space] * { animation:none!important; transition:none!important; }
+}
