@@ -129,3 +129,52 @@ test('review: second pass presents spoken pictorial needs and automatically expl
  await expect(page.locator('.mission-brief .need-art')).toHaveCount(6);await expect(page.locator('.mission-brief [data-action=listen-guide]')).toHaveCount(0);
  await expect(page.locator('.mission-story')).not.toHaveAttribute('open','');await expect(page.locator('.mission-story p')).toBeHidden();
 });
+
+test('review: keyboard hunting evaluates the focused lookalike instead of the whole target scene',async({page})=>{
+ await clock(page);await login(page);await start(page,'hunt');await begin(page);
+ for(let trial=0;trial<5;trial++){
+  const field=await page.evaluate(()=>{
+   const targets=[...document.querySelectorAll('.target-mini .symbol')].map(node=>node.outerHTML);
+   const choices=[...document.querySelectorAll('.hunt-choice')].map(node=>node.querySelector('.symbol').outerHTML);
+   return {hasTarget:choices.some(choice=>targets.includes(choice)),wrong:choices.findIndex(choice=>!targets.includes(choice))};
+  });
+  if(field.hasTarget){
+   const wrong=page.locator(`.hunt-choice[data-choice="${field.wrong}"]`);await wrong.focus();await page.keyboard.press('Space');
+   await expect(page.locator('.play-panel')).toHaveAttribute('data-response','wrong');
+   await expect(wrong).toHaveAttribute('data-picked','wrong');
+   await advance(page,1000);await expect(page.locator('.practice-review.retry')).toBeVisible();return;
+  }
+  await advance(page,1000);await click(page,'continue-review');
+ }
+ throw Error('Practice must contain two target trials');
+});
+
+test('review: search keeps keyboard focus after a rejected choice and direction keys select a nearby option',async({page})=>{
+ await clock(page);await login(page);await baseline(page,'search');await policy('search','hard');await page.reload();await expect(page.locator('.hero')).toBeVisible();
+ await start(page,'search',false);await begin(page);const target=await page.locator('.preview-target .symbol').evaluate(node=>node.outerHTML);
+ await advance(page,2000);
+ const wrong=await page.locator('.search-choice').evaluateAll((nodes,target)=>nodes.find(node=>node.querySelector('.symbol').outerHTML!==target).dataset.index,target);
+ await page.locator(`.search-choice[data-index="${wrong}"]`).focus();await page.keyboard.press('Space');
+ await expect(page.locator('.search-choice.rejected>.icon')).toHaveCount(1);
+ await expect(page.locator('.search-choice:focus:not(:disabled)')).toHaveCount(1);
+ const previous=await page.locator('.search-choice:focus').getAttribute('data-index');
+ const center=await page.locator('.search-choice:focus').boundingBox();const direction=center.x>360?'ArrowLeft':'ArrowRight';
+ await page.keyboard.press(direction);await expect(page.locator('.search-choice:focus')).not.toHaveAttribute('data-index',previous);
+ for(const width of [360,768,1440]){await page.setViewportSize({width,height:900});expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);}
+ await page.setViewportSize({width:360,height:800});await page.screenshot({path:'.local/verification/review-v8-search.png',fullPage:true});
+});
+
+test('review: mission clock and departure dock stay visible while a child searches a crowded field',async({page})=>{
+ await clock(page);await login(page);await baseline(page,'ark');await baseline(page,'space');await policy('ark','hard');await policy('space','hard');await page.reload();await expect(page.locator('.hero')).toBeVisible();
+ for(const gameId of ['ark','space']){
+  await page.setViewportSize({width:360,height:740});await start(page,gameId,false);await begin(page);
+  for(const index of [0,18,35]){
+   await page.locator('.scene-object').nth(index).scrollIntoViewIfNeeded();
+   await expect(page.locator('.inventory')).toBeInViewport();await expect(page.locator('[data-action=depart]')).toBeInViewport();await expect(page.locator('.play-hud')).toBeInViewport();
+  }
+  await page.locator('.adventure-scene').evaluate(node=>node.scrollIntoView({block:'start'}));
+  await page.screenshot({path:`.local/verification/review-v8-${gameId}-mobile.png`});
+  await page.setViewportSize({width:1440,height:900});await page.screenshot({path:`.local/verification/review-v8-${gameId}-desktop.png`,fullPage:true});
+  await leave(page);
+ }
+});

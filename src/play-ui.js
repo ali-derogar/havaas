@@ -12,6 +12,25 @@ import { stroopRulePicture } from './learning-ui.js';
 const fa = value => Number(value).toLocaleString('fa-IR');
 const tokens = values => values.map(value=>`<span class="ready-token">${symbol(value)}</span>`).join('');
 export const guideControl = key => `<button type="button" class="guide-audio-button" data-action="listen-guide" data-guide="${key}" aria-label="پخش راهنمای صوتی فارسی" aria-pressed="false">${icon('sound')}<span>بشنو</span></button><span class="audio-guide-status sr-only" role="status"></span>`;
+export function trafficRulePicture(signs=false) {
+  return `<div class="traffic-rule-picture" aria-label="${signs?'فلش آبی':'چراغ سبز'}: حرکت؛ ${signs?'ورود ممنوع':'چراغ قرمز'}: صبر"><span class="traffic-go">${symbol({shape:signs?'oneway':'circle',color:'green'})}${icon('tap')}<b>حرکت</b></span><span class="traffic-wait">${symbol({shape:signs?'noentry':'circle',color:'red'})}${icon('wait')}<b>صبر</b></span><span class="sr-only">${signs?'تابلوی یک‌طرفه یعنی حرکت؛ ورود ممنوع یعنی صبر.':'چراغ سبز یعنی حرکت؛ چراغ قرمز یعنی صبر.'}</span></div>`;
+}
+
+export function missionInventory(session) {
+  return `<div class="inventory"><span>${icon('bag')} کولهٔ تو <b>${fa(session.metrics.hits)} از ${fa(session.required.length)}</b></span><div>${session.required.map(([name])=>{
+    const item=session.items.find(item=>item.icon===name&&item.collected);
+    return `<span class="inventory-slot ${item?'filled':''}" data-equipment="${name}" role="img" aria-label="${item?`${item.name}، آماده شد`:`${EQUIPMENT_NEEDS[name]}، هنوز آماده نشده`}">${item?equipment(name):needArt(name)}${item?icon('check'):''}</span>`;
+  }).join('')}</div></div>`;
+}
+
+export function stroopScorecard(session) {
+  if(session.gameId!=='stroop')return '';
+  return `<div class="stroop-scorecard" aria-label="نتیجهٔ هر قانون"><h2>هر قانون چطور پیش رفت؟</h2><div>${STROOP_RULES.map((rule,phase)=>{
+    const outcomes=session.outcomes.filter(outcome=>outcome.phase===phase);
+    const correct=outcomes.filter(outcome=>outcome.correct).length;
+    return `<div class="rule-score" data-rule-phase="${phase}">${stroopRulePicture(phase)}<b>${fa(correct)} از ${fa(outcomes.length)}</b><span>تصمیم درست</span><meter min="0" max="${outcomes.length||1}" value="${correct}" aria-label="${rule.title}: ${fa(correct)} تصمیم درست از ${fa(outcomes.length)}"></meter></div>`;
+  }).join('')}</div></div>`;
+}
 export function shortPrompt(session){
   if(session.gameId==='hunt')return session.targets?.length===2?'هر دو نمونه را پیدا کن و بزن':'مثل نمونه را پیدا کن و بزن';
   if(session.gameId==='traffic')return session.variant==='signs'?'فلش آبی: بزن؛ قرمز: صبر':'سبز: بزن؛ قرمز: صبر';
@@ -106,7 +125,7 @@ export function trafficProgress(session){
 }
 export function trafficRoad(session) {
   const progress=session?trafficProgress(session):0;
-  return `<svg class="traffic-road" viewBox="0 0 620 110" data-progress="${progress}" aria-label="مسیر ماشین تا پرچم مقصد"><rect y="29" width="620" height="66" rx="12" fill="#516f87"/><path d="M20 62h580" stroke="#f8faf1" stroke-width="3" stroke-dasharray="24 18"/><g class="road-destination ${progress===1?'arrived':''}"><path d="M565 12v72" stroke="#273d56" stroke-width="4"/><path d="M567 12h32v25h-32z" fill="#ffe353"/><path d="M568 13h9v8h-9zm18 0h9v8h-9zm-9 8h9v8h-9zm-9 8h9v8h-9zm18 0h9v8h-9z" fill="#334d63"/></g><g class="road-car" transform="translate(${375*progress} 0)" stroke="#233c54" stroke-width="2"><path d="m55 50 16-18h40l20 18 13 5v25H43V58z" fill="#10b8ec"/><path d="m75 37-10 13h53l-12-13z" fill="#dcf9ff"/><circle cx="64" cy="79" r="10" fill="#243e55"/><circle cx="123" cy="79" r="10" fill="#243e55"/><circle cx="64" cy="79" r="4" fill="#fff"/><circle cx="123" cy="79" r="4" fill="#fff"/></g></svg>`;
+  return `<svg class="traffic-road" viewBox="0 0 620 110" data-progress="${progress}" aria-label="مسیر ماشین تا پرچم مقصد"><rect y="29" width="620" height="66" rx="12" fill="#516f87"/><path d="M20 62h580" stroke="#f8faf1" stroke-width="3" stroke-dasharray="24 18"/><g class="road-destination ${progress===1?'arrived':''}"><path d="M565 12v72" stroke="#273d56" stroke-width="4"/><path d="M567 12h32v25h-32z" fill="#ffe353"/><path d="M568 13h9v8h-9zm18 0h9v8h-9zm-9 8h9v8h-9zm-9 8h9v8h-9zm18 0h9v8h-9z" fill="#334d63"/></g><g class="road-car" transform="translate(${375*progress} 0)" stroke="#233c54" stroke-width="2"><g class="car-chassis"><path d="m55 50 16-18h40l20 18 13 5v25H43V58z" fill="#10b8ec"/><path d="m75 37-10 13h53l-12-13z" fill="#dcf9ff"/><path d="M135 58h7m-96 0h7" stroke="#fff5a0" stroke-width="4"/></g>${[64,123].map(x=>`<g class="car-wheel"><circle cx="${x}" cy="79" r="10" fill="#243e55"/><circle cx="${x}" cy="79" r="4" fill="#fff"/><path d="M${x-7} 79h14m-7-7v14" stroke="#a8d7ec" stroke-width="2"/></g>`).join('')}</g></svg>`;
 }
 
 export function searchTargetStatus(session) {

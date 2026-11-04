@@ -57,7 +57,7 @@ test('higher difficulty adds unique mission objects and hard search targets incl
   for(const target of board.targets){assert.ok(target.detail>=4);details.add(target.detail);assert.match(symbol(target),/shape-attachment/);}
   assert.equal(board.choices.filter(c=>c.target).length,count);
  }
- assert.deepEqual([...details].sort(),[4,5,6,7]);
+ assert.deepEqual([...details].sort((a,b)=>a-b),[4,5,6,7,8,9,10,11]);
 });
 
 test('saved revision-five seeds still reconstruct the original fields and are comparable only to their revision',()=>{

@@ -1,0 +1,68 @@
+/* Animation belongs to the interaction, never to the scored onset itself. */
+.moving-choice>.symbol { transform:rotate(var(--animal-tilt,0deg)); transform-origin:center; }
+.moving-choice .animal-tail { transform:rotate(var(--tail-angle,0deg)); transform-origin:15px 31px; }
+.moving-choice .animal-fin { transform:rotate(calc(var(--tail-angle,0deg) * -.3)); transform-origin:30px 32px; }
+.moving-choice .animal-wing { transform:scaleY(var(--wing-flap,1)); transform-origin:32px 32px; }
+.moving-choice .wing-left { transform:scaleX(var(--wing-flap,1)); }
+.moving-choice .wing-right { transform:scaleX(var(--wing-flap,1)); }
+.play-panel .adventure-scene .scene-vehicle { pointer-events:none; transform-origin:50% 80%; will-change:transform; }
+.scene-vehicle .vehicle-art { overflow:visible; }
+.scene-vehicle .launch-flame { transform:scaleY(var(--thrust-scale,1)); transform-origin:240px 129px; filter:drop-shadow(0 0 4px #ffbf38); }
+.scene-vehicle .vehicle-wake { transform:translateX(var(--wave-shift,0px)); opacity:.65; }
+.scene-atmosphere { position:absolute; inset:0; pointer-events:none; user-select:none; overflow:hidden; z-index:0; }
+.scene-tide { inset:auto -20px 70px; height:70px; width:calc(100% + 40px); opacity:.28; transform:translateX(var(--wave-shift,0px)); }
+.orbital-dust>i { position:absolute; width:3px; height:3px; background:#e9fbff; border-radius:50%; box-shadow:0 0 6px #d3f6ff; animation:orbital-twinkle 3.8s ease-in-out infinite; animation-delay:var(--twinkle-delay); }
+.pond-bubbles>i { position:absolute; bottom:-15px; left:8%; width:8px; height:8px; border:1px solid #ffffffb3; border-radius:50%; animation:bubble-rise 7s linear infinite; }
+.pond-bubbles>i:nth-child(2) { left:91%; width:5px; height:5px; animation-delay:-2.8s; }
+.pond-bubbles>i:nth-child(3) { left:5%; width:4px; height:4px; animation-delay:-5.1s; }
+.traffic-road .car-chassis { transform-box:view-box; }
+.traffic-road[data-moving=true] .road-destination { filter:drop-shadow(0 0 3px #ffd13e88); }
+
+.play-effects { position:fixed; inset:0; z-index:80; pointer-events:none; overflow:hidden; contain:strict; }
+.play-effects * { pointer-events:none!important; }
+.choice-burst { position:absolute; width:0; height:0; color:#079f78; }
+.choice-burst.wrong { color:#bd8115; }
+.choice-burst.cleared { color:#168fc9; }
+.burst-ring { position:absolute; width:48px; height:48px; left:-24px; top:-24px; border:3px solid currentColor; border-radius:50%; }
+.choice-burst>i { position:absolute; width:5px; height:7px; left:-2px; top:-3px; border-radius:2px; background:var(--spark-color); }
+.choice-burst.wrong>i { background:#e6b750; border-radius:50%; }
+.choice-burst>b { position:absolute; width:34px; height:34px; left:-17px; top:-17px; display:grid; place-items:center; background:#fff; border:2px solid currentColor; border-radius:50%; box-shadow:0 2px 7px #16496322; }
+.choice-burst .icon { width:24px; height:24px; }
+.flying-equipment { position:absolute; left:0; top:0; display:grid; place-items:center; will-change:transform; filter:drop-shadow(0 4px 5px #14456755); }
+.flying-equipment>.equipment,.flying-equipment>.symbol { width:100%; height:100%; }
+.play-panel .inventory-slot.just-packed { animation:inventory-arrival .4s ease-out; }
+.play-panel[data-response=good] .response-button:not(:disabled),.play-panel[data-response=good] .collect-button { animation:button-confirm .23s ease-out; }
+
+/* Learning and intermissions have no scored exposure to delay. */
+.game-preparation .preparation-samples .ready-token { animation:ready-float 3s ease-in-out infinite; }
+.game-preparation .preparation-samples .ready-token:nth-child(2n) { animation-delay:-1.3s; }
+.game-preparation .visual-rule,.practice-review .review-badge,.round-intermission .round-emblem { animation:cue-arrive .4s cubic-bezier(.2,.8,.2,1.15) both; }
+.rule-transition .stroop-rule-picture,.rule-transition .rule-example,.round-intermission h2 { animation:cue-arrive .4s ease-out both; }
+.lesson-box .memory-spotlight .lesson-token,.lesson-feedback>.lesson-expected { animation:cue-arrive .28s ease-out both; }
+.game-countdown>b.countdown-odd { animation:countdown-odd .75s ease-out both; }
+.game-countdown>b.countdown-even { animation:countdown-even .75s ease-out both; }
+.search-preview .preview-timer { overflow:hidden; }
+.search-preview .preview-timer>span { background:linear-gradient(90deg,#37d3ad,#169de0); }
+.search-choice.found>.icon,.target-status.discovered>.icon { animation:cue-arrive .3s ease-out; }
+.play-panel[data-motion=paused] *,.play-panel[data-motion=paused] *::before,.play-panel[data-motion=paused] *::after { animation-play-state:paused!important; }
+.result-card .result-stars>span.earned { animation:star-award .6s cubic-bezier(.2,.8,.2,1.2) both; }
+.result-card .result-stars>span.earned:nth-child(2) { animation-delay:.13s; }
+.result-card .result-stars>span.earned:nth-child(3) { animation-delay:.26s; }
+.result-card .trophy-art { animation:trophy-arrive .65s ease-out both; }
+
+@keyframes orbital-twinkle { 0%,100%{opacity:.25;transform:scale(.8)} 50%{opacity:.8;transform:scale(1.2)} }
+@keyframes bubble-rise { from{transform:translate(0,0);opacity:0} 12%{opacity:.65} 88%{opacity:.5} to{transform:translate(12px,-300px);opacity:0} }
+@keyframes inventory-arrival { 0%{transform:scale(1)} 40%{transform:scale(1.2);box-shadow:0 0 0 7px #32cd9c33} 100%{transform:scale(1)} }
+@keyframes button-confirm { 45%{transform:translateY(2px) scale(.98)} }
+@keyframes ready-float { 0%,100%{transform:translateY(0)} 50%{transform:translateY(-5px)} }
+@keyframes cue-arrive { from{opacity:.2;transform:translateY(8px) scale(.93)} to{opacity:1;transform:none} }
+@keyframes countdown-odd { from{transform:scale(1.3);opacity:.4} 30%{opacity:1} to{transform:scale(1);opacity:1} }
+@keyframes countdown-even { from{transform:scale(1.3);opacity:.4} 30%{opacity:1} to{transform:scale(1);opacity:1} }
+@keyframes star-award { from{opacity:0;transform:translateY(8px) scale(.4) rotate(-15deg)} to{opacity:1;transform:scale(1)} }
+@keyframes trophy-arrive { from{opacity:.3;transform:translateY(13px) scale(.85)} to{opacity:1;transform:none} }
+@media(prefers-reduced-motion:reduce) {
+  .play-panel *,.play-panel *::before,.play-panel *::after,.lesson-box *,.result-card * { animation:none!important; }
+  .scene-atmosphere,.play-effects { display:none; }
+  .moving-choice>.symbol,.moving-choice .animal-wing,.moving-choice .animal-tail,.moving-choice .animal-fin { transform:none!important; }
+  .play-panel .adventure-scene .scene-vehicle { will-change:auto; }
+}

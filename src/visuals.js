@@ -59,8 +59,8 @@ export function symbol(stimulus, cls = '') {
   if (shape.startsWith('toy-')) return equipment(shape.slice(4)).replace(/class="equipment[^"]*"/, `class="symbol ${cls}"`);
   if (shape.startsWith('letter-')) {
     const letters={F:'M19 52V12H46M19 31H40',E:'M19 52V12H46M19 31H40M19 52H46',L:'M19 12V52H46',P:'M19 52V12H33C52 12 52 33 33 33H19',R:'M19 52V12H33C52 12 52 33 33 33H19M33 33L48 52'};
-    const y=[0,14,31,50][detail];
-    return svg(`<g fill="none" stroke="${fill}" stroke-width="5" stroke-linejoin="round" stroke-linecap="round"><path d="${letters[shape.slice(7)]||letters.F}"/>${detail?`<path class="letter-mark" d="M11 ${y}h8"/>`:''}</g>`, '0 0 64 64', `symbol ${cls}`);
+    const marks=[[],[14],[31],[50],[14,31],[31,50],[14,50]][detail]||[];
+    return svg(`<g fill="none" stroke="${fill}" stroke-width="5" stroke-linejoin="round" stroke-linecap="round"><path d="${letters[shape.slice(7)]||letters.F}"/>${marks.map(y=>`<path class="letter-mark" d="M11 ${y}h8"/>`).join('')}</g>`, '0 0 64 64', `symbol ${cls}`);
   }
   if (shape === 'noentry') return svg('<circle cx="32" cy="32" r="28" fill="#d9504e" stroke="white" stroke-width="3"/><path d="M15 27h34v10H15z" fill="white"/>', '0 0 64 64', `symbol ${cls}`);
   if (shape === 'oneway') return svg('<rect x="5" y="5" width="54" height="54" rx="7" fill="#467aca" stroke="white" stroke-width="3"/><path d="M26 49V29H17l15-16 15 16h-9v20z" fill="white"/>', '0 0 64 64', `symbol ${cls}`);
@@ -72,18 +72,22 @@ export function symbol(stimulus, cls = '') {
     triangle: '<path d="M29 9a3.5 3.5 0 0 1 6 0l25 43a3.5 3.5 0 0 1-3 5H7a3.5 3.5 0 0 1-3-5z"/>',
     diamond: '<path d="M28 5a5 5 0 0 1 8 0l23 23a5 5 0 0 1 0 8L36 59a5 5 0 0 1-8 0L5 36a5 5 0 0 1 0-8z"/>',
     heart: '<path d="M32 56 10 35C-9 16 17-3 32 17 47-3 73 16 54 35z"/>',
-    fish: '<path d="M15 31C24 7 47 9 59 31 47 54 24 55 15 31L3 44V18z"/><circle cx="45" cy="28" r="3" fill="white"/><circle cx="46" cy="28" r="1.5" fill="#34443d"/><path d="m29 27 7 5-7 5" fill="none"/>',
-    butterfly: '<path class="animal-wing" d="M30 29C7-7-11 16 21 34-9 42 7 72 30 41M34 29C57-7 75 16 43 34 73 42 57 72 34 41z"/><path d="M32 20v28m0-26-6-9m6 9 6-9" stroke-width="4"/>',
+    fish: '<path class="animal-tail" d="m15 31-12 13V18z"/><path d="M15 31C24 7 47 9 59 31 47 54 24 55 15 31z"/><circle cx="45" cy="28" r="3" fill="white"/><circle cx="46" cy="28" r="1.5" fill="#34443d"/><path class="animal-fin" d="m29 27 7 5-7 5" fill="none"/>',
+    butterfly: '<path class="animal-wing wing-left" d="M30 29C7-7-11 16 21 34-9 42 7 72 30 41"/><path class="animal-wing wing-right" d="M34 29C57-7 75 16 43 34 73 42 57 72 34 41z"/><path d="M32 20v28m0-26-6-9m6 9 6-9" stroke-width="4"/>',
     bird: '<path class="animal-wing" d="M28 32C9 26 6 15 3 7c17 2 26 9 32 20C41 16 50 11 61 9c-3 12-10 23-24 29z"/><path d="M14 41q12-18 28-12c8-15 20-7 15 2l6 5-9 3q-17 21-33 9L6 55z"/><circle cx="51" cy="29" r="2" fill="#183b56"/><path d="m57 31 6 5-8 1" fill="#ffcd35"/>',
   };
   if (shape === 'traffic') {
     body = `<rect x="17" y="2" width="30" height="60" rx="11" fill="#34443d"/><circle cx="32" cy="18" r="10" fill="${color === 'red' ? COLORS.red : '#5b6259'}"/><circle cx="32" cy="46" r="10" fill="${color === 'green' ? '#57c78b' : '#5b6259'}"/>`;
   } else {
     body = `<g fill="${fill}" stroke="${ink}" stroke-width="1.7" stroke-linejoin="round">${shapes[shape] || shapes.star}</g>`;
-    body += detail === 1 || detail === 6 ? '<circle cx="32" cy="30" r="4" fill="#fff8e8" stroke="#34443d" stroke-width="1.5"/>' : detail === 2 || detail === 7 ? '<path d="m26 35 12-10" stroke="#fff8e8" stroke-width="4" stroke-linecap="round"/>' : detail === 3 ? '<g fill="#fff8e8" stroke="#34443d" stroke-width="1"><circle cx="26" cy="32" r="3"/><circle cx="38" cy="32" r="3"/></g>' : '';
+    body += detail === 1 || detail === 6 || detail === 10 ? '<circle cx="32" cy="30" r="4" fill="#fff8e8" stroke="#34443d" stroke-width="1.5"/>' : detail === 2 || detail === 7 || detail === 11 ? '<path d="m26 35 12-10" stroke="#fff8e8" stroke-width="4" stroke-linecap="round"/>' : detail === 3 ? '<g fill="#fff8e8" stroke="#34443d" stroke-width="1"><circle cx="26" cy="32" r="3"/><circle cx="38" cy="32" r="3"/></g>' : '';
     if(detail>=4&&detail<=7){
       const top=detail===4||detail===6;
       body+=`<path class="shape-attachment" d="${top?'M27 12V-3h10v15':'M51 26h16v12H51'}" fill="${fill}" stroke="${ink}" stroke-width="2" stroke-linejoin="round"/>`;
+    }
+    if(detail>=8&&detail<=11){
+      const bottom=detail===8||detail===10;
+      body+=`<path class="shape-attachment" d="${bottom?'M27 52v15h10V52':'M13 26H-3v12h16'}" fill="${fill}" stroke="${ink}" stroke-width="2" stroke-linejoin="round"/>`;
     }
   }
   return svg(body, detail>=4?'-8 -8 80 80':'0 0 64 64', `symbol ${cls}`);
@@ -202,8 +206,8 @@ export const trophyArt = () => svg('<ellipse cx="100" cy="158" rx="59" ry="9" fi
 
 export const sceneBackground = (gameId,level='easy') => gameId === 'space' ? `<svg class="scene-backdrop" viewBox="0 0 1000 500" preserveAspectRatio="xMidYMid slice" aria-hidden="true"><rect width="1000" height="500" fill="#eeebf5"/><g fill="#b6aacb"><circle cx="90" cy="64" r="3"/><circle cx="210" cy="35" r="2"/><circle cx="440" cy="75" r="3"/><circle cx="720" cy="35" r="2"/><circle cx="880" cy="95" r="3"/><circle cx="570" cy="25" r="2"/></g><circle cx="900" cy="70" r="50" fill="#ddd4e9"/><ellipse cx="900" cy="70" rx="80" ry="14" transform="rotate(-20 900 70)" fill="none" stroke="#baaccc" stroke-width="6"/><path d="M0 425Q250 345 500 430t500-10v80H0" fill="#d7cfe3"/><ellipse cx="200" cy="461" rx="60" ry="12" fill="#bfb2cf"/><ellipse cx="700" cy="480" rx="35" ry="7" fill="#bfb2cf"/></svg>` : `<svg class="scene-backdrop" viewBox="0 0 1000 500" preserveAspectRatio="xMidYMid slice" aria-hidden="true"><rect width="1000" height="500" fill="${level==='hard'?'#e4e7f1':level==='medium'?'#f3e4d7':'#f7ecd8'}"/>${level==='hard'?'<path d="M907 29a37 37 0 1 0 16 56 31 31 0 0 1-16-56" fill="#f4efda"/><g fill="#c1c8d9"><circle cx="675" cy="44" r="3"/><circle cx="768" cy="81" r="2"/><circle cx="950" cy="119" r="3"/></g>':'<circle cx="890" cy="65" r="38" fill="#edcf8f"/>'}<path d="M0 360q200-50 400 0t600 0v140H0" fill="#bed8d5"/><path d="M0 398q200-40 400 0t600 0" fill="none" stroke="#a2c5c4" stroke-width="4"/><path d="M0 435q400-65 1000 15v50H0" fill="#edd8b5"/><path d="m90 430 8-8 8 8m70 26 6-6 6 6m660-14 8-8 8 8" fill="none" stroke="#c2a980" stroke-width="3"/></svg>`;
 
-const missionVehicle = space => space?'<g stroke="#435149" stroke-width="2" stroke-linejoin="round"><path class="launch-flame" d="m230 129 10 38 11-38" fill="#e7bd6a"/><path d="m224 110-17 26 24-7m25-19 18 26-24-7" fill="#ae91bc"/><path d="M224 129c-11-40-4-68 16-94 21 26 28 54 16 94z" fill="#fcf8ed"/><path d="m224 58 16-23 16 23" fill="#c0a3c8"/><circle cx="240" cy="90" r="13" fill="#90b6bf"/><path d="m235 84-3 7" stroke="#f7fcf9" stroke-width="3"/></g>' : '<g stroke="#435149" stroke-width="2" stroke-linejoin="round"><path d="m161 115 20 28h118l22-28z" fill="#bc8c65"/><path d="M181 128h117M205 115V79h55v36" fill="#edcf99"/><path d="m199 79 34-23 34 23z" fill="#b38368"/><rect x="226" y="92" width="15" height="23" rx="7" fill="#775e4a"/><path d="M262 89h28v26h-28z" fill="#e7c081"/></g>';
-export function vehicleArt(gameId){return svg(missionVehicle(gameId==='space'),gameId==='space'?'190 20 100 155':'145 40 195 115','vehicle-art');}
+const missionVehicle = space => space?'<g stroke="#435149" stroke-width="2" stroke-linejoin="round"><path class="launch-flame" d="m230 129 10 38 11-38" fill="#ffae32"/><path class="launch-flame flame-core" d="m235 129 5 25 6-25" fill="#fff1a0" stroke="none"/><path d="m224 110-17 26 24-7m25-19 18 26-24-7" fill="#ae91bc"/><path d="M224 129c-11-40-4-68 16-94 21 26 28 54 16 94z" fill="#fcf8ed"/><path d="m224 58 16-23 16 23" fill="#c0a3c8"/><circle cx="240" cy="90" r="13" fill="#90b6bf"/><path d="m235 84-3 7" stroke="#f7fcf9" stroke-width="3"/></g>' : '<g stroke="#435149" stroke-width="2" stroke-linejoin="round"><path d="m161 115 20 28h118l22-28z" fill="#bc8c65"/><path d="M181 128h117M205 115V79h55v36" fill="#edcf99"/><path d="m199 79 34-23 34 23z" fill="#b38368"/><rect x="226" y="92" width="15" height="23" rx="7" fill="#775e4a"/><path d="M262 89h28v26h-28z" fill="#e7c081"/></g>';
+export function vehicleArt(gameId){const wake=gameId==='ark'?'<g class="vehicle-wake" fill="none" stroke="#e2faff" stroke-width="3" stroke-linecap="round"><path d="M164 146q16-5 32 0t32 0 32 0 32 0 32 0M181 152h28m56 0h27"/></g>':'';return svg(wake+missionVehicle(gameId==='space'),gameId==='space'?'190 20 100 155':'145 40 195 115','vehicle-art');}
 
 export function missionOutcomeArt(gameId, completed) {
   const space=gameId==='space';

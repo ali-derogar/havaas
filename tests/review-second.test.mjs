@@ -1,3 +1,4 @@
+import {PRESENTATION_VERSION} from '../src/config.js';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFile} from 'node:fs/promises';
@@ -85,9 +86,9 @@ test('the shipped voice scripts match the rebuilt files and explain reviews with
  assert.ok(!GUIDANCE['not-needed'].includes('دکمه'));
 });
 
-test('revision-six results still validate after the teaching revision and new sessions use revision seven',()=>{
+test('revision-six results still validate after the teaching revision and new sessions use the current revision',()=>{
  for(const gameId of ['hunt','ark','space','search','nback','stroop']){
-  const settings={...normalizeSettings({gameId,theme:'bird'}),seed:42,level:'hard'};assert.equal(settings.stimulusVersion,7);
+  const settings={...normalizeSettings({gameId,theme:'bird'}),seed:42,level:'hard'};assert.equal(settings.stimulusVersion,PRESENTATION_VERSION);
   const run={id:'previous-review',kind:'training',settings:{...settings,stimulusVersion:6}};
   const result=canonicalResult(run,playSession(run));assert.equal(result.stimulusVersion,6);assert.equal(result.completed,true);
  }

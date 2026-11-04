@@ -89,6 +89,10 @@ test('every main game completes and its preparation and arena fit mobile, tablet
   await page.setViewportSize({width:360,height:780});if(!required[game]&&game!=='search')await expect(page.locator('.response-button')).toBeInViewport();
   if(required[game])await finishAdventure(page,game,false);else if(game==='search')await finishSearch(page,10);else await finishReaction(page,game);
   await expect(page.locator('.result-card')).toBeVisible();await expect(page.locator('.site-header')).toBeVisible();await noOverflow(page);
+  const emptyStars=page.locator('.result-stars>span:not(.earned)');
+  for(const star of await emptyStars.all())await expect(star).toHaveText('☆');
+  const earnedStars=await page.locator('.result-stars>.earned').count();
+  await expect(page.locator('.result-stars')).toHaveAttribute('aria-label',`${earnedStars.toLocaleString('fa-IR')} ستاره از ۳`);
   if(await page.locator('.result-learning').count()){await page.locator('.result-learning>summary').click();await expect(page.locator('.recap-step').first()).toBeVisible();await noOverflow(page);}
   if(required[game]){await expect(page.locator('.mission-outcome-art.departed')).toBeVisible();await page.emulateMedia({reducedMotion:'reduce'});expect(await page.locator('.outcome-vehicle').evaluate(el=>getComputedStyle(el).animationName)).toBe('none');await page.emulateMedia({reducedMotion:'no-preference'});}
   await page.screenshot({path:`.local/verification/game-${game}-result-360.png`,fullPage:true,animations:'disabled'});

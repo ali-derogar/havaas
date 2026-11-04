@@ -4,12 +4,14 @@ import {copyTextField} from './clipboard.js';
 import { preloadWorld,worldBackground,gameArtwork } from './worlds.js';
 import { GuidancePlayer, guidanceKey, lessonGuidanceKey } from './guidance.js';
 import {memoryLessonState,memoryLessonView,stroopRulePicture} from './learning-ui.js';
+import {capturePlayFocus,restorePlayFocus,moveFieldFocus} from './play-input.js';
+import {PlayMotion,animalPose,captureMotionSource,sceneAtmosphere} from './play-motion.js';
 import { huntPosition,huntOnScreen } from './games/hunt.js';
 import { accountView, loginView, importPreviewView, roleName, reportLinksView, passwordView } from './account-ui.js';
 import {adminShell,adminOverview,adminUsersView,createUserView,registrationView,invitationsView,userDetailsView,clientWelcome} from './dashboard-ui.js';
 import { seededRandom } from './core/random.js';
 import { ActiveClock } from './core/session.js';
-import { preparationView, countdownView, reviewView, transitionView, stroopStages, trafficRoad, missionChecklist, searchTargetStatus, searchRounds, huntBlocks, learningRecap, roundBreakView, guideControl, trafficProgress } from './play-ui.js';
+import { preparationView, countdownView, reviewView, transitionView, stroopStages, trafficRoad, missionChecklist, searchTargetStatus, searchRounds, huntBlocks, learningRecap, roundBreakView, guideControl, trafficProgress, trafficRulePicture, stroopScorecard, missionInventory } from './play-ui.js';
 import { GAMES, GAME_MAP, GAME_PROTOCOLS, LEVELS, THEMES, HUNT_SETTINGS, HUNT_MOTION_TIMING, MOVING_THEMES } from './config.js';
 import { FACTORIES } from './games/index.js';
 import { searchVariant } from './games/search.js';
@@ -26,6 +28,7 @@ import { icon, logo, art, heroArt, symbol, equipment, trophyArt, sceneBackground
 const app = document.querySelector('#app');
 const modal = document.querySelector('#modal');
 const announcer = document.querySelector('#announcer');
+const playMotion=new PlayMotion({document});
 const progress = readProgress();
 const guidance=new GuidancePlayer({onState:(state,key)=>{
   document.querySelectorAll('[data-action=listen-guide]').forEach(button=>{const active=state==='playing'&&button.dataset.guide===key;button.setAttribute('aria-pressed',String(active));button.classList.toggle('listening',active);});
@@ -39,6 +42,7 @@ let dashboardDays=30,userTab='overview',registrationToken=null,createContext={};
 let pendingAdminRefresh=null;
 const adminState={search:'',status:'',role:'',sort:'newest',page:1};
 let pendingStart = null, sessionIsBaseline = false, editingProfile = null, guideState = null, sessionAssessment = false, lessonState = null, sessionRecordId = null;
+let keyboardPlay=false;
 const reportState = { tab: 'admin', game: '', level: '', variant: '', kind: 'training', recordId: null };
 const fa = value => new Intl.NumberFormat('fa-IR', { maximumFractionDigits: 0 }).format(value);
 const time = ms => { const seconds = Math.max(0, Math.ceil(ms / 1000)); return `${fa(Math.floor(seconds / 60)).padStart(2, '۰')}:${fa(seconds % 60).padStart(2, '۰')}`; };
@@ -57,6 +61,7 @@ function header() {
 }
 const footer = () => `<footer class="site-footer"><span>${logo()} حواس؛ جایی برای بازی و کشف</span><span>با سرعت خودت، به سبک خودت ${icon('spark')}</span></footer>`;
 function page(content, className = '') {
+  playMotion.reset();
   guidance.stop();lastSpokenContext='';
   viewVersion++;
   if(launchAttempt){launchAttempt=null;starting=false;}
@@ -246,7 +251,7 @@ async function start(practice, forceBaseline = false) {
   route = 'play'; playPhase='ready'; preparationClock=null;
   engine = FACTORIES[selectedGame]({ ...options,...remoteRun?.settings,level:selectedLevel,practice,pacedRounds:remoteRun?remoteRun.settings.pacedRounds:true,reviewEnabled:remoteRun?remoteRun.settings.reviewEnabled:practice,random:remoteRun?seededRandom(remoteRun.settings.seed):Math.random }); engine.clock.pause(); arenaKey = '';
   const game = GAME_MAP[selectedGame];
-  page(`<div class="play-heading"><div><span class="section-kicker">${practice ? sessionIsBaseline ? '۵ تمرین برای آموزش و ارزیابی پایه' : 'وقت تمرینه؛ امتیازت ثبت نمی‌شه' : 'نوبت ماجراجویی توئه'}</span><h1>${game.title}<span class="level-pill">${LEVELS[selectedLevel].label}</span></h1></div><div class="play-heading-actions"><button class="icon-button sound-button" data-action="sound" aria-label="${progress.sound?'خاموش‌کردن صدا و راهنمای گویا':'روشن‌کردن صدا و راهنمای گویا'}" aria-pressed="${progress.sound}">${icon(progress.sound?'sound':'mute')}</button><button class="button subtle pause-button" data-action="pause">${icon('pause')} توقف</button></div></div><section class="play-panel ${game.kind}" data-game="${game.id}" data-interval-ms="${engine.intervalMs||1000}" style="--game-color:${game.color};--game-accent:${game.accent}" aria-label="محیط بازی"><div class="play-hud"><div><span id="progress-label"></span><b id="position"></b></div><div class="hud-time">${icon('clock')}<div><span id="time-label"></span><b id="time"></b></div></div><div><span>پاسخ‌های هدف درست</span><b id="hits">۰</b></div></div><div class="progress-track"><span id="progress-fill"></span></div><div class="instruction-strip" id="instruction"></div><div id="arena" class="arena"></div><div class="play-controls" id="play-controls"></div><div class="visual-feedback" id="visual-feedback" aria-hidden="true"><span class="feedback-good">${icon('check')}</span><span class="feedback-wrong">${icon('repeat')}</span><span class="feedback-cleared">${icon('spark')}</span></div><div id="feedback" class="feedback" role="status">با آرامش و دقت شروع کن؛ تو می‌تونی!</div></section><p class="play-footnote">${icon('info')} ${practice ? sessionIsBaseline ? 'این پنج تمرین برای آموزش و پیشنهاد سطح اولیه ثبت می‌شوند.' : 'این بخش فقط برای یادگرفتن قانون بازیه.' : game.kind==='reaction' ? 'محرک کوتاه دیده می‌شه؛ تا شروع نوبت بعد فرصت پاسخ داری.' : 'عجله نکن؛ انتخاب درست، مهم‌تر از انتخاب سریعه.'}</p>`, 'play-main');
+  page(`<div class="play-heading"><div><span class="section-kicker">${practice ? sessionIsBaseline ? '۵ تمرین برای آموزش و ارزیابی پایه' : 'وقت تمرینه؛ امتیازت ثبت نمی‌شه' : 'نوبت ماجراجویی توئه'}</span><h1>${game.title}<span class="level-pill">${LEVELS[selectedLevel].label}</span></h1></div><div class="play-heading-actions"><button class="icon-button sound-button" data-action="sound" aria-label="${progress.sound?'خاموش‌کردن صدا و راهنمای گویا':'روشن‌کردن صدا و راهنمای گویا'}" aria-pressed="${progress.sound}">${icon(progress.sound?'sound':'mute')}</button><button class="button subtle pause-button" data-action="pause">${icon('pause')} توقف</button></div></div><section class="play-panel ${game.kind}" data-game="${game.id}" data-interval-ms="${engine.intervalMs||1000}" style="--game-color:${game.color};--game-accent:${game.accent}" aria-label="محیط بازی"><div class="play-hud"><div><span id="progress-label"></span><b id="position"></b></div><div class="hud-time">${icon('clock')}<div><span id="time-label"></span><b id="time"></b></div></div><div><span>پاسخ‌های هدف درست</span><b id="hits">۰</b></div></div><div class="progress-track"><span id="progress-fill"></span></div><div class="instruction-strip" id="instruction"></div><div id="arena" class="arena"></div><div class="play-controls" id="play-controls"></div><div class="visual-feedback" id="visual-feedback" aria-hidden="true"><span class="feedback-good">${icon('check')}</span><span class="feedback-wrong">${icon('repeat')}</span><span class="feedback-cleared">${icon('spark')}</span><strong class="feedback-label"></strong></div><div id="feedback" class="feedback" role="status">با آرامش و دقت شروع کن؛ تو می‌تونی!</div></section><p class="play-footnote">${icon('info')} ${practice ? sessionIsBaseline ? 'این پنج تمرین برای آموزش و پیشنهاد سطح اولیه ثبت می‌شوند.' : 'این بخش فقط برای یادگرفتن قانون بازیه.' : game.kind==='reaction' ? 'محرک کوتاه دیده می‌شه؛ تا شروع نوبت بعد فرصت پاسخ داری.' : 'عجله نکن؛ انتخاب درست، مهم‌تر از انتخاب سریعه.'}</p>`, 'play-main');
   updatePlay();
   frame = requestAnimationFrame(loop);
 }
@@ -271,10 +276,14 @@ function updatePreparation() {
     setText('feedback','زمان آماده‌شدن و خواندن توضیحات، جزو زمان بازی نیست.');
     if(playPhase==='ready')narrateFrozen(guidanceKey({...engine,targetCount:engine.targets?.length||engine.targetCount}),`ready:${viewVersion}`);
   }
-  if(playPhase==='countdown')setText('countdown-number',fa(Math.max(1,3-Math.floor(preparationClock.elapsed/1000))));
+  if(playPhase==='countdown'){
+    const number=Math.max(1,3-Math.floor(preparationClock.elapsed/1000)),node=document.getElementById('countdown-number');
+    setText('countdown-number',fa(number));if(node)node.className=number%2?'countdown-odd':'countdown-even';
+  }
 }
 function updatePlay() {
   if (!engine || route !== 'play') return;
+  playMotion.sync(document.querySelector('.play-panel'),engine,{paused:modal.open||document.hidden===true,reduced:matchMedia('(prefers-reduced-motion: reduce)').matches});
   if(playPhase!=='playing'){
     if(playPhase==='countdown'&&preparationClock.elapsed>=3000&&!modal.open){
       playPhase='playing';arenaKey='';setText('feedback','با آرامش و دقت ادامه بده؛ تو می‌تونی!');updatePlay();engine.clock.resume();if(GAME_MAP[engine.gameId].kind==='reaction')engine.onset=engine.clock.elapsed;updatePlay();
@@ -298,10 +307,13 @@ function updatePlay() {
   const key = `${Boolean(engine.roundBreak)}:${Boolean(engine.review)}:` + (reaction ? `${engine.index}:${engine.gate}` : search ? `${engine.index}:${engine.preview}:${[...engine.rejected].join(',')}:${[...engine.found].join(',')}` : `${engine.judged}:${engine.items.map(i=>`${+i.collected}${+i.rejected}${+i.blocked}`).join('')}`);
   if (key !== arenaKey) {
     arenaKey = key;
-    delete document.querySelector('.play-panel').dataset.response;
+    const panel=document.querySelector('.play-panel');
+    const focus=keyboardPlay?(capturePlayFocus(panel)||(document.activeElement===document.body?{action:''}:null)):null;
+    delete panel.dataset.response;
     const presenting = !engine.gate && !engine.paused;
     if (presenting) engine.clock.pause();
     renderArena(game);
+    restorePlayFocus(panel,focus);
     if(search&&engine.preview&&!engine.review){const node=document.querySelector('.search-preview');const bounds=node?.getBoundingClientRect?.();if(bounds&&(bounds.top<0||bounds.bottom>window.innerHeight))node.scrollIntoView({block:'center',behavior:'instant'});}
     if(game.kind==='adventure'&&!engine.practice&&engine.ready){const button=document.querySelector('[data-action="depart"]');const bounds=button?.getBoundingClientRect?.();if(bounds&&(bounds.bottom>window.innerHeight||bounds.top<0))button.scrollIntoView({block:'nearest',behavior:'instant'});}
     if (presenting) { engine.clock.resume(); if(reaction) engine.onset = engine.clock.elapsed; }
@@ -313,20 +325,19 @@ function updatePlay() {
         const position=huntPosition(engine.current.choices[index],engine.clock.elapsed-engine.onset,engine.visibleMs);
         node.style.left=`${position.x}%`;node.style.top=`${position.y}%`;
         const selectable=engine.visible&&huntOnScreen(engine.current.choices[index],engine.clock.elapsed-engine.onset,engine.visibleMs)&&!engine.response;
-        node.disabled=!selectable;node.tabIndex=selectable?0:-1;node.setAttribute('aria-hidden',String(!selectable));node.classList.toggle('left-field',position.x>110); node.style.setProperty('--wing-flap',String(.72+.25*Math.sin((engine.clock.elapsed-engine.onset)/90+index)));
+        node.disabled=!selectable;node.tabIndex=selectable?0:-1;node.setAttribute('aria-hidden',String(!selectable));node.classList.toggle('left-field',position.x>110);
+        const pose=animalPose(engine.theme,engine.clock.elapsed-engine.onset,index),reduced=playMotion.reduced;
+        node.style.setProperty('--wing-flap',String(reduced?1:pose.flap));node.style.setProperty('--animal-tilt',`${reduced?0:pose.tilt}deg`);node.style.setProperty('--tail-angle',`${reduced?0:pose.tail}deg`);
       });
     }
     if(engine.gameId==='traffic'){
       const road=document.querySelector('.traffic-road'),distance=trafficProgress(engine);
-      if(road){road.dataset.progress=String(distance);road.querySelector('.road-car').setAttribute('transform',`translate(${375*distance} 0)`);road.querySelector('.road-destination').classList.toggle('arrived',distance===1);}
+      if(road){road.dataset.progress=String(distance);road.querySelector('.road-destination').classList.toggle('arrived',distance===1);}
     }
     const response = document.querySelector('[data-action="respond"]'); if (response) response.disabled = engine.gate || engine.paused || !!engine.response || engine.current.scored === false;
   }
   if(search&&engine.preview&&!engine.review){setText('preview-seconds',`${fa(Math.ceil((engine.revealAt-engine.clock.elapsed)/1000))} ثانیه`);const previewFill=document.querySelector('.preview-timer span');if(previewFill)previewFill.style.width=`${Math.max(0,100*(engine.revealAt-engine.clock.elapsed)/2000)}%`;}
-  const ship=document.querySelector('.adventure-scene.space .scene-vehicle');
-  if(ship&&!window.matchMedia?.('(prefers-reduced-motion: reduce)')?.matches){
-    const elapsed=engine.clock.elapsed;ship.style.left=`${5+Math.min(65,elapsed/1000*.6)}%`;ship.style.transform=`translateY(${Math.sin(elapsed/700)*5}px)`;
-  }
+  playMotion.sync(document.querySelector('.play-panel'),engine,{paused:modal.open||document.hidden===true,reduced:matchMedia('(prefers-reduced-motion: reduce)').matches});
   const missionFill=document.querySelector('#mission-time-fill');if(missionFill)missionFill.style.width=`${engine.practice?100:100*engine.remainingMs/engine.limitMs}%`;
   const feedback = document.getElementById('feedback');
   if (engine.feedback && feedback.textContent !== engine.feedback) { feedback.textContent = engine.feedback; feedback.className = `feedback ${engine.feedbackKind}`; }
@@ -335,7 +346,7 @@ function reactionScene(game) {
   const tap=`<button class="stimulus-tap" data-action="stimulus-response" data-trial="${engine.index}" aria-label="پاسخ به محرک نمایش‌داده‌شده">${symbol(engine.current.stimulus)}</button>`;
   if (game.id==='hunt') {
     const {size}=engine.current;
-    return `<div class="reaction-stage hunt-stage ${engine.moving?'moving-hunt':''}"><div class="stage-caption">بین شکل‌ها، فقط هدف رو بزن؛ اگر هدف نیست، صبر کن.</div>${huntBlocks(engine)}<div class="hunt-surface">${huntBackground(engine.background,engine.theme)}${worldBackground(engine,loadedWorld)}<div class="stimulus-shell hunt-array" style="--stimulus-size:${size}px">${engine.current.choices.map((choice,i)=>`<button class="stimulus-tap hunt-choice ${engine.moving?'moving-choice':''}" data-action="stimulus-response" data-trial="${engine.index}" data-choice="${i}" style="left:${choice.position.x}%;top:${choice.position.y}%" aria-label="${esc(describe(choice.stimulus))}">${symbol(choice.stimulus)}</button>`).join('')}</div></div></div>`;
+    return `<div class="reaction-stage hunt-stage ${engine.moving?'moving-hunt':''}"><div class="stage-caption">بین شکل‌ها، فقط هدف رو بزن؛ اگر هدف نیست، صبر کن.</div>${huntBlocks(engine)}<div class="hunt-surface">${huntBackground(engine.background,engine.theme)}${worldBackground(engine,loadedWorld)}${sceneAtmosphere(engine.theme)}<div class="stimulus-shell hunt-array" style="--stimulus-size:${size}px">${engine.current.choices.map((choice,i)=>`<button class="stimulus-tap hunt-choice ${engine.moving?'moving-choice':''}" data-action="stimulus-response" data-trial="${engine.index}" data-choice="${i}" style="left:${choice.position.x}%;top:${choice.position.y}%" aria-label="${esc(describe(choice.stimulus))}">${symbol(choice.stimulus)}</button>`).join('')}</div></div></div>`;
   }
   const memory=game.id==='nback'?`<div class="memory-status" aria-label="حافظهٔ ${fa(engine.n)} گام">${Array.from({length:engine.n},(_,i)=>`<span class="${engine.index>i?'remembered':''}">${engine.index>i?icon('check'):fa(i+1)}</span>`).join('')}<small>${engine.current.scored===false?'اول این محرک‌ها را به خاطر بسپار':`مقایسه با ${fa(engine.n)} محرک قبل`}</small></div>`:'';
   return `${game.id==='stroop'?stroopStages(engine.current.phase):''}<div class="reaction-stage ${game.id==='traffic'?'traffic-stage':''}">${worldBackground(engine,loadedWorld)}${memory}<div class="stage-caption">${engine.current.scored===false?'این محرک رو فقط به خاطر بسپار':'خوب نگاه کن…'}</div><div class="focus-corners"><i></i><i></i><i></i><i></i><div class="stimulus-shell">${tap}</div></div>${game.id==='traffic'?trafficRoad(engine):'<span class="stage-dots" aria-hidden="true">· · ·</span>'}</div>`;
@@ -343,7 +354,7 @@ function reactionScene(game) {
 function searchBoard() {
   const scattered=engine.layout==='scattered';
   const style=scattered?`style="--scatter-columns:${engine.current.columns};--scatter-height:${engine.current.rows*78}px"`:'';
-  return `<div class="search-grid ${selectedLevel} ${scattered?'scattered':''}" ${style}>${worldBackground(engine,loadedWorld)}${engine.current.choices.map((choice,i)=>`<button class="search-choice ${engine.rejected.has(i)?'rejected':''} ${engine.found.has(i)?'found':''}" ${scattered?`style="left:${choice.position.x}%;top:${choice.position.y}%;--scatter-angle:${choice.angle}deg"`:''} data-action="search-choice" data-index="${i}" aria-label="گزینهٔ ${fa(i+1)}: ${describe(choice)}" ${engine.rejected.has(i)||engine.found.has(i)?'disabled':''}>${symbol(choice)}${engine.found.has(i)?icon('check'):''}</button>`).join('')}</div>`;
+  return `<div class="search-grid ${selectedLevel} ${scattered?'scattered':''}" ${style} aria-label="گزینه‌های جست‌وجو؛ با کلیدهای جهت حرکت کن">${worldBackground(engine,loadedWorld)}${engine.current.choices.map((choice,i)=>`<button class="search-choice ${engine.rejected.has(i)?'rejected':''} ${engine.found.has(i)?'found':''}" ${scattered?`style="left:${choice.position.x}%;top:${choice.position.y}%;--scatter-angle:${choice.angle}deg"`:''} data-action="search-choice" data-index="${i}" aria-label="گزینهٔ ${fa(i+1)}: ${describe(choice)}${engine.found.has(i)?'، پیدا شد':engine.rejected.has(i)?'، متفاوت با نمونه':''}" ${engine.rejected.has(i)||engine.found.has(i)?'disabled':''}>${symbol(choice)}${engine.found.has(i)?icon('check'):engine.rejected.has(i)?icon('repeat'):''}</button>`).join('')}</div>`;
 }
 function renderArena(game) {
   const arena = document.getElementById('arena'), controls = document.getElementById('play-controls'), instruction = document.getElementById('instruction');
@@ -356,8 +367,7 @@ function renderArena(game) {
   if (game.kind === 'reaction') {
     let cue, button;
     if (game.id === 'hunt') { cue = `<span class="target-examples">${engine.targets.map(target=>`<span class="target-mini">${symbol(target)}</span>`).join('')}</span><span>${engine.targets.length===2?'هدف‌های تو':'هدف تو'}: <b>${engine.targets.map(describe).join(' یا ')}</b></span>`; button = 'پیداش کردم'; }
-    if (game.id === 'traffic' && engine.variant === 'signs') { cue = `${icon('target')}<span>یک‌طرفه: <b>حرکت کن</b> <i class="cue-divider"></i> ورود ممنوع: <b>صبر کن</b></span>`; button = 'حرکت!'; }
-    else if (game.id === 'traffic') { cue = `${icon('target')}<span>سبز: <b>حرکت کن</b> <i class="cue-divider"></i> قرمز: <b>صبر کن</b></span>`; button = 'حرکت!'; }
+    if(game.id==='traffic'){cue=trafficRulePicture(engine.variant==='signs');button='حرکت!';}
     if (game.id === 'nback') { cue = `${icon('target')}<span>فقط اگر با <b>${fa(engine.n)} محرک قبل</b> یکسانه، پاسخ بده.</span>`; button = `مثل ${fa(engine.n)} تا قبله`; }
     if (game.id === 'stroop') { cue = `${stroopRulePicture(engine.current.phase)}<span class="sr-only">مرحلهٔ ${fa(engine.current.phase+1)}: ${STROOP_RULES[engine.current.phase].title}</span>`; button = 'این هدفه'; }
     instruction.innerHTML = cue;
@@ -374,8 +384,8 @@ function renderArena(game) {
   } else {
     instruction.innerHTML = `${icon('target')}<span>${engine.practice ? 'این وسیله برای سفر لازمه؟ <b>لازم است؟ «بردار»؛ لازم نیست؟ «دست نگه دار».</b>' : engine.ready ? '<b>کوله آماده‌ست! قبل از پایان زمان راهی شو.</b>' : `<b>${fa(engine.required.length)} وسیلهٔ ضروری</b> رو پیدا کن.${game.id==='space'?' اول موانع رو کنار بزن.':''}`}</span>`;
     const items = engine.practice ? [engine.currentItem] : engine.items;
-    arena.innerHTML = `<div class="mission-time-track" aria-hidden="true"><span id="mission-time-fill"></span></div><div class="mission-brief"><b>${engine.mission.title}</b>${engine.practice?'<p>برای سفر لازم است؟</p>':`${missionChecklist(engine)}<details class="companion-guide mission-story"><summary>داستان سفر</summary><p>${engine.mission.story}</p></details>`}</div><div class="adventure-scene ${game.id} ${engine.level} ${loadedWorld?'illustrated-world':''} ${engine.practice?'practice-scene':''}">${sceneBackground(game.id,engine.level)}${worldBackground(engine,loadedWorld)}<div class="scene-heading">${game.id==='space'?'ایستگاه فضایی حواس':'ساحل امید'} <span>${engine.practice?'آموزش انتخاب وسایل':'وسایل رو با دقت بررسی کن'}</span></div><div class="object-grid ${selectedLevel} ${engine.scattered?'scattered-objects':''}" ${engine.scattered?`style="--field-height-desktop:${engine.fieldHeights.desktop}px;--field-height-mobile:${engine.fieldHeights.mobile}px"`:""}>${items.map(item=>`<button class="scene-object ${item.collected?'collected':''} ${item.rejected?'rejected':''} ${item.blocked?'blocked':''}" data-action="item" data-index="${item.id}" ${item.layout?`style="--object-desktop-x:${item.layout.desktop.x}%;--object-desktop-y:${item.layout.desktop.y}%;--object-mobile-x:${item.layout.mobile.x}%;--object-mobile-y:${item.layout.mobile.y}%;--object-angle:${item.layout.angle}deg;--object-layer:${item.layout.layer}"`:""} aria-label="${item.blocked?'کنار زدن مانع':item.name}${item.collected?'، در کوله قرار گرفت':''}" ${item.collected||item.rejected?'disabled':''}>${equipment(item.blocked?'obstacle':item.icon)}<span>${item.blocked?'کنار بزن':item.name}</span>${item.blocked?'<b class="obstacle-plus">+</b>':''}${item.collected?icon('check'):''}</button>`).join('')}</div><div class="scene-vehicle ${engine.ready?'vehicle-ready':''}">${vehicleArt(game.id)}${engine.ready?'<span>آمادهٔ حرکت!</span>':''}</div></div>`;
-    controls.innerHTML = engine.practice ? `<button class="button response-button collect-button" data-action="item" data-index="${engine.currentItem.id}" ${engine.currentItem.blocked?'disabled':''}>${icon('bag')} بردار</button><button class="button wait-button" data-action="reject-item" ${engine.currentItem.blocked?'disabled':''}>${icon('wait')} دست نگه دار</button>` : `<div class="inventory"><span>کولهٔ تو</span><div>${engine.required.map(([name],i)=>{ const item=engine.items.find(item=>item.icon===name&&item.collected); return `<span class="inventory-slot ${item?'filled':''}" title="${item?item.name:'هنوز پیدا نشده'}">${item?equipment(name):fa(i+1)}</span>`; }).join('')}</div></div><button class="button primary depart-button" data-action="depart" ${engine.ready?'':'disabled'}>${game.id==='space'?'پرتاب سفینه':'سوار کشتی شو'} ${icon('arrow')}</button>`;
+    arena.innerHTML = `<div class="mission-time-track" aria-hidden="true"><span id="mission-time-fill"></span></div><div class="mission-brief"><b>${engine.mission.title}</b>${engine.practice?'<p>برای سفر لازم است؟</p>':`${missionChecklist(engine)}<details class="companion-guide mission-story"><summary>داستان سفر</summary><p>${engine.mission.story}</p></details>`}</div><div class="adventure-scene ${game.id} ${engine.level} ${loadedWorld?'illustrated-world':''} ${engine.practice?'practice-scene':''}">${sceneBackground(game.id,engine.level)}${worldBackground(engine,loadedWorld)}${sceneAtmosphere(game.id)}<div class="scene-heading">${game.id==='space'?'ایستگاه فضایی حواس':'ساحل امید'} <span>${engine.practice?'آموزش انتخاب وسایل':'وسایل رو با دقت بررسی کن'}</span></div><div class="object-grid ${selectedLevel} ${engine.scattered?'scattered-objects':''}" ${engine.scattered?`style="--field-height-desktop:${engine.fieldHeights.desktop}px;--field-height-mobile:${engine.fieldHeights.mobile}px"`:""}>${items.map(item=>`<button class="scene-object ${item.collected?'collected':''} ${item.rejected?'rejected':''} ${item.blocked?'blocked':''}" data-action="item" data-index="${item.id}" ${item.layout?`style="--object-desktop-x:${item.layout.desktop.x}%;--object-desktop-y:${item.layout.desktop.y}%;--object-mobile-x:${item.layout.mobile.x}%;--object-mobile-y:${item.layout.mobile.y}%;--object-angle:${item.layout.angle}deg;--object-layer:${item.layout.layer}"`:""} aria-label="${item.blocked?'کنار زدن مانع':item.name}${item.collected?'، در کوله قرار گرفت':''}" ${item.collected||item.rejected?'disabled':''}>${equipment(item.blocked?'obstacle':item.icon)}<span>${item.blocked?'کنار بزن':item.name}</span>${item.blocked?'<b class="obstacle-plus">+</b>':''}${item.collected?icon('check'):''}</button>`).join('')}</div><div class="scene-vehicle ${engine.ready?'vehicle-ready':''}">${vehicleArt(game.id)}${engine.ready?'<span>آمادهٔ حرکت!</span>':''}</div></div>`;
+    controls.innerHTML = engine.practice ? `<button class="button response-button collect-button" data-action="item" data-index="${engine.currentItem.id}" ${engine.currentItem.blocked?'disabled':''}>${icon('bag')} بردار</button><button class="button wait-button" data-action="reject-item" ${engine.currentItem.blocked?'disabled':''}>${icon('wait')} دست نگه دار</button>` : `${missionInventory(engine)}<button class="button primary depart-button" data-action="depart" ${engine.ready?'':'disabled'}>${game.id==='space'?'پرتاب سفینه':'سوار کشتی شو'} ${icon('arrow')}</button>`;
   }
 }
 
@@ -390,7 +400,7 @@ function finish() {
   const stars = !result.completed?0:ratio>=.85?3:ratio>=.5?2:ratio>0?1:0;
   const title = session.practice ? sessionIsBaseline ? 'ارزیابی پایه کامل شد' : 'تمرین تموم شد، آماده‌ای؟' : !result.completed ? 'این سفر هنوز ادامه داره!' : ratio>=.85 ? 'چه تمرکز درخشانی!' : ratio>=.5 ? 'آفرین، خوب پیش رفتی!' : 'هر بار، یک قدم بهتر!';
   const caption = session.practice ? sessionIsBaseline ? 'نتیجهٔ این پنج تمرین جدا از بازی اصلی در اطلاعات کاربر نگهداری می‌شود. پیشنهاد سطح اولیه است و می‌توانی آن را تغییر بدهی.' : 'قانون بازی رو یاد گرفتی. حالا می‌تونی ماجراجویی اصلی رو شروع کنی.' : !result.completed ? result.hits===result.maxScore?'همهٔ وسایل را پیدا کردی! دفعهٔ بعد، پیش از پایان زمان دکمهٔ حرکت را بزن.':'زمان تمام شد؛ در مرور پایین، نیازهای باقی‌ماندهٔ سفر را بشناس و دوباره امتحان کن.' : game.kind==='adventure' ? session.mission.success : 'مهم‌ترین بخشش رو انجام دادی: با دقت بازی کردی. آمادهٔ یک چالش دیگه‌ای؟';
-  page(`<section class="result-card">${game.kind==='adventure'&&!session.practice?missionOutcomeArt(game.id,result.completed):trophyArt()}<div class="eyebrow">${session.practice?'۵ تمرین آموزشی':'پایان بازی'} <span>·</span> ${game.title}</div><h1>${title}</h1><p class="result-caption">${caption}</p>${!session.practice?`<div class="result-stars" aria-label="${fa(stars)} ستاره از ۳">${[0,1,2].map(i=>`<span class="${i<stars?'earned':''}">★</span>`).join('')}</div>`:''}<div class="result-main-score"><b>${fa(result.score)}</b><span>از ${fa(result.maxScore)} ${session.practice?'پاسخ هدف':'امتیاز'}</span></div><div class="result-stats"><div>${icon('check')}<b>${fa(result.hits)}</b><span>انتخاب هدف درست</span></div><div>${icon('target')}<b>${fa(result.falseSelections)}</b><span>انتخاب اشتباه</span></div><div>${icon('info')}<b>${fa(result.omissions)}</b><span>هدف بدون پاسخ</span></div><div>${icon('clock')}<b>${time(result.durationMs)}</b><span>زمان فعال بازی</span></div><div>${icon('check')}<b>${fa(result.longestStreak)}</b><span>تصمیم درست متوالی</span></div>${game.kind==='reaction'?`<div>${icon('pause')}<b>${fa(result.correctRejections)}</b><span>خودداری درست از پاسخ</span></div>`:''}${result.meanReactionMs!==null?`<div>${icon('spark')}<b>${fa(result.meanReactionMs)} <small>ms</small></b><span>${result.reactionMeasure==='decision-interval'?'میانگین زمان انتخاب درست':'میانگین واکنش درست'}</span></div>`:''}</div>${learningRecap(session)}${game.kind==='reaction'?'<p class="score-note">امتیاز = هدف‌های درست، منهای انتخاب‌های اشتباه؛ حداقل صفر.</p>':''}${!session.practice || sessionIsBaseline?`<p class="local-note">${icon('check')} در حال ثبت نتیجه در سرور مرکز…</p>`:''}<div class="result-actions"><button class="button primary" data-action="${session.practice?'main-game':'replay'}">${session.practice?'بزن بریم بازی اصلی':'دوباره بازی کن'} ${icon(session.practice?'arrow':'repeat')}</button><button class="button subtle" data-action="${session.practice?'detail':'home'}">${session.practice?'برگشت به راهنما':'انتخاب بازی دیگه'}</button></div></section>`, 'result-main');
+  page(`<section class="result-card">${game.kind==='adventure'&&!session.practice?missionOutcomeArt(game.id,result.completed):trophyArt()}<div class="eyebrow">${session.practice?'۵ تمرین آموزشی':'پایان بازی'} <span>·</span> ${game.title}</div><h1>${title}</h1><p class="result-caption">${caption}</p>${!session.practice?`<div class="result-stars" aria-label="${fa(stars)} ستاره از ۳">${[0,1,2].map(i=>`<span class="${i<stars?'earned':''}">${i<stars?'★':'☆'}</span>`).join('')}</div>`:''}<div class="result-main-score"><b>${fa(result.score)}</b><span>از ${fa(result.maxScore)} ${session.practice?'پاسخ هدف':'امتیاز'}</span></div><div class="result-stats"><div>${icon('check')}<b>${fa(result.hits)}</b><span>انتخاب هدف درست</span></div><div>${icon('target')}<b>${fa(result.falseSelections)}</b><span>انتخاب اشتباه</span></div><div>${icon('info')}<b>${fa(result.omissions)}</b><span>هدف بدون پاسخ</span></div><div>${icon('clock')}<b>${time(result.durationMs)}</b><span>زمان فعال بازی</span></div><div>${icon('check')}<b>${fa(result.longestStreak)}</b><span>تصمیم درست متوالی</span></div>${game.kind==='reaction'?`<div>${icon('pause')}<b>${fa(result.correctRejections)}</b><span>خودداری درست از پاسخ</span></div>`:''}${result.meanReactionMs!==null?`<div>${icon('spark')}<b>${fa(result.meanReactionMs)} <small>ms</small></b><span>${result.reactionMeasure==='decision-interval'?'میانگین زمان انتخاب درست':'میانگین واکنش درست'}</span></div>`:''}</div>${stroopScorecard(session)}${learningRecap(session)}${game.kind==='reaction'?'<p class="score-note">امتیاز = هدف‌های درست، منهای انتخاب‌های اشتباه؛ حداقل صفر.</p>':''}${!session.practice || sessionIsBaseline?`<p class="local-note">${icon('check')} در حال ثبت نتیجه در سرور مرکز…</p>`:''}<div class="result-actions"><button class="button primary" data-action="${session.practice?'main-game':'replay'}">${session.practice?'بزن بریم بازی اصلی':'دوباره بازی کن'} ${icon(session.practice?'arrow':'repeat')}</button><button class="button subtle" data-action="${session.practice?'detail':'home'}">${session.practice?'برگشت به راهنما':'انتخاب بازی دیگه'}</button></div></section>`, 'result-main');
   if (!session.practice || sessionIsBaseline) {
     const note = document.querySelector('.local-note');
     note.innerHTML=`${icon('clock')} در حال ثبت نتیجه در سرور مرکز…`;
@@ -411,6 +421,7 @@ function finish() {
 
 function openModal(content, kind) {
   if (modal.open) modal.close(); modalKind=kind; modal.innerHTML = content; modal.showModal();
+  if(route==='play'&&engine)playMotion.sync(document.querySelector('.play-panel'),engine,{paused:true,reduced:matchMedia('(prefers-reduced-motion: reduce)').matches});
 }
 function about() {
   if (route==='play' && engine){if(!engine.paused)engine.pause();preparationClock?.pause();}
@@ -455,7 +466,26 @@ function tone(good) {
     osc.start(); osc.stop(audioContext.currentTime+.14);
   } catch { /* Audio is optional. */ }
 }
-function answer(result,context={}) { if(result!==null&&result!==undefined) { tone(result===true||result==='cleared'); if(engine?.feedback) announcer.textContent=engine.feedback; } updatePlay();if(result!==null&&result!==undefined&&route==='play'){document.querySelector('.play-panel').dataset.response=result===true||result==='cleared'?'good':'wrong';const visual=document.querySelector('#visual-feedback');if(visual)visual.dataset.kind=result==='cleared'?'cleared':result===true?'good':'wrong';if(context.itemId!==undefined){const item=document.querySelector(`[data-action="item"][data-index="${context.itemId}"]`);if(item)item.dataset.effect=result==='cleared'?'cleared':result?'packed':'rejected';}} }
+function answer(result,context={}) {
+  if(result===null||result===undefined){updatePlay();return;}
+  const good=result===true||result==='cleared',kind=result==='cleared'?'cleared':good?'good':'wrong';
+  const sourceNode=context.itemId!==undefined?document.querySelector(`.scene-object[data-index="${context.itemId}"]`):context.searchIndex!==undefined?document.querySelector(`.search-choice[data-index="${context.searchIndex}"]`):context.choiceIndex!==undefined?document.querySelector(`.hunt-choice[data-choice="${context.choiceIndex}"]`):document.querySelector('.focus-corners');
+  const source=captureMotionSource(sourceNode);
+  tone(good);if(engine?.feedback)announcer.textContent=engine.feedback;
+  updatePlay();if(route!=='play')return;
+  document.querySelector('.play-panel').dataset.response=good?'good':'wrong';
+  const visual=document.querySelector('#visual-feedback');
+  if(visual){
+    visual.dataset.kind=kind;
+    const label=visual.querySelector('.feedback-label');
+    if(label)label.textContent=kind==='cleared'?'راه باز شد':good?'آفرین!':!engine.practice&&GAME_MAP[engine.gameId].kind==='adventure'?'۲ ثانیه کمتر':'دوباره ببین';
+    playMotion.toast(visual);
+  }
+  playMotion.burst(source,kind);
+  if(context.itemId!==undefined&&result===true&&!engine.practice){const item=engine.items.find(item=>item.id===context.itemId);playMotion.fly(source,document.querySelector(`.inventory-slot[data-equipment="${item.icon}"]`));}
+  if(context.itemId!==undefined){const item=document.querySelector(`[data-action="item"][data-index="${context.itemId}"]`);if(item)item.dataset.effect=result==='cleared'?'cleared':result?'packed':'rejected';}
+  if(context.choiceIndex!==undefined){const choice=document.querySelector(`.hunt-choice[data-choice="${context.choiceIndex}"]`);if(choice)choice.dataset.picked=kind;}
+}
 
 async function profiles(){return adminUsers();}
 function continueAfterProfile() {
@@ -667,23 +697,25 @@ async function handleAction(event) {
   if(action==='next-round'){engine.continueRound();arenaKey='';updatePlay();return;}
   if(action==='continue-review'){guidance.stop();engine.continueReview();arenaKey='';updatePlay();return;}
   if(action==='respond') answer(engine.respond());
-  if(action==='stimulus-response') answer(engine.respondToStimulus(Number(button.dataset.trial),button.dataset.choice===undefined?null:Number(button.dataset.choice)));
-  if(action==='search-choice') answer(engine.choose(Number(button.dataset.index)));
+  if(action==='stimulus-response') answer(engine.respondToStimulus(Number(button.dataset.trial),button.dataset.choice===undefined?null:Number(button.dataset.choice)),{choiceIndex:button.dataset.choice});
+  if(action==='search-choice') answer(engine.choose(Number(button.dataset.index)),{searchIndex:Number(button.dataset.index)});
   if(action==='item') answer(engine.choose(Number(button.dataset.index)),{itemId:Number(button.dataset.index)});
   if(action==='reject-item') answer(engine.reject());
   if(action==='depart') { tone(engine.depart()); updatePlay(); }
   if(action==='acknowledge') { guidance.stop();engine.acknowledge(); arenaKey=''; updatePlay(); }
 }
 app.addEventListener('click',event=>{void handleAction(event).catch(showError);});
+document.addEventListener('pointerdown',()=>{keyboardPlay=false;},{capture:true});
 app.addEventListener('pointerdown',event=>{
   if(route!=='play'||playPhase!=='playing'||!engine||modal.open||event.isPrimary===false||event.button!==0)return;
   const button=event.target.closest('[data-action="stimulus-response"],[data-action="respond"]');
-  if(button&&!button.disabled) {reactionPointerInput=true;event.preventDefault();answer(button.dataset.action==='respond'?engine.respond():engine.respondToStimulus(Number(button.dataset.trial),button.dataset.choice===undefined?null:Number(button.dataset.choice)));}
+  if(button&&!button.disabled) {reactionPointerInput=true;event.preventDefault();answer(button.dataset.action==='respond'?engine.respond():engine.respondToStimulus(Number(button.dataset.trial),button.dataset.choice===undefined?null:Number(button.dataset.choice)),{choiceIndex:button.dataset.choice});}
 });
 modal.addEventListener('click',event=>{void handleAction(event).catch(showError);});
 modal.addEventListener('submit',event=>{event.preventDefault();void submitForm(event.target).catch(showError);});
 modal.addEventListener('cancel', event=>{ event.preventDefault(); closeModal(); });
 document.addEventListener('keydown', event=>{
+  if(route==='play'&&!modal.open){keyboardPlay=true;if(playPhase==='playing'&&moveFieldFocus(event.target,event.key)){event.preventDefault();return;}}
   if(event.key==='Escape'&&document.body.classList.contains('admin-menu-open')){event.preventDefault();return toggleAdminMenu(false);}
   if(event.key==='Tab'&&document.body.classList.contains('admin-menu-open')){const controls=[...document.querySelectorAll('.admin-sidebar a,.admin-sidebar button')],first=controls[0],last=controls.at(-1);if(event.shiftKey&&document.activeElement===first){event.preventDefault();last?.focus();}else if(!event.shiftKey&&document.activeElement===last){event.preventDefault();first?.focus();}}
   if(event.key==='Escape'&&route==='play'&&!modal.open) { event.preventDefault(); pause(); }
@@ -697,6 +729,7 @@ document.addEventListener('keydown', event=>{
     if(engine.roundBreak){engine.continueRound();arenaKey='';return updatePlay();}
     if(engine.review){guidance.stop();engine.continueReview();arenaKey='';return updatePlay();}
     if(engine.gate){guidance.stop();engine.acknowledge();arenaKey='';return updatePlay();}
+    if(control?.matches('[data-action="stimulus-response"]'))return answer(engine.respondToStimulus(Number(control.dataset.trial),control.dataset.choice===undefined?null:Number(control.dataset.choice)),{choiceIndex:control.dataset.choice});
     if(GAME_MAP[selectedGame].kind==='reaction')answer(engine.respond());
   }
 });

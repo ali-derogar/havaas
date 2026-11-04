@@ -7,9 +7,9 @@ const sameStimulus = (a, b) => a.shape === b.shape && a.color === b.color && a.d
 export function generateSearch(level, random = Math.random, layout = 'grid', material = 'shapes', targetCount = 1, stimulusVersion = PRESENTATION_VERSION) {
   const shapes = material === 'letters' ? ['letter-F','letter-E','letter-P','letter-R','letter-L'] : ['star', 'circle', 'diamond', 'square', 'triangle'];
   const colors = ['blue', 'green', 'purple', 'pink'];
-  const revised=stimulusVersion>=6,letter=material==='letters';
-  const details=letter?[0,1,2,3]:revised?[0,1,2,3,4,5,6,7]:[0,1,2,3];
-  const targetDetails=letter?(level==='easy'?[1]:[1,2,3]):level==='easy'?[1,2]:level==='medium'?[1,2,3,4,5]:[4,5,6,7];
+  const revised=stimulusVersion>=6,rich=stimulusVersion>=8,letter=material==='letters';
+  const details=letter?(rich?[0,1,2,3,4,5,6]:[0,1,2,3]):rich?[0,1,2,3,4,5,6,7,8,9,10,11]:revised?[0,1,2,3,4,5,6,7]:[0,1,2,3];
+  const targetDetails=letter?(level==='easy'?[1]:rich&&level==='hard'?[4,5,6]:[1,2,3]):level==='easy'?[1,2]:level==='medium'?[1,2,3,4,5]:rich?[4,5,6,7,8,9,10,11]:[4,5,6,7];
   const target = { shape: pick(shapes, random), color: pick(colors, random), detail: revised?pick(targetDetails,random):level === 'easy' ? 0 : Math.floor(random() * 4) };
   const targets = [target];
   if (targetCount === 2) targets.push(level === 'hard' ? { ...target, detail: revised?pick(targetDetails.filter(detail=>detail!==target.detail),random):(target.detail + 1 + Math.floor(random() * 3)) % 4 } : {
@@ -20,7 +20,10 @@ export function generateSearch(level, random = Math.random, layout = 'grid', mat
   if (level === 'medium') pool = pool.filter(s => s.shape === target.shape);
   if (level === 'hard') pool = pool.filter(s => s.shape === target.shape && s.color === target.color);
   pool = pool.filter(s => !targets.some(target=>sameStimulus(s,target)));
-  const options = Array.from({ length: (revised?LEVELS[level].items:LEGACY_ITEM_COUNTS[level]) - targets.length }, () => ({ ...pick(pool, random), target: false }));
+  const optionCount=(revised?LEVELS[level].items:LEGACY_ITEM_COUNTS[level])-targets.length;
+  // Cover the available lookalikes before repeating them, instead of letting a
+  // random draw omit most details from a hard board. Retain old seeded boards.
+  const options = rich ? Array.from({length:Math.ceil(optionCount/pool.length)},()=>shuffle(pool,random)).flat().slice(0,optionCount).map(stimulus=>({...stimulus,target:false})) : Array.from({ length: optionCount }, () => ({ ...pick(pool, random), target: false }));
   const choices = shuffle([...options, ...targets.map((stimulus,targetIndex)=>({ ...stimulus, target: true, targetIndex }))], random);
   const columns = level === 'hard' ? 5 : 4, rows = Math.ceil(choices.length/columns);
   if (layout === 'scattered') choices.forEach((choice,index)=>{

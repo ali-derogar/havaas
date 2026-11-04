@@ -27,7 +27,7 @@ export function createLesson(gameId, { level='easy', material='shapes', theme='s
   }
   if(gameId==='search'){
     const letter=material==='letters',name=letter?'letter-F':'star',other=letter?'letter-P':'diamond';
-    const firstDetail=letter?1:level==='hard'?6:level==='medium'?4:1,secondDetail=letter?2:level==='hard'?7:level==='medium'?5:2;
+    const firstDetail=letter?(level==='hard'?4:1):level==='hard'?10:level==='medium'?4:1,secondDetail=letter?(level==='hard'?6:2):level==='hard'?11:level==='medium'?5:2;
     const samples=[shape(name,'blue',firstDetail),...(targetCount===2?[shape(other,'purple',secondDetail)]:[])];
     return [0,1].map(index=>({kind:'search',memorize:index===1,title:index?'حالا از حافظه کمک بگیر':'جزئیات، سرنخ تو هستند',
       prompt:index?'با خیال راحت نمونه را به خاطر بسپار. با زدن دکمه، نمونه پنهان می‌شود و گزینه‌ها را می‌بینی.':targetCount===2?'به دو نمونه نگاه کن و هر دو را در گزینه‌ها پیدا کن.':'به نمونه نگاه کن و دقیقاً همان را در گزینه‌ها پیدا کن.',samples,

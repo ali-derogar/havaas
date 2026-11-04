@@ -1,3 +1,4 @@
+import {PRESENTATION_VERSION} from '../src/config.js';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { parseHTML } from 'linkedom';
@@ -52,7 +53,7 @@ test('mission visuals show departure only on a completed mission',()=>{
 
 test('the visual revision is frozen in the start settings and cannot be replaced by the submitted result',()=>{
  for(const gameId of ['hunt','ark','space']){
-  const settings={...normalizeSettings({gameId}),seed:42};assert.equal(settings.stimulusVersion,7);
+  const settings={...normalizeSettings({gameId}),seed:42};assert.equal(settings.stimulusVersion,PRESENTATION_VERSION);
   const oldRun={id:'older-run',kind:'baseline',settings:{...settings,stimulusVersion:1,reviewEnabled:true}};
   const payload=playSession(oldRun);payload.stimulusVersion=999;
   const result=canonicalResult(oldRun,payload);assert.equal(result.stimulusVersion,1);assert.equal(result.settingsSnapshot.stimulusVersion,1);
