@@ -1,0 +1,72 @@
+/* Preserve the stimulus and a full touch response on small browser viewports. */
+@media(max-height:600px) and (max-width:639px) {
+ body[data-screen=play] .play-main:has(.reaction[data-phase=playing]) { padding:8px 10px 12px; }
+ .play-main:has(.reaction[data-phase=playing]) .play-heading { gap:8px; margin-bottom:8px; }
+ .play-main:has(.reaction[data-phase=playing]) .play-heading h1 { font-size:17px; line-height:1.5; gap:5px; }
+ .play-main:has(.reaction[data-phase=playing]) .play-heading .level-pill { font-size:9px; padding:3px 6px; }
+ body[data-screen=play] .play-main:has(.reaction[data-phase=playing]) .play-heading-actions { gap:6px; }
+ body[data-screen=play] .play-main:has(.reaction[data-phase=playing]) .sound-button { width:40px; min-height:40px; height:40px; }
+ body[data-screen=play] .play-main:has(.reaction[data-phase=playing]) .pause-button { min-height:40px; padding:7px 8px; }
+ .play-panel.reaction[data-phase=playing] { overflow:clip; }
+ .play-panel.reaction[data-phase=playing]>.play-hud { min-height:50px; padding:4px 12px; }
+ .play-panel.reaction[data-phase=playing]>.play-hud b { font-size:15px; }
+ .play-panel.reaction[data-phase=playing] #hits { width:36px; height:36px; font-size:17px; }
+ .play-panel.reaction[data-phase=playing]>.play-controls { padding:9px 12px max(9px,env(safe-area-inset-bottom)); gap:0; min-height:96px; }
+ .play-panel.reaction[data-phase=playing] .response-button { min-width:0; min-height:54px; padding:8px 14px; font-size:20px; line-height:1.4; }
+ .play-panel.reaction[data-phase=playing] :is(.hunt-response-rule,.memory-response-rule,.studio-response-rule) { gap:7px; }
+ .play-panel.reaction[data-phase=playing] :is(.hunt-wait-reminder,.memory-wait-reminder,.studio-wait-reminder) { font-size:11px; }
+ .play-panel.reaction[data-phase=playing] :is(.hunt-wait-reminder,.memory-wait-reminder,.studio-wait-reminder)>.icon { width:17px; height:17px; }
+ .play-panel.reaction[data-phase=playing] .keyboard-hint { display:none; }
+ .play-panel[data-game=hunt][data-phase=playing]>.instruction-strip { min-height:64px; padding:6px 10px; }
+ .play-panel[data-game=hunt][data-phase=playing] .target-mini { width:45px; height:45px; }
+ .play-panel[data-game=hunt][data-phase=playing] .target-mini>.symbol { width:37px; height:37px; }
+ .play-panel[data-game=hunt][data-phase=playing] .reaction-stage.hunt-world { padding:8px 10px; gap:6px; }
+ .play-panel[data-game=hunt][data-phase=playing] .hunt-surface { height:220px; }
+ .play-panel[data-game=hunt][data-phase=playing] .hunt-trail>span { padding:3px 8px; }
+ .play-panel[data-game=nback][data-phase=playing] .reaction-stage.memory-stage { height:270px; padding:8px 12px; }
+ .play-panel[data-game=nback][data-phase=playing] :is(.memory-now-label,.memory-stage-note,.memory-station-footer) { display:none; }
+ .play-panel[data-game=nback][data-phase=playing] .memory-console { gap:4px; padding:0; }
+ .play-panel[data-game=nback][data-phase=playing] .memory-focus-frame { width:174px; height:174px; padding:11px; }
+ .play-panel[data-game=nback][data-phase=playing] .memory-stage .focus-corners { width:152px; height:152px; }
+ .play-panel[data-game=nback][data-phase=playing] .memory-stage .stimulus-shell { width:130px; height:130px; }
+ .play-panel[data-game=nback][data-phase=playing] .memory-stage .symbol { width:112px; height:112px; }
+ .play-panel[data-game=nback][data-phase=playing] .memory-status>.memory-sealed-slot { height:39px; grid-template-rows:21px 10px; }
+ .play-panel[data-game=stroop][data-phase=playing] .studio-phase-path { padding:6px 8px; }
+ .play-panel[data-game=stroop][data-phase=playing] .studio-phase-path>span { grid-template-rows:15px 10px; padding:4px 5px; gap:1px 4px; }
+ .play-panel[data-game=stroop][data-phase=playing] .reaction-stage.studio-stage { height:216px; padding:10px 12px; gap:8px; }
+ .play-panel[data-game=stroop][data-phase=playing] .studio-stage .focus-corners { width:230px; height:145px; }
+ .play-panel[data-game=stroop][data-phase=playing] .studio-stage .stimulus-shell { height:120px; }
+ .play-panel[data-game=stroop][data-phase=playing] .studio-stage .word-stimulus { font-size:58px; }
+}
+
+@media(max-height:400px) and (min-width:640px) {
+ .play-panel[data-game=stroop][data-phase=playing] .studio-phase-path { padding:4px 12px; }
+ .play-panel[data-game=stroop][data-phase=playing] .studio-phase-path>span { grid-template-rows:15px 10px; padding:4px 6px; gap:1px 4px; }
+ .play-panel[data-game=traffic][data-phase=playing]>.play-hud { min-height:42px; padding:4px 18px; }
+ .play-panel[data-game=traffic][data-phase=playing]>.play-hud b { font-size:16px; }
+ .play-panel[data-game=traffic][data-phase=playing] #hits { width:34px; height:34px; font-size:16px; }
+ .play-panel[data-game=traffic][data-phase=playing]>.instruction-strip { min-height:53px; padding:4px 10px; }
+ .play-panel[data-game=traffic][data-phase=playing] .reaction-stage.traffic-world { display:grid; grid-template-columns:96px minmax(0,1fr); grid-template-rows:24px 1fr; gap:8px 12px; height:240px; min-height:0; padding:10px 11px 0; }
+ .play-panel[data-game=traffic][data-phase=playing] .traffic-signal-area { grid-column:1; grid-row:1 / span 2; padding-bottom:0; gap:0; }
+ .play-panel[data-game=traffic][data-phase=playing] :is(.traffic-look-hint,.traffic-trip-note,.traffic-signal-area>.stage-caption) { display:none; }
+ .play-panel[data-game=traffic][data-phase=playing] .traffic-signal-case { width:78px; height:160px; border-radius:22px; }
+ .play-panel[data-game=traffic][data-phase=playing] .traffic-socket { width:42px; height:42px; left:15px; }
+ .play-panel[data-game=traffic][data-phase=playing] .traffic-socket.red { top:8px; }
+ .play-panel[data-game=traffic][data-phase=playing] .traffic-socket.amber { top:56px; }
+ .play-panel[data-game=traffic][data-phase=playing] .traffic-socket.green { top:104px; }
+ .play-panel[data-game=traffic][data-phase=playing] .traffic-live-signal { width:56px; height:56px; top:1px; left:8px; }
+ .play-panel[data-game=traffic][data-phase=playing] .light-mode .traffic-live-signal[data-lamp=green] { top:97px; }
+ .play-panel[data-game=traffic][data-phase=playing] .traffic-live-signal :is(.stimulus-tap,.symbol) { width:56px; height:56px; }
+ .play-panel[data-game=traffic][data-phase=playing] .traffic-cue-sheen { top:15px; left:17px; width:14px; }
+ .play-panel[data-game=traffic][data-phase=playing] .sign-mode .traffic-signal-case { width:96px; height:96px; border-radius:19px; }
+ .play-panel[data-game=traffic][data-phase=playing] .sign-mode .traffic-live-signal { width:72px; height:72px; top:9px; left:9px; }
+ .play-panel[data-game=traffic][data-phase=playing] .sign-mode .traffic-live-signal :is(.stimulus-tap,.symbol) { width:72px; height:72px; }
+ .play-panel[data-game=traffic][data-phase=playing] .traffic-route-heading { grid-column:2; grid-row:1; margin:0; min-height:0; }
+ .play-panel[data-game=traffic][data-phase=playing] .traffic-route-heading>span:first-child { font-size:11px; }
+ .play-panel[data-game=traffic][data-phase=playing] .traffic-town { grid-column:2; grid-row:2; height:180px; }
+ .play-panel[data-game=traffic][data-phase=playing] .traffic-town>.traffic-road { width:620px; min-width:620px; height:300px; transform:translate(var(--traffic-camera-x,0px),-105px); }
+ .play-main:has(.play-panel[data-game=traffic][data-phase=playing]) .play-heading-actions { z-index:20; bottom:12px; left:34px; }
+ .play-panel[data-game=traffic][data-phase=playing]>.play-controls { padding:15px 12px 50px; min-height:0; }
+ .play-panel[data-game=traffic][data-phase=playing] .response-button { min-width:0; width:100%; font-size:20px; }
+ .play-panel[data-game=traffic][data-phase=playing]>.feedback { display:none; }
+}

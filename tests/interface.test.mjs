@@ -344,6 +344,14 @@ test('interface: device rotation pauses a timed reaction without recording extra
  await ui.click('resume');assert.equal(ui.document.querySelector('.stimulus-shell').style.visibility,'visible');await ui.advance(1000);assert.ok(ui.document.querySelector('.practice-review'));assert.equal(ui.document.querySelector('#position').textContent,'۱ از ۵');
 });
 
+test('interface: device rotation also freezes the remaining countdown',async()=>{
+ const ui=await fixture({autoReady:false,autoReview:false});await ui.click('open','[data-game="traffic"]');await ui.click('practice');await ui.click('begin-game');await ui.advance(1000);
+ ui.window.dispatchEvent(new ui.window.Event('orientationchange'));assert.ok(ui.document.querySelector('#modal').open);
+ await ui.advance(60000);assert.equal(ui.document.querySelector('#countdown-number').textContent,'۲');assert.equal(ui.document.querySelector('#time').textContent,'۰۰:۰۰');
+ await ui.click('resume');await ui.advance(1999);assert.ok(ui.document.querySelector('.game-countdown'));await ui.advance(1);
+ assert.equal(ui.document.querySelector('#position').textContent,'۱ از ۵');assert.equal(ui.document.querySelector('.stimulus-shell').style.visibility,'visible');
+});
+
 test('interface: illustration decoding completes before the game clock is created',async()=>{
  const ui=await fixture({autoReady:false}),original=globalThis.Image;let finishDecode;
  class DeferredImage {set src(value){queueMicrotask(()=>this.onload());}decode(){return new Promise(resolve=>{finishDecode=resolve;});}}

@@ -16,6 +16,7 @@ import { registerAccounts } from './accounts.js';
 import { registerPublicReport,registerReportLinks,reportResult } from './report-links.js';
 import {appOrigin,normalizeAppOrigin} from './origin.js';
 import {serializeCsv} from './csv.js';
+import {registerPwa} from './pwa.js';
 
 const PgStore=connectPg(session);
 const role=(req,roles)=>check(roles.includes(req.user.role),'اجازهٔ این عملیات را ندارید.',403,'FORBIDDEN');
@@ -31,7 +32,8 @@ export function createApp({pool,secret=process.env.SESSION_SECRET,production=pro
   check(typeof secret==='string'&&secret.length>=32&&!secret.includes('replace-with'),'SESSION_SECRET must contain at least 32 characters',500);
   normalizeAppOrigin(process.env.APP_ORIGIN);
   const app=express();app.disable('x-powered-by');if(trustProxy)app.set('trust proxy',1);
-  app.use(helmet({contentSecurityPolicy:{directives:{defaultSrc:["'self'"],scriptSrc:["'self'"],styleSrc:["'self'","'unsafe-inline'"],fontSrc:["'self'"],imgSrc:["'self'",'data:'],connectSrc:["'self'"],objectSrc:["'none'"],frameAncestors:["'none'"],upgradeInsecureRequests:production?[]:null}},strictTransportSecurity:production?undefined:false}));
+  app.use(helmet({contentSecurityPolicy:{directives:{defaultSrc:["'self'"],scriptSrc:["'self'"],workerSrc:["'self'"],manifestSrc:["'self'"],styleSrc:["'self'","'unsafe-inline'"],fontSrc:["'self'"],imgSrc:["'self'",'data:'],connectSrc:["'self'"],objectSrc:["'none'"],frameAncestors:["'none'"],upgradeInsecureRequests:production?[]:null}},strictTransportSecurity:production?undefined:false}));
+  registerPwa(app,staticRoot);
   app.get('/health',async(_req,res)=>{try{await pool.query('SELECT 1');res.json({ok:true});}catch{res.status(503).json({ok:false});}});
   app.use('/api',express.json({limit:'20mb'}));
   app.use('/api',(req,_res,next)=>{req.body ||= {};next();});

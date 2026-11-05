@@ -8,7 +8,11 @@ function docker(tail,{input,quiet=false}={}){return new Promise((resolve,reject)
 let cookie='',csrf;
 async function api(path,{method='GET',body}={}){const response=await fetch('http://127.0.0.1:4184/api'+path,{method,headers:{Origin:env.APP_ORIGIN,Cookie:cookie,...(method!=='GET'?{'X-CSRF-Token':csrf||''}:{}),...(body?{'Content-Type':'application/json'}:{})},...(body?{body:JSON.stringify(body)}:{})});const set=response.headers.getSetCookie()[0];if(set)cookie=set.split(';')[0];const data=await response.json();if(data.csrfToken)csrf=data.csrfToken;assert.ok(response.ok,JSON.stringify(data));return data;}
 try{
- await docker(['up','-d','--build','--wait','app']);const password='Disposable-smoke-password-2026!';await docker(['exec','-T','app','node','scripts/admin-create.mjs'],{input:JSON.stringify({username:'admin',email:'admin@example.test',name:'مدیر آزمون Docker',password})});
+ await docker(['up','-d','--build','--wait','app']);
+ const manifestResponse=await fetch('http://127.0.0.1:4184/manifest.webmanifest');assert.equal(manifestResponse.status,200);assert.match(manifestResponse.headers.get('Content-Type'),/application\/manifest\+json/);const manifest=await manifestResponse.json();assert.equal(manifest.display,'standalone');
+ const worker=await fetch('http://127.0.0.1:4184/sw.js');assert.equal(worker.status,200);assert.equal(worker.headers.get('Service-Worker-Allowed'),'/');assert.equal(worker.headers.get('Cache-Control'),'no-cache');assert.ok(!(await worker.text()).includes('__PWA_RELEASE__'));
+ for(const path of ['/offline.html','/src/pwa.js',...manifest.icons.map(icon=>icon.src)])assert.equal((await fetch('http://127.0.0.1:4184'+path)).status,200,path);
+ const password='Disposable-smoke-password-2026!';await docker(['exec','-T','app','node','scripts/admin-create.mjs'],{input:JSON.stringify({username:'admin',email:'admin@example.test',name:'مدیر آزمون Docker',password})});
  await api('/auth/session');await api('/auth/login',{method:'POST',body:{identifier:'admin',password}});
  const overview=await api('/admin/dashboard?days=7');assert.equal(overview.totals.users,0);
  const invitation=await api('/registration-links',{method:'POST',body:{label:'دعوت آزمون Docker'}});
@@ -19,5 +23,5 @@ try{
  const backup=await docker(['exec','-T','db','pg_dump','-U','havaas','-d','havaas','-Fc','--no-owner']);assert.ok(backup.length>1000);
  await docker(['exec','-T','db','createdb','-U','havaas','havaas_restore_check']);await docker(['exec','-T','db','pg_restore','-U','havaas','-d','havaas_restore_check','--no-owner'],{input:backup});
  const restored=(await docker(['exec','-T','db','psql','-U','havaas','-d','havaas_restore_check','-Atc','SELECT count(*) FROM game_sessions WHERE result IS NOT NULL'])).toString().trim();assert.equal(restored,'1');
- console.log('Docker passed: fresh bootstrap, canonical session, app/database restart, persisted login/results, pg_dump and restore.');
+ console.log('Docker passed: built PWA manifest/worker/icons/offline page, fresh bootstrap, canonical session, app/database restart, persisted login/results, pg_dump and restore.');
 }finally{await docker(['down','-v','--remove-orphans']);}

@@ -1,10 +1,11 @@
 import { ApiClient,ApiError } from './api.js';
+import {setupPwa} from './pwa.js';
 import {syncBirthDate} from './birth-date.js';
 import {copyTextField} from './clipboard.js';
 import { preloadWorld,worldBackground,gameArtwork } from './worlds.js';
 import { GuidancePlayer, guidanceKey, lessonGuidanceKey } from './guidance.js';
 import {memoryLessonState,memoryLessonView,stroopRulePicture} from './learning-ui.js';
-import {capturePlayFocus,restorePlayFocus,moveFieldFocus} from './play-input.js';
+import {capturePlayFocus,restorePlayFocus,moveFieldFocus,syncHuntFocus} from './play-input.js';
 import {PlayMotion,animalPose,captureMotionSource,sceneAtmosphere} from './play-motion.js';
 import { arkScene } from './ark-ui.js';
 import { spaceScene } from './space-ui.js';
@@ -331,6 +332,7 @@ function updatePlay() {
     if (presenting) { engine.clock.resume(); if(reaction) engine.onset = engine.clock.elapsed; }
   }
   if (reaction) {
+    const huntFocus=engine.gameId==='hunt'&&engine.moving?document.activeElement:null;
     const stimulus = document.querySelector('.stimulus-shell'); if (stimulus) stimulus.style.visibility = engine.visible ? 'visible' : 'hidden';
     if(engine.gameId==='hunt'&&engine.moving){
       document.querySelectorAll('.hunt-choice').forEach((node,index)=>{
@@ -347,6 +349,7 @@ function updatePlay() {
       if(road){road.dataset.progress=String(distance);road.querySelector('.road-destination').classList.toggle('arrived',distance===1);}
     }
     const response = document.querySelector('[data-action="respond"]'); if (response) response.disabled = engine.gate || engine.paused || !!engine.response || engine.current.scored === false;
+    if(engine.gameId==='hunt'&&engine.moving)syncHuntFocus(document.querySelector('.hunt-surface'),huntFocus);
   }
   if(search&&engine.preview&&!engine.review){setText('preview-seconds',`${fa(Math.ceil((engine.revealAt-engine.clock.elapsed)/1000))} ثانیه`);const previewFill=document.querySelector('.preview-timer span');const previewRatio=Math.max(0,Math.min(1,(engine.revealAt-engine.clock.elapsed)/2000));if(previewFill)previewFill.style.width=`${100*previewRatio}%`;document.querySelector('.search-clock-arc')?.setAttribute('stroke-dashoffset',String(100*(1-previewRatio)));}
   playMotion.sync(document.querySelector('.play-panel'),engine,{paused:modal.open||document.hidden===true,reduced:matchMedia('(prefers-reduced-motion: reduce)').matches});
@@ -599,6 +602,20 @@ async function processForm(form){
 }
 app.addEventListener('change',event=>{void changeInput(event).catch(showError);});
 modal.addEventListener('change',event=>{void changeInput(event).catch(showError);});
+const reportExportLocks=new WeakMap();
+async function refreshFilteredReport(){
+ const buttons=[...document.querySelectorAll('[data-action="export-profile"],[data-action="export-trials"]')];
+ for(const button of buttons){
+  const lock=reportExportLocks.get(button)||{pending:0,disabled:button.disabled};
+  lock.pending++;reportExportLocks.set(button,lock);button.disabled=true;
+ }
+ try{await dashboard();}
+ finally{
+  for(const button of buttons){
+   const lock=reportExportLocks.get(button);if(--lock.pending===0){if(button.isConnected)button.disabled=lock.disabled;reportExportLocks.delete(button);}
+  }
+ }
+}
 async function changeInput(event){
   if(event.target.matches('[data-birth-part]'))return syncBirthDate(event.target.closest('[data-birth-date]'));
   if(['new-user-role','new-user-method','new-user-child'].includes(event.target.id))return syncCreateControls();
@@ -611,7 +628,7 @@ async function changeInput(event){
     await dashboard();
   }
   const filter=event.target.dataset.reportFilter;
-  if(['game','level','variant','kind'].includes(filter)) {reportState[filter]=event.target.value;reportState.recordId=null;await dashboard();}
+  if(['game','level','variant','kind'].includes(filter)) {reportState[filter]=event.target.value;reportState.recordId=null;await refreshFilteredReport();}
 }
 async function handleAction(event) {
   const fromReactionPointer=event.type==='click'&&event.detail>0&&reactionPointerInput;if(event.type==='click')reactionPointerInput=false;
@@ -731,6 +748,9 @@ modal.addEventListener('click',event=>{void handleAction(event).catch(showError)
 modal.addEventListener('submit',event=>{event.preventDefault();void submitForm(event.target).catch(showError);});
 modal.addEventListener('cancel', event=>{ event.preventDefault(); closeModal(); });
 document.addEventListener('keydown', event=>{
+  // Native Enter activation repeats on a held key, even after focus moves to
+  // the next trial or its review. Require a fresh press for each activation.
+  if(route==='play'&&event.key==='Enter'&&event.repeat&&event.target.closest?.('button[data-action]')){event.preventDefault();return;}
   if(route==='play'&&!modal.open){keyboardPlay=true;if(playPhase==='playing'&&moveFieldFocus(event.target,event.key)){event.preventDefault();return;}}
   if(event.key==='Escape'&&document.body.classList.contains('admin-menu-open')){event.preventDefault();return toggleAdminMenu(false);}
   if(event.key==='Tab'&&document.body.classList.contains('admin-menu-open')){const controls=[...document.querySelectorAll('.admin-sidebar a,.admin-sidebar button')],first=controls[0],last=controls.at(-1);if(event.shiftKey&&document.activeElement===first){event.preventDefault();last?.focus();}else if(!event.shiftKey&&document.activeElement===last){event.preventDefault();first?.focus();}}
@@ -750,7 +770,7 @@ document.addEventListener('keydown', event=>{
   }
 });
 document.addEventListener('visibilitychange', ()=>{ if(document.hidden&&route==='play'&&engine&&(!engine.paused||playPhase==='countdown')) { if(modal.open) { engine.pause(); } else pause(); } });
-window.addEventListener('orientationchange',()=>{if(route==='play'&&engine&&!engine.paused&&!modal.open)pause();});
+window.addEventListener('orientationchange',()=>{if(route==='play'&&engine&&(!engine.paused||playPhase==='countdown')&&!modal.open)pause();});
 window.addEventListener('popstate',()=>{if(pendingSave){setHash(`#${pendingSave.result.gameId}`);notify('نتیجه هنوز در سرور ثبت نشده است.');return;}void navigate().catch(showError);});
 function gameOptions(){return {gameId:selectedGame,...(selectedGame==='search'?{pacedRounds:true}:{}),level:selectedLevel,theme:selectedTheme,material:selectedMaterial,layout:selectedLayout,trafficMode:selectedTrafficMode,targetCount:selectedGame==='search'?(selectedSearchMode==='dual'?2:1):(selectedHuntMode==='divided'?2:1)};}
 async function refreshClients(view=null){
@@ -960,4 +980,5 @@ async function commitLegacy(){
   const data=await viewRequest(view,'/imports/commit',{method:'POST',body:{previewId:preview.id,mapping,requireUser:true}});if(!currentView(view)||preview!==previewImport)return;previewImport=null;if(!await refreshClients(view))return;await account();if(route==='account')notify(`${fa(data.importedRecords)} نتیجه منتقل شد.`);
 }
 window.addEventListener('beforeunload',event=>{if(pendingSave){event.preventDefault();event.returnValue='';}});
+setupPwa({canUpdate:()=>route!=='play'&&!pendingSave&&!starting});
 await initialize();

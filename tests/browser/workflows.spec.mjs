@@ -428,6 +428,24 @@ test('an HTML response cannot be downloaded as a successful CSV export',async({p
  expect(downloads).toHaveLength(0);await expect(page.locator('.admin-sidebar')).toBeVisible();
 });
 
+test('report exports wait for a delayed filter refresh before accepting another export',async({page})=>{
+ await openExportableReport(page);await page.waitForLoadState('networkidle');
+ let release,ready;const gate=new Promise(resolve=>release=resolve),fetched=new Promise(resolve=>ready=resolve);
+ await page.route('**/api/bootstrap?**',async route=>{const response=await route.fetch();ready();await gate;await route.fulfill({response});});
+ try{
+  await page.locator('[data-report-filter=level]').selectOption('easy');await fetched;await expect(page.locator('[data-action=export-trials]')).toBeDisabled();
+  release();await expect(page.locator('[data-action=export-trials]')).toBeEnabled();
+  await page.route('**/api/children/*/sessions/*/export',route=>route.fulfill({status:200,contentType:'text/html',body:'<h1>Unexpected HTML</h1>'}));
+  await page.locator('[data-action=export-trials]').click();await expect(page.locator('#account-status')).toContainText('CSV معتبر نیست');
+ }finally{release();await page.unrouteAll({behavior:'wait'});}
+});
+
+test('a failed report filter refresh re-enables exports and shows the loading error',async({page})=>{
+ await openExportableReport(page);await page.waitForLoadState('networkidle');
+ await page.route('**/api/bootstrap?**',route=>route.fulfill({status:503,contentType:'application/json',body:JSON.stringify({error:'بارگذاری گزارش انجام نشد؛ دوباره تلاش کنید.',code:'REPORT_UNAVAILABLE'})}));
+ await page.locator('[data-report-filter=level]').selectOption('easy');await expect(page.locator('#account-status')).toContainText('بارگذاری گزارش انجام نشد');await expect(page.locator('[data-action=export-trials]')).toBeEnabled();
+});
+
 test('a delayed CSV network failure cannot display an error in another client report',async({page})=>{
  await openExportableReport(page);let release,ready;const gate=new Promise(resolve=>release=resolve),requested=new Promise(resolve=>ready=resolve);
  await page.route('**/api/children/*/sessions/*/export',async route=>{ready();await gate;await route.abort('failed');});

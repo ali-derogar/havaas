@@ -197,3 +197,12 @@ body:not([data-screen=play]) .result-card:has(.hunt-outcome) { background:linear
 @media(prefers-reduced-motion:reduce) {
  .hunt-cover *,.hunt-preparation *,.hunt-intermission *,.hunt-outcome * { animation:none!important; transition:none!important; }
 }
+/* Keep four rows of 48px touch targets separate on short landscape phones. */
+@media(max-height:400px) and (min-width:640px) {
+ .play-panel[data-game=hunt][data-phase=playing]>.play-hud { min-height:42px; padding:4px 18px; }
+ .play-panel[data-game=hunt]>.instruction-strip { min-height:53px; padding:4px 12px; }
+ .play-panel[data-game=hunt] .reaction-stage.hunt-world { height:240px; padding:6px 11px; gap:5px; }
+ .play-panel[data-game=hunt] .hunt-world>.hunt-trail { display:none; }
+ .play-panel[data-game=hunt] .hunt-surface { height:220px; min-height:220px; flex-shrink:0; }
+ .play-panel[data-game=hunt] .hunt-interval-track { flex-shrink:0; }
+}

@@ -3,9 +3,10 @@ WORKDIR /app
 COPY package*.json ./
 RUN npm ci
 COPY index.html ./
+COPY offline.html manifest.webmanifest ./
 COPY src ./src
 COPY assets ./assets
-COPY scripts/build.mjs ./scripts/build.mjs
+COPY scripts/build.mjs scripts/pwa.mjs ./scripts/
 RUN npm run build && npm prune --omit=dev
 FROM node:24-bookworm-slim
 ENV NODE_ENV=production
