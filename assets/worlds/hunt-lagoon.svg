@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1000" height="500" viewBox="0 0 1000 500" fill="none">
+ <defs><linearGradient id="water" x2="0" y2="500" gradientUnits="userSpaceOnUse"><stop stop-color="#b7eef4"/><stop offset=".6" stop-color="#80d4de"/><stop offset="1" stop-color="#6bc0cf"/></linearGradient></defs>
+ <path fill="url(#water)" d="M0 0h1000v500H0z"/>
+ <path d="M0 50q125-15 250 0t250 0 250 0 250 0M0 152q125 13 250 0t250 0 250 0 250 0M0 348q125-12 250 0t250 0 250 0 250 0" stroke="#e9ffff" stroke-width="2" opacity=".22"/>
+ <path d="M0 460q190-35 350 0t310-3 340 4v39H0z" fill="#b4d5bd"/><path d="M0 477q190-26 350 0t310-3 340 4" stroke="#d6e7c5" stroke-width="3"/>
+ <g fill="#77b5a0" stroke="#4b9d92" stroke-width="3" stroke-linecap="round"><path d="M22 489q12-86-6-146 35 22 27 87 20-76 52-83-20 42-33 139z"/><path d="M926 487q10-60 1-102 26 15 22 52 16-83 43-92-15 67-27 145z"/></g>
+ <g fill="#b4ded0" stroke="#82b9b3" stroke-width="2"><ellipse cx="90" cy="476" rx="24" ry="9"/><ellipse cx="890" cy="477" rx="26" ry="11"/></g>
+ <g fill="none" stroke="#e6fcfa" stroke-width="2" opacity=".6"><circle cx="44" cy="95" r="10"/><circle cx="27" cy="67" r="4"/><circle cx="950" cy="244" r="7"/><circle cx="965" cy="220" r="4"/></g>
+ <g stroke="#eaffff" stroke-linecap="round" opacity=".5"><path d="M49 221h31m11 0h9M875 77h34m11 0h9" stroke-width="3"/></g>
+</svg>

@@ -1,5 +1,5 @@
 // Keep keyboard play in the field after a choice replaces the arena's markup.
-const fieldSelector='.search-choice,.scene-object';
+const fieldSelector='.search-choice,.scene-object,.hunt-choice';
 export function capturePlayFocus(panel) {
   const active=panel.ownerDocument.activeElement;
   if(!panel.contains(active)||!active.matches('[data-action]'))return null;
@@ -20,7 +20,7 @@ export function restorePlayFocus(panel,previous) {
 export function moveFieldFocus(current,key) {
   const directions={ArrowLeft:[-1,0],ArrowRight:[1,0],ArrowUp:[0,-1],ArrowDown:[0,1]};
   if(!current?.matches?.(fieldSelector)||!Object.hasOwn(directions,key))return false;
-  const field=current.closest('.search-grid,.object-grid');if(!field)return false;
+  const field=current.closest('.search-grid,.object-grid,.hunt-surface');if(!field)return false;
   const [dx,dy]=directions[key],rect=current.getBoundingClientRect(),x=rect.x+rect.width/2,y=rect.y+rect.height/2;
   const candidates=[...field.querySelectorAll('button:not(:disabled)')].filter(button=>button!==current).map(button=>{
     const box=button.getBoundingClientRect(),ox=box.x+box.width/2-x,oy=box.y+box.height/2-y;

@@ -1,0 +1,199 @@
+/* One trail, five habitats. Scored paths and precise identifying marks stay intact. */
+body[data-screen=play]:has(.play-panel[data-game=hunt]) { background:radial-gradient(ellipse at 10% 8%,#d6f3dd,transparent 52%),radial-gradient(ellipse at 95% 90%,#d5edf5,transparent 52%),#f5fbef; }
+.play-panel[data-game=hunt] { --exercise-color:#57b49b; border:2px solid #9dcbb6; border-radius:25px; background:#fcfff5; box-shadow:0 18px 50px #497d6820; }
+.play-panel[data-game=hunt]>.play-hud { background:linear-gradient(115deg,#4cad96,#429aa5); color:#fff; border:0; padding:15px 25px; }
+.play-panel[data-game=hunt]>.play-hud span { color:#e5fff2; font-size:12px; }
+.play-panel[data-game=hunt]>.play-hud b { color:#fff; font-size:22px; }
+.play-panel[data-game=hunt] #hits { color:#3d9b88; background:#fffff3; border-color:#b8e9cb; box-shadow:0 0 0 5px #ffffff20; }
+.play-panel[data-game=hunt]>.progress-track { height:5px; background:#d9ebd4; }
+.play-panel[data-game=hunt]>.progress-track>span { background:linear-gradient(90deg,#ffdb7c,#a8e0c7); }
+.play-panel[data-game=hunt]>.instruction-strip { min-height:89px; padding:9px 20px; background:#fff9e5; border-color:#e2d6a7; gap:18px; }
+.play-panel[data-game=hunt] .target-examples { display:flex; align-items:center; gap:10px; }
+.play-panel[data-game=hunt] .target-mini { display:grid; place-items:center; width:60px; height:60px; border:1px solid #dbd6b0; border-radius:17px; background:#fffef8; box-shadow:0 3px 0 #eee6bf; }
+.play-panel[data-game=hunt] .target-mini>.symbol { width:48px; height:48px; }
+.hunt-target-copy { display:flex; flex-direction:column; gap:5px; color:#73936d; }
+.play-panel[data-game=hunt] .hunt-target-copy>b { color:#5b8d72; font-size:17px; }
+.hunt-target-copy>small { font-size:12px; color:#96a177; }
+.play-panel[data-game=hunt]>.arena { background:#f9fff5; }
+.play-panel[data-game=hunt] .reaction-stage.hunt-world { height:auto; min-height:0; display:flex; flex-direction:column; align-items:center; justify-content:flex-start; padding:17px 23px 13px; gap:12px; background:transparent; }
+.hunt-field-heading { width:100%; display:flex; align-items:center; justify-content:space-between; gap:12px; color:#79a28b; }
+.hunt-field-heading>span { display:flex; align-items:center; gap:8px; font-size:15px; }
+.hunt-field-heading>.icon,.hunt-field-heading>span>.icon { width:23px; height:23px; }
+.hunt-field-heading>small { font-size:11px; color:#98ae91; }
+.hunt-blocks.hunt-trail { display:flex; justify-content:center; gap:12px; width:100%; margin:0; padding:0; }
+.hunt-blocks.hunt-trail>span { display:flex; align-items:center; justify-content:center; gap:6px; padding:5px 13px; border:1px solid #d4e4c9; border-radius:14px; background:#f5f8e9; color:#a4b297; font-size:11px; }
+.hunt-trail>span>i { font-style:normal; display:flex; line-height:0; }
+.hunt-trail>span>i>.icon { width:18px; height:18px; }
+.hunt-trail>span>b { font-size:14px; }
+.hunt-trail>span>small { font-size:10px; }
+.play-panel[data-game=hunt] .hunt-blocks.hunt-trail>.block-active { background:#fff6d9; color:#8b914f; border:2px solid #cbd49d; box-shadow:0 3px 0 #e2e7bd; }
+.play-panel[data-game=hunt] .hunt-blocks.hunt-trail>.block-done { background:#e7f5e8; color:#78ab8d; border-color:#c5e0cb; }
+.play-panel[data-game=hunt] .hunt-surface { width:100%; max-width:830px; height:335px; min-height:0; border:2px solid #a9d2ba; border-radius:22px; background:#f7f9ed; box-shadow:inset 0 0 0 5px #ffffef99,0 4px 0 #e0ebd6; isolation:isolate; }
+.play-panel[data-game=hunt] .hunt-surface>.world-backdrop { opacity:1; }
+.play-panel[data-game=hunt] .hunt-surface[data-habitat=fish] { border-color:#91cbd3; background:#d6f2f4; }
+.play-panel[data-game=hunt] .hunt-surface[data-habitat=bird] { border-color:#afccdc; background:#e9f5fb; }
+.play-panel[data-game=hunt] .hunt-world.hard .hunt-surface { background:#f4f6ee; border-color:#bdcdbb; }
+.play-panel[data-game=hunt] .hunt-world.hard .hunt-background { opacity:.35; }
+.hunt-field-edge { position:absolute; inset:5px; pointer-events:none; border:1px solid #ffffff52; border-radius:16px; z-index:2; }
+.play-panel[data-game=hunt] .hunt-choice { border:0; padding:0; border-radius:50%; background:none; box-shadow:none; width:var(--stimulus-size); height:var(--stimulus-size); min-height:0; }
+.play-panel[data-game=hunt] .hunt-choice>.symbol { width:100%; height:100%; filter:drop-shadow(0 2px 1px #ffffff80); opacity:1; transition:none; animation:none; }
+.play-panel[data-game=hunt] .hunt-choice:not(.moving-choice)>.symbol { transform:none; }
+.play-panel[data-game=hunt] .hunt-choice:disabled { opacity:1; }
+.play-panel[data-game=hunt] .hunt-choice:focus-visible { outline:3px solid #d5ab47; outline-offset:3px; background:#fff9d94d; }
+.play-panel[data-game=hunt] .hunt-choice:active:not(:disabled) { background:#ffffed66; }
+.play-panel[data-game=hunt] .hunt-array { animation:none; transition:none; }
+.hunt-interval-track { height:3px; width:100%; max-width:810px; background:#e7eedb; border-radius:5px; overflow:hidden; }
+.hunt-interval-track>span { display:block; height:100%; width:100%; background:#99c4ac; border-radius:5px; transition:none; }
+.play-panel[data-game=hunt]>.play-controls { background:linear-gradient(#fff9e2,#f5edcf); border-top:1px solid #e5d6a9; padding:18px 22px 16px; min-height:115px; }
+.hunt-response-rule { display:flex; align-items:center; justify-content:center; gap:28px; width:100%; }
+.play-panel[data-game=hunt] .response-button { background:linear-gradient(#62c9a2,#3aaa89); border:2px solid #95ddbb; box-shadow:inset 0 2px 0 #c2f5d6,0 4px 0 #2b826a; min-height:66px; min-width:255px; border-radius:19px; font-size:24px; }
+.play-panel[data-game=hunt] .response-button:hover:not(:disabled) { background:linear-gradient(#7cd8b4,#46b591); }
+.play-panel[data-game=hunt] .response-button:disabled { opacity:.75; background:linear-gradient(#a7cbb5,#87ad9b); border-color:#c2dcc6; box-shadow:inset 0 2px 0 #e6f4e6,0 4px 0 #759c8b; }
+.hunt-wait-reminder { display:flex; align-items:center; gap:9px; font-size:15px; color:#99925c; }
+.hunt-wait-reminder>.icon { width:30px; height:30px; padding:8px; box-sizing:content-box; background:#fffbea; border:1px solid #e3d9ae; border-radius:15px; }
+.play-panel[data-game=hunt] .keyboard-hint { color:#97a181; font-size:11px; }
+.play-panel[data-game=hunt]>.feedback { background:#f5edcf; color:#849679; }
+.play-panel[data-game=hunt][data-phase=playing]>.play-controls { position:sticky; bottom:0; z-index:12; box-shadow:0 -3px 18px #6889660b; }
+.play-panel[data-game=hunt][data-phase=rule]>.play-controls,.play-panel[data-game=hunt][data-phase=rule]>.feedback { display:none; }
+.play-panel[data-game=hunt] .visual-feedback { color:#4f9c7e; border-color:#a1d3ae; }
+
+.hunt-cover { background:#e9f3d8; }
+.hunt-cover:after { display:none; }
+.hunt-cover>img { filter:none; }
+.hunt-cover>.hunt-binocular-art { position:absolute; left:0; bottom:2%; width:69%; height:97%; filter:drop-shadow(0 6px 5px #4975601c); }
+.hunt-cover-label { position:absolute; top:17%; right:7%; display:flex; flex-direction:column; gap:9px; max-width:37%; color:#4c9583; font-size:22px; font-weight:800; }
+.hunt-cover-label>small { color:#7ba694; font-size:10px; font-weight:500; line-height:1.9; }
+.card-picture .hunt-cover-label { font-size:19px; }
+.card-picture .hunt-cover-label>small { font-size:9px; }
+.intro-art-bubble>.hunt-cover { border:2px solid #b9d8bb; border-radius:30px; }
+.play-panel[data-game=hunt] .hunt-preparation { background:radial-gradient(ellipse at top,#e3f7e4,transparent 66%),#fffdf5; gap:18px; }
+.hunt-preparation>.section-kicker { color:#8caf91; font-size:13px; }
+.play-panel[data-game=hunt] .hunt-preparation h2 { color:#579a83; font-size:29px; }
+.hunt-preparation .preparation-samples { width:100%; min-height:0; }
+.hunt-preparation .preparation-samples>.hunt-cover { max-width:540px; width:100%; height:200px; border:1px solid #bdd6b3; border-radius:25px; }
+.hunt-preparation .hunt-binocular-art { animation:hunt-cover-float 4s ease-in-out infinite; }
+.hunt-preparation-targets,.hunt-break-targets { display:flex; align-items:center; justify-content:center; gap:19px; padding:14px 20px; background:#fffae5; border:1px solid #e2d8af; border-radius:22px; }
+.hunt-preparation .target-mini { width:80px; height:80px; border-radius:21px; }
+.hunt-preparation .target-mini>.symbol { width:64px; height:64px; }
+.hunt-preparation-steps { display:flex; align-items:center; gap:20px; color:#77a28c; }
+.hunt-preparation-steps>span { display:flex; align-items:center; gap:9px; font-size:17px; }
+.hunt-preparation-steps>span>.icon { width:37px; height:37px; padding:7px; border-radius:15px; box-sizing:content-box; background:#edf6e6; }
+.hunt-preparation-steps>i { font-style:normal; color:#becba2; }
+.hunt-preparation-note { max-width:490px; text-align:center; color:#99a77d; font-size:13px; line-height:1.9; }
+.play-panel[data-game=hunt] .hunt-intermission { background:radial-gradient(ellipse at top,#e2f5df,transparent 65%),#fffdf5; padding:23px 22px 27px; display:flex; flex-direction:column; align-items:center; gap:15px; }
+.hunt-break-art { width:180px; height:125px; }
+.hunt-break-art>.hunt-binocular-art { width:100%; height:100%; }
+.hunt-intermission h2 { color:#57977f; font-size:27px; margin:0; }
+.hunt-intermission .section-kicker { color:#8fac8d; font-size:13px; }
+.hunt-intermission .checkpoint-result { background:#eaf6e5; color:#7ba17c; border:1px solid #d6e6c6; border-radius:18px; padding:7px 16px; font-size:13px; }
+.hunt-next-duration { display:flex; gap:8px; align-items:center; color:#96a273; font-size:16px; }
+.hunt-next-duration>.icon { width:23px; height:23px; }
+.hunt-intermission>small { display:flex; align-items:center; gap:6px; font-size:12px; color:#9dac8d; }
+.hunt-intermission>small>.icon { width:16px; height:16px; }
+.hunt-intermission>.button { margin:0; }
+.play-panel[data-game=hunt] .practice-review { padding:25px 22px; background:radial-gradient(ellipse at top,#eaf6dd,transparent 70%),#fffdf6; }
+.play-panel[data-game=hunt] .practice-review h2 { color:#639a7c; font-size:24px; }
+.play-panel[data-game=hunt] .review-comparison { gap:25px; }
+.play-panel[data-game=hunt] .review-comparison>div { padding:13px 18px; border:1px solid #d9e5c9; border-radius:21px; background:#f7f9ed; }
+.play-panel[data-game=hunt] .review-comparison small { color:#9fae8a; font-size:13px; }
+.play-panel[data-game=hunt] .review-comparison .ready-token { width:94px; height:94px; padding:9px; border:1px solid #c9ddbd; background:#fffef8; border-radius:20px; }
+.hunt-outcome { position:relative; width:100%; max-width:650px; margin:0 auto 22px; }
+.hunt-outcome-art { display:block; width:100%; border:2px solid #bdd8b7; border-radius:25px; background:#eaf5dd; }
+.hunt-outcome>span { position:absolute; left:4%; bottom:11%; display:flex; flex-direction:column; gap:5px; font-size:16px; font-weight:750; color:#649c84; }
+.hunt-outcome>span>small { font-size:10px; font-weight:450; color:#8ea68b; }
+.hunt-result-stop { animation:hunt-stamp-arrive .45s ease-out both; animation-delay:var(--hunt-stamp-delay); }
+body:not([data-screen=play]) .result-card:has(.hunt-outcome) { background:linear-gradient(155deg,#fffdf4,#f0f9e9); border-color:#bad6b0; }
+.result-card:has(.hunt-outcome) .result-main-score>b { color:#64a38b; }
+
+@keyframes hunt-cover-float { 0%,100%{transform:translateY(0)} 50%{transform:translateY(-4px)} }
+@keyframes hunt-stamp-arrive { from{opacity:0} to{opacity:1} }
+@media(max-width:700px) {
+ .play-panel[data-game=hunt] { border-radius:21px; }
+ .play-panel[data-game=hunt]>.play-hud { padding:12px 16px; }
+ .play-panel[data-game=hunt]>.play-hud span { font-size:10px; }
+ .play-panel[data-game=hunt]>.play-hud b { font-size:18px; }
+ .play-panel[data-game=hunt]>.instruction-strip { padding:9px 11px; min-height:80px; gap:12px; }
+ .play-panel[data-game=hunt] .target-examples { gap:7px; }
+ .play-panel[data-game=hunt] .target-mini { width:49px; height:49px; border-radius:14px; }
+ .play-panel[data-game=hunt] .target-mini>.symbol { width:40px; height:40px; }
+ .play-panel[data-game=hunt] .hunt-target-copy>b { font-size:13px; }
+ .hunt-target-copy>small { font-size:10px; }
+ .play-panel[data-game=hunt] .reaction-stage.hunt-world { padding:13px 11px 12px; gap:11px; }
+ .hunt-field-heading>span { font-size:12px; gap:5px; }
+ .hunt-field-heading>span>.icon { width:18px; height:18px; }
+ .hunt-field-heading>small { font-size:9px; }
+ .hunt-blocks.hunt-trail { gap:8px; }
+ .hunt-blocks.hunt-trail>span { padding:4px 9px; gap:5px; border-radius:11px; }
+ .hunt-trail>span>i>.icon { width:15px; height:15px; }
+ .hunt-trail>span>b { font-size:12px; }
+ .hunt-trail>span>small { font-size:9px; }
+ .play-panel[data-game=hunt] .hunt-surface { height:304px; width:100%; border-radius:19px; }
+ .play-panel[data-game=hunt] .hunt-choice { width:min(var(--stimulus-size),19vw); height:min(var(--stimulus-size),19vw); }
+ .play-panel[data-game=hunt]>.play-controls { padding:14px 13px 12px; min-height:110px; gap:10px; }
+ .hunt-response-rule { flex-direction:column; gap:10px; }
+ .play-panel[data-game=hunt] .response-button { min-width:0; width:100%; max-width:340px; min-height:60px; font-size:22px; border-radius:17px; }
+ .hunt-wait-reminder { font-size:12px; gap:6px; }
+ .hunt-wait-reminder>.icon { width:19px; height:19px; padding:0; background:none; border:0; }
+ .play-panel[data-game=hunt] .keyboard-hint,.play-panel[data-game=hunt]>.feedback { display:none; }
+ .play-panel[data-game=hunt] .hunt-preparation { padding:24px 14px; gap:17px; }
+ .play-panel[data-game=hunt] .hunt-preparation h2 { font-size:24px; }
+ .hunt-preparation>.section-kicker { font-size:11px; }
+ .hunt-preparation .preparation-samples>.hunt-cover { height:170px; }
+ .hunt-cover-label { font-size:19px; right:6%; }
+ .hunt-cover-label>small { font-size:9px; }
+ .hunt-preparation-targets,.hunt-break-targets { padding:12px; gap:12px; }
+ .hunt-preparation .target-mini { width:60px; height:60px; border-radius:16px; }
+ .hunt-preparation .target-mini>.symbol { width:49px; height:49px; }
+ .hunt-preparation-steps { gap:12px; }
+ .hunt-preparation-steps>span { font-size:14px; gap:6px; }
+ .hunt-preparation-steps>span>.icon { width:29px; height:29px; padding:5px; }
+ .hunt-preparation-note { font-size:12px; }
+ .play-panel[data-game=hunt] .hunt-intermission { padding:23px 12px; gap:15px; }
+ .hunt-intermission h2 { font-size:23px; }
+ .hunt-intermission>.button { font-size:18px; width:100%; }
+ .play-panel[data-game=hunt] .practice-review { padding:24px 13px; }
+ .play-panel[data-game=hunt] .practice-review h2 { font-size:20px; }
+ .play-panel[data-game=hunt] .review-comparison { gap:12px; }
+ .play-panel[data-game=hunt] .review-comparison>div { padding:11px; }
+ .play-panel[data-game=hunt] .review-comparison small { font-size:11px; }
+ .play-panel[data-game=hunt] .review-comparison .ready-token { width:76px; height:76px; }
+ .hunt-outcome>span { font-size:11px; left:3%; }
+ .hunt-outcome>span>small { font-size:7px; }
+ .hunt-outcome-art { border-radius:20px; }
+}
+@media(max-height:740px) and (max-width:639px) {
+ .play-panel[data-game=hunt]>.play-hud { padding:7px 14px; }
+ .play-panel[data-game=hunt]>.instruction-strip { min-height:69px; padding:7px 10px; }
+ .play-panel[data-game=hunt] .reaction-stage.hunt-world { padding:10px; gap:9px; }
+ .hunt-field-heading { display:none; }
+ .play-panel[data-game=hunt] .hunt-surface { height:244px; }
+ .play-panel[data-game=hunt]>.play-controls { padding:11px 13px max(12px,env(safe-area-inset-bottom)); min-height:109px; }
+ .play-panel[data-game=hunt] .response-button { min-height:57px; }
+}
+@media(max-height:520px) and (min-width:640px) {
+ body[data-screen=play]:has(.play-panel[data-game=hunt][data-phase=playing]) .play-heading-actions { z-index:20; bottom:12px; left:34px; }
+ .play-panel[data-game=hunt][data-phase=playing]>.play-hud { min-height:48px; padding:4px 18px; }
+ .play-panel[data-game=hunt][data-phase=playing]>.play-hud span { font-size:9px; }
+ .play-panel[data-game=hunt][data-phase=playing]>.play-hud b { font-size:16px; }
+ .play-panel[data-game=hunt][data-phase=playing] #hits { width:34px; height:34px; font-size:16px; }
+ .play-panel[data-game=hunt]>.instruction-strip { min-height:63px; padding:6px 12px; }
+ .play-panel[data-game=hunt] .target-mini { width:42px; height:42px; border-radius:12px; }
+ .play-panel[data-game=hunt] .target-mini>.symbol { width:35px; height:35px; }
+ .play-panel[data-game=hunt] .hunt-target-copy>b { font-size:13px; }
+ .hunt-target-copy>small { font-size:10px; }
+ .play-panel[data-game=hunt] .reaction-stage.hunt-world { min-height:0; height:253px; padding:9px 11px; gap:8px; }
+ .hunt-field-heading { display:none; }
+ .hunt-blocks.hunt-trail>span { padding:3px 10px; gap:5px; }
+ .hunt-trail>span>b { font-size:11px; }
+ .hunt-trail>span>small { font-size:9px; }
+ .play-panel[data-game=hunt] .hunt-surface { height:190px; min-height:190px; }
+ .play-panel[data-game=hunt] .hunt-choice { width:min(var(--stimulus-size),48px); height:min(var(--stimulus-size),48px); }
+ .play-panel[data-game=hunt]>.play-controls { height:100%; padding:15px 12px 50px; min-height:0; border:0; }
+ .hunt-response-rule { flex-direction:column; gap:17px; }
+ .play-panel[data-game=hunt] .response-button { min-width:0; width:100%; font-size:19px; padding:12px 10px; }
+ .hunt-wait-reminder { font-size:12px; }
+ .hunt-wait-reminder>.icon { width:23px; height:23px; padding:4px; }
+}
+@media(prefers-reduced-motion:reduce) {
+ .hunt-cover *,.hunt-preparation *,.hunt-intermission *,.hunt-outcome * { animation:none!important; transition:none!important; }
+}

@@ -56,7 +56,8 @@ test('Stroop transitions contrast respond and withhold under each new rule',()=>
   for(const phase of [1,2,3]){
     s.index=s.trials.findIndex(t=>t.phase===phase);
     const {document}=parseHTML(transitionView(s)),samples=[...document.querySelectorAll('.rule-sample')];
-    assert.equal(samples.length,2);assert.equal(samples[0].querySelector('b').textContent,'پاسخ بده');assert.equal(samples[1].querySelector('b').textContent,'صبر کن');
+    assert.equal(samples.length,2);assert.equal(samples[0].querySelector('b').textContent,'بزن');assert.equal(samples[1].querySelector('b').textContent,'صبر کن');
+    assert.ok(samples[0].classList.contains('studio-do'));assert.ok(samples[1].classList.contains('studio-wait'));
     assert.notEqual(samples[0].querySelector('.word-stimulus').outerHTML,samples[1].querySelector('.word-stimulus').outerHTML);
   }
 });
@@ -88,5 +89,5 @@ test('hunt review compares the actually selected distractor with the goal',()=>{
   s.index=s.trials.findIndex(t=>t.target);const choice=s.current.choices.findIndex(c=>!c.target),selected=s.current.choices[choice].stimulus;
   now=50;assert.equal(s.respondToStimulus(s.index,choice),false);now=1000;s.tick();assert.ok(s.review);
   const {document}=parseHTML(reviewView(s));const chosen=document.querySelector('.review-comparison>div');assert.equal(chosen.querySelector('small').textContent,'انتخاب تو');
-  assert.equal(chosen.querySelector('.symbol').outerHTML,parseHTML(preparationView({...s,targets:[selected]})).document.querySelector('.ready-token .symbol').outerHTML);
+  assert.equal(chosen.querySelector('.symbol').outerHTML,parseHTML(preparationView({...s,targets:[selected]})).document.querySelector('.hunt-preparation-targets .symbol').outerHTML);
 });

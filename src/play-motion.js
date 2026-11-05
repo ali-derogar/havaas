@@ -2,6 +2,8 @@ import {ActiveClock} from './core/session.js';
 import {icon} from './visuals.js';
 import {TRAFFIC_TRAVEL} from './traffic-art.js';
 import {syncMemoryStage} from './nback-ui.js';
+import {syncStroopStage} from './stroop-ui.js';
+import {syncHuntStage} from './hunt-ui.js';
 
 const clamp=value=>Math.max(0,Math.min(1,value));
 const easeOut=value=>1-(1-clamp(value))**3;
@@ -77,17 +79,25 @@ export function sceneAtmosphere(gameId){
  * practice reviews can animate while the scored game clock stays stopped. */
 export class PlayMotion {
   constructor({document,now=()=>performance.now()}){this.document=document;this.now=now;this.reset();}
-  reset(){this.layer?.remove();this.layer=null;this.effects=[];this.clock=new ActiveClock(this.now);this.session=null;this.traffic=new ForwardMotion();this.searchRound=null;this.memoryTrial=null;this.reduced=false;}
+  reset(){this.layer?.remove();this.layer=null;this.effects=[];this.clock=new ActiveClock(this.now);this.session=null;this.traffic=new ForwardMotion();this.searchRound=null;this.memoryTrial=null;this.stroopTrial=null;this.huntTrial=null;this.reduced=false;}
   sync(panel,session,{paused=false,reduced=false}={}){
     this.reduced=reduced;if(paused)this.clock.pause();else this.clock.resume();
     panel.dataset.motion=paused?'paused':reduced?'reduced':'running';
-    if(session!==this.session){this.session=session;this.traffic=new ForwardMotion();this.searchRound=null;this.memoryTrial=null;}
+    if(session!==this.session){this.session=session;this.traffic=new ForwardMotion();this.searchRound=null;this.memoryTrial=null;this.stroopTrial=null;this.huntTrial=null;}
     if(reduced)this.clearEffects();
     // A previous discovery must never float over the next memory sample.
     if(session.gameId==='search'&&session.preview&&this.searchRound!==session.index){this.clearEffects();this.searchRound=session.index;}
     if(session.gameId==='nback'){
       if(this.memoryTrial!==session.index){this.clearEffects();this.memoryTrial=session.index;}
       syncMemoryStage(panel,session);
+    }
+    if(session.gameId==='stroop'){
+      if(this.stroopTrial!==session.index){this.clearEffects();this.stroopTrial=session.index;}
+      syncStroopStage(panel,session);
+    }
+    if(session.gameId==='hunt'){
+      if(this.huntTrial!==session.index){this.clearEffects();this.huntTrial=session.index;}
+      syncHuntStage(panel,session);
     }
     const elapsed=session.clock.elapsed,vehicle=panel.querySelector('.adventure-scene .scene-vehicle');
     if(vehicle){

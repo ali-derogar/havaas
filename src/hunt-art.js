@@ -1,0 +1,19 @@
+const svg=(body,box,cls)=>`<svg class="${cls}" viewBox="${box}" xmlns="http://www.w3.org/2000/svg" fill="none" aria-hidden="true">${body}</svg>`;
+export const HUNT_WORLDS={fish:'/assets/worlds/hunt-lagoon.svg',bird:'/assets/worlds/hunt-sky.svg',star:'/assets/worlds/hunt-grove.svg',butterfly:'/assets/worlds/hunt-grove.svg'};
+export const HUNT_TITLES={fish:'تالاب جست‌وجو',bird:'آسمان جست‌وجو',butterfly:'باغ پروانه‌ها',star:'باغ ستاره‌ها',shape:'کارگاه شکل‌ها'};
+
+export function huntBinoculars(){
+ return svg(`<ellipse cx="149" cy="185" rx="108" ry="10" fill="#618b71" opacity=".16"/><g stroke="#406c78" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><g transform="rotate(-9 88 92)"><path d="m58 46 49-3 28 92H30z" fill="#8bd3c5"/><path d="m62 44 6-12 30-2 9 13" fill="#ffe1a2"/><ellipse cx="81" cy="135" rx="51" ry="38" fill="#3d9ea7"/><ellipse cx="81" cy="135" rx="39" ry="28" fill="#d8f7ec"/><ellipse cx="81" cy="135" rx="28" ry="20" fill="#8edbd9" stroke="#68b6c1"/><path d="m63 130 13-9m-14 17 4-3" stroke="#f3ffff" stroke-width="5"/></g><g transform="rotate(9 206 92)"><path d="m180 46 49-3 28 92H153z" fill="#8bd3c5"/><path d="m184 44 6-12 30-2 9 13" fill="#ffe1a2"/><ellipse cx="204" cy="135" rx="51" ry="38" fill="#3d9ea7"/><ellipse cx="204" cy="135" rx="39" ry="28" fill="#d8f7ec"/><ellipse cx="204" cy="135" rx="28" ry="20" fill="#8edbd9" stroke="#68b6c1"/><path d="m186 130 13-9m-14 17 4-3" stroke="#f3ffff" stroke-width="5"/></g><path d="M126 91q20-10 39 0v31q-20-9-39 0z" fill="#f5cd79"/><path d="M131 88q16-6 28 0" stroke="#fff1c3" stroke-width="4"/><circle cx="145" cy="108" r="7" fill="#e8b95f"/></g><path d="m37 25 3 9 9 3-9 3-3 9-3-9-9-3 9-3zm228 32 2 7 7 2-7 2-2 7-2-7-7-2 7-2z" fill="#f3c865"/>`,'0 0 290 210','hunt-binocular-art');
+}
+
+export function huntCover({lazy=false,theme='star'}={}){
+ return `<div class="illustrated-cover training-cover illustrated-hunt hunt-cover" data-game="hunt"><img src="${HUNT_WORLDS[theme]||HUNT_WORLDS.star}" alt="" aria-hidden="true" loading="${lazy?'lazy':'eager'}" decoding="async">${huntBinoculars()}<span class="hunt-cover-label" aria-hidden="true">${HUNT_TITLES[theme]||HUNT_TITLES.star}<small>چشم‌های تیزبین، انتخاب دقیق</small></span></div>`;
+}
+
+export function huntOutcomeArt(session){
+ const stops=session.blockLengths.map((_,phase)=>{
+  const outcomes=session.outcomes.filter(outcome=>outcome.phase===phase),correct=outcomes.filter(outcome=>outcome.correct).length,total=outcomes.length,x=277+phase*115;
+  return `<g class="hunt-result-stop" data-phase="${phase}" data-correct="${correct}" data-total="${total}" transform="translate(${x} 0)" style="--hunt-stamp-delay:${phase*120}ms"><path d="M0 112v71" stroke="#9c9274" stroke-width="4"/><rect x="-41" y="67" width="82" height="61" rx="17" fill="#fff8df" stroke="#9fb992" stroke-width="2"/><text y="95" text-anchor="middle" font-family="Vazirmatn,sans-serif" font-size="21" font-weight="800" fill="#5b907f">${correct.toLocaleString('fa-IR')}</text><text y="115" text-anchor="middle" font-family="Vazirmatn,sans-serif" font-size="11" fill="#8c9b74">از ${total.toLocaleString('fa-IR')}</text><circle cy="184" r="8" fill="#d0e3a4" stroke="#91b787" stroke-width="2"/></g>`;
+ }).join('');
+ return `<div class="hunt-outcome" role="img" aria-label="مسیر نگاه دقیق؛ تصمیم‌های درست در هر دوره">${svg(`<image href="${HUNT_WORLDS[session.theme]||HUNT_WORLDS.star}" width="620" height="255" preserveAspectRatio="xMidYMid slice"/><path d="M233 188q55-23 113 0t113 0 105 0" stroke="#f4e9be" stroke-width="18" stroke-linecap="round"/><path d="M233 188q55-23 113 0t113 0 105 0" stroke="#b1ba8a" stroke-width="2" stroke-dasharray="4 8"/><g transform="translate(6 24) scale(.7)">${huntBinoculars().replace(/<svg[^>]*>|<\/svg>/g,'')}</g>${stops}`,'0 0 620 255','hunt-outcome-art')}<span>مسیر نگاه دقیق تو<small>هر ایستگاه، نتیجهٔ یک دوره</small></span></div>`;
+}

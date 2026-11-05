@@ -41,6 +41,7 @@ test('memory: all three distances and materials teach a sequence, hide old stimu
   const seen=await warmup(page,n,visibleMs);let wrong=false;
   for(let trial=0;trial<5;trial++){
    const shape=await current(page),match=shape===seen.at(-n);await expect(page.locator('.memory-stage .symbol')).toHaveCount(1);await expect(page.locator('.memory-stage .reference,.memory-stage [data-target],.memory-status .symbol')).toHaveCount(0);
+   if(n===3&&trial===0)await page.screenshot({path:'.local/verification/nback_toys_desktop.png',fullPage:true,animations:'disabled'});
    const mistake=!match&&!wrong;if(mistake)wrong=true;await advance(page,50);if(match||mistake)await click(page,'respond');await advance(page,950);
    await expect(page.locator(`.practice-review.${mistake?'retry':'good'}`)).toBeVisible();await expect(page.locator('.memory-example .memory-token')).toHaveCount(n+1);
    expect(await page.locator('.memory-example .reference .symbol').evaluate(node=>node.outerHTML)).toBe(seen.at(-n));expect(await page.locator('.memory-example .current .symbol').evaluate(node=>node.outerHTML)).toBe(shape);

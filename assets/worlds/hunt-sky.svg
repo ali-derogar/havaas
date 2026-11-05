@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1000" height="500" viewBox="0 0 1000 500" fill="none">
+ <defs><linearGradient id="sky" x2="0" y2="500" gradientUnits="userSpaceOnUse"><stop stop-color="#d1edff"/><stop offset="1" stop-color="#eefbfa"/></linearGradient></defs>
+ <path fill="url(#sky)" d="M0 0h1000v500H0z"/>
+ <g fill="#fff" opacity=".75"><path d="M-40 56q6-38 45-29 18-39 54-18 33-11 47 22 30-1 37 25z"/><path d="M855 72q10-33 40-28 14-32 44-14 32-11 42 20 28-2 32 22z"/></g>
+ <path d="M0 477q169-40 331 0t333-5 336 0v28H0z" fill="#b8dac3"/><path d="M0 488q169-27 331 0t333-5 336 0v17H0z" fill="#a4ceae"/>
+ <g stroke="#aa9f8a" stroke-width="10" stroke-linecap="round"><path d="M-12 321q38 16 85-6m-25 10 11-29m-22 26 12 27M1009 237l-54 20-33-13m33 13-5 29"/></g>
+ <g fill="#8fbc9f"><ellipse cx="60" cy="291" rx="11" ry="20" transform="rotate(26 60 291)"/><ellipse cx="40" cy="350" rx="11" ry="19" transform="rotate(-30 40 350)"/><ellipse cx="923" cy="240" rx="18" ry="10" transform="rotate(18 923 240)"/><ellipse cx="950" cy="291" rx="10" ry="18"/></g>
+ <path d="M83 90h28m-14 9h30M873 385h31m-16 9h29" stroke="#c0dfe9" stroke-width="3" stroke-linecap="round" opacity=".55"/>
+</svg>
