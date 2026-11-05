@@ -1,3 +1,5 @@
+import {createFormTracker} from './pwa-forms.js';
+
 export function setupPwa({canUpdate=()=>true}={}){
  if(!globalThis.navigator?.serviceWorker||!globalThis.isSecureContext)return null;
  const worker=navigator.serviceWorker,standalone=()=>matchMedia('(display-mode: standalone)').matches||navigator.standalone===true;
@@ -6,10 +8,13 @@ export function setupPwa({canUpdate=()=>true}={}){
  banner.innerHTML='<p role="status" aria-live="polite"></p><button type="button" class="button subtle" data-pwa-action="update">به‌روزرسانی</button><button type="button" class="pwa-dismiss" data-pwa-action="dismiss" aria-label="بستن پیام">×</button>';
  document.body.append(banner);
  const message=banner.querySelector('p'),update=banner.querySelector('[data-pwa-action=update]');
+ const forms=createFormTracker();
  let registration=null,installPrompt=null,installed=standalone(),dismissed='',notice='',preparing=false,previousInert=false,updateTimer=null;
  const state=()=>navigator.onLine===false?'offline':notice?'notice':registration?.waiting?'update':'';
- const safe=()=>canUpdate()&&!document.querySelector('dialog[open],form[data-waiting]')&&!document.activeElement?.matches('input,textarea,select');
+ const activeForms=()=>[...document.querySelectorAll('form')].filter(form=>!form.closest('dialog:not([open]),[hidden]'));
+ const safe=()=>canUpdate()&&!document.querySelector('dialog[open],form[data-waiting]')&&!document.activeElement?.matches('input,textarea,select')&&!activeForms().some(form=>forms.isDirty(form));
  function sync(){
+  activeForms().forEach(form=>forms.remember(form));
   for(const card of document.querySelectorAll('[data-pwa-install]')){card.hidden=installed||standalone();const button=card.querySelector('[data-pwa-action=install]'),label=installPrompt?'نصب حواس':'راهنمای نصب';if(button&&button.textContent!==label)button.textContent=label;}
   const current=state();banner.hidden=!current||dismissed===current||document.body.dataset.screen==='play';
   message.textContent=current==='offline'?'آفلاین هستی؛ برای دریافت و ثبت نتیجه، اتصال لازم است.':notice||'نسخهٔ تازهٔ حواس آماده است.';
@@ -54,7 +59,10 @@ export function setupPwa({canUpdate=()=>true}={}){
  });
  // New views replace #app; keep the install card and update button in sync.
  new MutationObserver(sync).observe(document.querySelector('#app'),{childList:true,subtree:true});
- document.addEventListener('focusin',sync);document.addEventListener('focusout',()=>queueMicrotask(sync));
+ // Let synchronous field initialization finish after page() focuses #main.
+ document.addEventListener('focusin',()=>queueMicrotask(sync));document.addEventListener('focusout',()=>queueMicrotask(sync));
+ for(const name of ['input','change'])document.addEventListener(name,event=>{const form=event.target.closest('form');if(form){forms.changed(form);sync();}},{capture:true});
+ document.addEventListener('reset',()=>queueMicrotask(sync),{capture:true});
  async function register(){
   try{
    registration=await worker.register('/sw.js',{scope:'/',updateViaCache:'none'});
@@ -63,5 +71,5 @@ export function setupPwa({canUpdate=()=>true}={}){
   }catch{/* Installation is optional; an unavailable cache must not stop the app. */}
  }
  if(document.readyState==='complete')void register();else window.addEventListener('load',register,{once:true});
- return {sync};
+ return {sync,captureForm:form=>forms.capture(form),formSaved(form,submission){if(form.isConnected){forms.saved(form,submission);sync();}}};
 }

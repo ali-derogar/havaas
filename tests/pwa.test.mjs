@@ -9,10 +9,10 @@ import {createServiceWorker} from '../scripts/pwa.mjs';
 import {createApp} from '../server/app.js';
 
 const template=await readFile(new URL('../src/service-worker.js',import.meta.url),'utf8');
-function worker({failInstall=false,networkFails=false,clients=[]}={}){
+function worker({failInstall=false,networkFails=false,clients=[],listClients=null}={}){
  const handlers={},stored=new Map(),deleted=[],messages=[];let skipped=false,network=0;
  const cache={addAll:async requests=>{assert.ok(requests.every(request=>request.credentials==='omit'));if(failInstall)throw Error('offline');},match:async key=>stored.get(key)?.clone()};
- const self={location:{origin:'https://havaas.test'},addEventListener:(name,fn)=>{handlers[name]=fn;},clients:{claim:async()=>{},matchAll:async()=>clients},skipWaiting:async()=>{skipped=true;}};
+ const self={location:{origin:'https://havaas.test'},addEventListener:(name,fn)=>{handlers[name]=fn;},clients:{claim:async()=>{},matchAll:listClients||(async()=>clients)},skipWaiting:async()=>{skipped=true;}};
  const caches={open:async()=>cache,delete:async key=>{deleted.push(key);return true;},keys:async()=>['havaas-static-old','havaas-static-test','another-app-cache']};
  class LocalRequest extends Request{constructor(url,options){super(new URL(url,'https://havaas.test'),options);}}
  vm.runInNewContext(template.replace('__PWA_RELEASE__','test').replace('/* __PWA_ASSETS__ */ []',JSON.stringify(['/index.html','/offline.html','/src/app.js','/assets/guide.mp3'])),{self,caches,Request:LocalRequest,Response,Headers,URL,MessageChannel,setTimeout,clearTimeout,fetch:async()=>{network++;if(networkFails)throw Error('offline');return new Response('new shell');}});
@@ -54,6 +54,12 @@ test('PWA update waits for every open window and cancels prepared clients when o
  const client=(id,ready)=>({id,postMessage(message,ports){calls.push([id,message.type]);if(ports){ports[0].postMessage({ready});ports[0].close();}}});
  const busy=worker({clients:[client('idle',true),client('playing',false)]});await eventRun(busy.handlers.message,{data:{type:'PWA_APPLY_UPDATE'},source:{id:'idle',postMessage:message=>calls.push(['source',message.type])}});assert.equal(busy.skipped,false);assert.ok(calls.some(([id,type])=>id==='idle'&&type==='PWA_CANCEL_UPDATE'));assert.ok(calls.some(([,type])=>type==='PWA_UPDATE_BLOCKED'));
  const ready=worker({clients:[client('idle',true),client('saved',true)]});await eventRun(ready.handlers.message,{data:{type:'PWA_APPLY_UPDATE'},source:{id:'idle',postMessage(){}}});assert.equal(ready.skipped,true);
+});
+test('PWA update does not activate if another window opens after the readiness check starts',async()=>{
+ const calls=[],idle={id:'idle',postMessage(message,ports){calls.push(message.type);if(ports){ports[0].postMessage({ready:true});ports[0].close();}}},newcomer={id:'new-window',postMessage(){}};let listed=0;
+ const w=worker({listClients:async()=>++listed===1?[idle]:[idle,newcomer]});
+ await eventRun(w.handlers.message,{data:{type:'PWA_APPLY_UPDATE'},source:{id:'idle',postMessage:message=>calls.push(message.type)}});
+ assert.equal(w.skipped,false);assert.ok(calls.includes('PWA_CANCEL_UPDATE'));assert.ok(calls.includes('PWA_UPDATE_BLOCKED'));
 });
 test('PWA public routes have the right types, worker scope, update headers and CSP without touching accounts',async()=>{
  let queries=0;const app=createApp({pool:{query(){queries++;throw Error('PWA files must not query accounts');}},secret:'pwa-static-test-secret-at-least-32-characters',production:false,staticRoot:resolve('.')});

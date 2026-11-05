@@ -53,13 +53,15 @@ function prepareClient(client){
  });
 }
 let applyingUpdate=false;
+function cancelUpdate(clients){for(const client of clients)try{client.postMessage({type:'PWA_CANCEL_UPDATE'});}catch{/* A closing window needs no unlock. */}}
 self.addEventListener('message',event=>{
  if(event.data?.type!=='PWA_APPLY_UPDATE'||applyingUpdate||!event.source?.id)return;
  applyingUpdate=true;
  event.waitUntil((async()=>{
   const clients=await self.clients.matchAll({type:'window',includeUncontrolled:true}),ready=await Promise.all(clients.map(prepareClient));
-  if(ready.length&&ready.every(Boolean)){await self.skipWaiting();return;}
-  clients.forEach(client=>client.postMessage({type:'PWA_CANCEL_UPDATE'}));
+  const current=await self.clients.matchAll({type:'window',includeUncontrolled:true}),prepared=new Set(clients.map(client=>client.id));
+  if(ready.length&&ready.every(Boolean)&&current.every(client=>prepared.has(client.id))){await self.skipWaiting();return;}
+  cancelUpdate(current);
   event.source.postMessage({type:'PWA_UPDATE_BLOCKED'});applyingUpdate=false;
- })().catch(async()=>{applyingUpdate=false;for(const client of await self.clients.matchAll({type:'window',includeUncontrolled:true}))client.postMessage({type:'PWA_CANCEL_UPDATE'});}));
+ })().catch(async()=>{applyingUpdate=false;cancelUpdate(await self.clients.matchAll({type:'window',includeUncontrolled:true}));}));
 });

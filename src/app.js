@@ -555,10 +555,11 @@ async function exportTrials() {
 app.addEventListener('submit',event=>{event.preventDefault();void submitForm(event.target).catch(showError);});
 async function submitForm(form){
   if(form.dataset.waiting==='true')return;
+  const submission=pwa?.captureForm(form);
   form.dataset.waiting='true';form.setAttribute('aria-busy','true');
-  const controls=[...form.querySelectorAll('button[type="submit"],button:not([type]),input[type="submit"]')].map(control=>({control,disabled:control.disabled}));
+  const controls=[...form.querySelectorAll('input,textarea,select,button')].map(control=>({control,disabled:control.disabled}));
   controls.forEach(({control})=>control.disabled=true);
-  try{return await processForm(form);}finally{delete form.dataset.waiting;form.removeAttribute('aria-busy');controls.forEach(({control,disabled})=>control.disabled=disabled);}
+  try{const result=await processForm(form);if(result!==false)pwa?.formSaved(form,submission);return result;}finally{delete form.dataset.waiting;form.removeAttribute('aria-busy');controls.forEach(({control,disabled})=>control.disabled=disabled);pwa?.sync();}
 }
 async function processForm(form){
   const values=Object.fromEntries([...form.querySelectorAll('[name]')].map(el=>[el.name||el.getAttribute('name'),el.value]));
@@ -593,8 +594,8 @@ async function processForm(form){
   if(form.id==='report-link-form'){const childId=clients.activeId,version=viewVersion;const data=await request(`/children/${childId}/report-links`,{method:'POST',body:values});if(version!==viewVersion||childId!==clients.activeId)return;await reportLinks();if(route==='report-links'&&childId===clients.activeId)return showInvitation(data);return;}
   if(form.id==='admin-difficulty-form'){const view={version:viewVersion,userId:currentUser.id,role:currentUser.role},childId=clients.activeId;await viewRequest(view,`/children/${childId}/difficulty`,{method:'PATCH',body:{...policyOptions(values.gameId,values.variant),mode:values.mode,level:values.level}});if(!currentView(view)||!await refreshClients(view))return;syncPolicyControls(false);return notify('تنظیم سطح برای جلسهٔ بعد ذخیره شد.');}
   if(form.id==='invitation-form'){const data=await request('/invitations',{method:'POST',body:values});return showInvitation(data);}
-  if(form.id!=='profile-form')return;
-  const validation=validateProfile(values);if(validation.error){document.querySelector('#profile-error').textContent=validation.error;return;}
+  if(form.id!=='profile-form')return false;
+  const validation=validateProfile(values);if(validation.error){document.querySelector('#profile-error').textContent=validation.error;return false;}
   const data=await request(editingProfile?`/children/${editingProfile}`:'/children',{method:editingProfile?'PATCH':'POST',body:{...validation.profile,...(values.ownerUserId?{ownerUserId:values.ownerUserId}:{})}});
   clients.activeId=data.profile.id;await refreshClients();
   if(pendingStart)return continueAfterProfile();
@@ -980,5 +981,5 @@ async function commitLegacy(){
   const data=await viewRequest(view,'/imports/commit',{method:'POST',body:{previewId:preview.id,mapping,requireUser:true}});if(!currentView(view)||preview!==previewImport)return;previewImport=null;if(!await refreshClients(view))return;await account();if(route==='account')notify(`${fa(data.importedRecords)} نتیجه منتقل شد.`);
 }
 window.addEventListener('beforeunload',event=>{if(pendingSave){event.preventDefault();event.returnValue='';}});
-setupPwa({canUpdate:()=>route!=='play'&&!pendingSave&&!starting});
+const pwa=setupPwa({canUpdate:()=>route!=='play'&&!pendingSave&&!starting});
 await initialize();
