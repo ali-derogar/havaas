@@ -2,6 +2,13 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { publicReportDTO } from '../server/report-links.js';
 import { reportsView,variantLabel } from '../src/client-ui.js';
+import {comparableRecords} from '../src/core/reports.js';
+
+test('family reports preserve experience versions without exposing nested metadata or combining old and new timing',()=>{
+ const child={profile:{firstName:'آزمون',lastName:'نسخه'}},base={gameId:'traffic',level:'easy',variant:'standard',protocolVersion:2,stimulusVersion:8};
+ const dto=publicReportDTO(child,[{kind:'training',result:base},{kind:'training',result:{...base,experienceVersion:2}},{kind:'training',result:{...base,experienceVersion:{private:'secret'}}}]);
+ const records=dto.sessions;assert.deepEqual(records.map(r=>r.result.experienceVersion),[1,2,1]);assert.deepEqual(comparableRecords(records,records[1]),[records[1]]);assert.ok(!JSON.stringify(dto).includes('secret'));
+});
 
 test('shared report excludes account, clinical, raw and nested legacy data at the serialization boundary',()=>{
  const child={id:'private-child-id',owner_user_id:'private-user-id',profile:{firstName:'سارا',lastName:'آزمون',school:'private-school',concerns:'private-note'}};

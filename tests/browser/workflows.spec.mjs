@@ -1,3 +1,4 @@
+import {trialMs} from '../helpers/browser-timing.mjs';
 import { test,expect,request } from '@playwright/test';
 import { readFile,writeFile } from 'node:fs/promises';
 let seed,adminApi,adminCsrf;
@@ -19,9 +20,9 @@ async function click(page,action,selector=''){
 }
 async function login(page,key='user'){await page.goto('/');await expect(page.locator('#login-form')).toBeVisible();await page.locator('#login-form [name=identifier]').fill(seed.users[key].username);await page.locator('#login-form [name=password]').fill(seed.password);await page.locator('#login-form button[type=submit]').click();await expect(page.locator(key==='admin'?'.admin-main':'.hero')).toBeVisible();}
 async function advance(page,ms){await page.evaluate(ms=>window.advanceGame(ms),ms);}
-async function finishReaction(page,game){let guard=0;while(await page.locator('.result-card').count()===0&&guard++<180){if(await page.locator('[data-action=continue-review]').count()){await click(page,'continue-review');continue;}if(await page.locator('[data-action=acknowledge]').count())await click(page,'acknowledge');await advance(page,50);if(game==='hunt'){
+async function finishReaction(page,game){let guard=0;while(await page.locator('.result-card').count()===0&&guard++<180){if(await page.locator('[data-action=continue-review]').count()){await click(page,'continue-review');continue;}if(await page.locator('.automatic-rule-notice').count()){await advance(page,3000);continue;}if(await page.locator('[data-action=acknowledge]').count())await click(page,'acknowledge');await advance(page,50);if(game==='hunt'){
  const index=await page.evaluate(()=>{const targets=[...document.querySelectorAll('.target-mini .symbol')].map(el=>el.outerHTML);return [...document.querySelectorAll('.hunt-choice')].findIndex(el=>targets.includes(el.querySelector('.symbol').outerHTML));});if(index>=0)await click(page,'stimulus-response',`[data-choice="${index}"]`);
- }else await page.keyboard.press('Space');await advance(page,950);}expect(guard).toBeLessThan(180);await expect(page.locator('.local-note')).toContainText('ذخیره شد');}
+ }else await page.keyboard.press('Space');await advance(page,(await trialMs(page))-50);}expect(guard).toBeLessThan(180);await expect(page.locator('.local-note')).toContainText('ذخیره شد');}
 const required={ark:['آب آشامیدنی','خوراک','کمک‌های اولیه','جلیقهٔ نجات','چراغ‌قوه','قطب‌نما'],space:['اکسیژن','لباس فضایی','سوخت','کلاه فضایی','خوراک','نقشهٔ فضایی']};
 async function finishAdventure(page,game,practice=true){for(let i=0;i<60;i++){if(await page.locator('.result-card').count())break;if(await page.locator('[data-action=continue-review]').count()){await click(page,'continue-review');continue;}const items=await page.locator('.scene-object:not(.collected):not(.rejected)').evaluateAll(elements=>elements.map(el=>({index:el.dataset.index,name:el.querySelector('span').textContent,blocked:el.classList.contains('blocked')})));const blocked=items.find(i=>i.blocked),target=items.find(i=>required[game].includes(i.name));await advance(page,100);if(blocked)await click(page,'item',`[data-index="${blocked.index}"]`);else if(target)await click(page,'item',`[data-index="${target.index}"]`);else {if(!practice)await expect(page.locator('[data-action=depart]')).toBeInViewport();await click(page,practice?'reject-item':'depart');}}await expect(page.locator('.local-note')).toContainText('ذخیره شد');}
 async function finishSearch(page,rounds){for(let i=0;i<rounds;i++){if(await page.locator('[data-action=next-round]').count()){if(i===1){await advance(page,45000);await expect(page.locator('.round-intermission')).toBeVisible();await expect(page.locator('.search-preview')).toHaveCount(0);}await click(page,'next-round');}await expect(page.locator('.search-preview')).toBeVisible();const targets=await page.locator('.preview-target .symbol').evaluateAll(elements=>elements.map(el=>el.outerHTML));await advance(page,2000);const indices=await page.locator('.search-choice').evaluateAll((elements,targets)=>elements.filter(el=>targets.includes(el.querySelector('.symbol').outerHTML)).map(el=>el.dataset.index),targets);for(const index of indices){await advance(page,150);if(i===0){await page.locator(`[data-action="search-choice"][data-index="${index}"]`).focus();await page.keyboard.press('Space');}else await click(page,'search-choice',`[data-index="${index}"]`);}if(await page.locator('[data-action=continue-review]').count())await click(page,'continue-review');}await expect(page.locator('.local-note')).toContainText('ذخیره شد');}
@@ -65,7 +66,7 @@ test('a failed completion stays pending and can be saved after reauthentication 
  const run=await (await page.request.post(`/api/children/${seed.children[0].id}/sessions`,{headers,data:{gameId:'traffic',kind:'baseline'}})).json();expect((await page.request.post(`/api/children/${seed.children[0].id}/sessions/${run.id}/complete`,{headers,data:{result:playSession(run)}})).ok()).toBe(true);
  await click(page,'open','[data-game="traffic"]');await click(page,'main-game');
  await page.route('**/api/children/*/sessions/*/complete',route=>route.abort('failed'));
- for(let i=0;i<150;i++){await advance(page,100);await page.keyboard.press('Space');await advance(page,900);}
+ for(let i=0;i<150;i++){await advance(page,100);await page.keyboard.press('Space');await advance(page,(await trialMs(page))-100);}
  await expect(page.locator('[data-action=retry-save]')).toBeVisible();await expect(page.locator('.result-actions button').first()).toBeDisabled();
  const pendingURL=page.url();await page.locator('.client-header .brand').click();await expect(page).toHaveURL(pendingURL);await expect(page.locator('[data-action=retry-save]')).toBeVisible();
  await page.goBack();await expect(page).toHaveURL(pendingURL);await expect(page.locator('[data-action=retry-save]')).toBeVisible();
@@ -118,7 +119,7 @@ test.describe('touch gameplay',()=>{
   await click(page,'open','[data-game="traffic"]');await click(page,'main-game');let submitted;
   page.on('request',request=>{if(request.url().endsWith('/complete'))submitted=request.postDataJSON().result;});
   const button=page.locator('.response-button');await expect(button).toBeInViewport();await advance(page,100);const bounds=await button.boundingBox();await page.touchscreen.tap(bounds.x+bounds.width/2,bounds.y+bounds.height/2);await expect(button).toBeDisabled();
-  await advance(page,900);await advance(page,1000);await finishReaction(page,'traffic');expect(submitted.outcomes[0].reactionMs).toBe(100);expect(submitted.outcomes[0].response).toBe(true);expect(submitted.outcomes[1].response).toBe(false);expect(submitted.outcomes).toHaveLength(150);
+  await advance(page,(await trialMs(page))-100);await advance(page,await trialMs(page));await finishReaction(page,'traffic');expect(submitted.outcomes[0].reactionMs).toBe(100);expect(submitted.outcomes[0].response).toBe(true);expect(submitted.outcomes[1].response).toBe(false);expect(submitted.outcomes).toHaveLength(150);
  });
 });
 
@@ -242,7 +243,7 @@ test('an acknowledged result remains saved when refreshing the account afterward
  const baseline=await (await page.request.post(`/api/children/${seed.children[0].id}/sessions`,{headers,data:{gameId:'traffic',kind:'baseline'}})).json();expect((await page.request.post(`/api/children/${seed.children[0].id}/sessions/${baseline.id}/complete`,{headers,data:{result:playSession(baseline)}})).ok()).toBe(true);
  await click(page,'open','[data-game=traffic]');await click(page,'main-game');await page.route('**/api/bootstrap*',route=>route.abort('failed'));
  const completed=page.waitForResponse(response=>response.url().endsWith('/complete')&&response.status()===200);
- for(let i=0;i<150;i++){await advance(page,100);await page.keyboard.press('Space');await advance(page,900);}
+ for(let i=0;i<150;i++){await advance(page,100);await page.keyboard.press('Space');await advance(page,(await trialMs(page))-100);}
  const saved=await (await completed).json();expect(saved.record.id).toBeTruthy();expect((await (await page.request.get(`/api/children/${seed.children[0].id}/sessions/${saved.record.id}`)).json()).record.id).toBe(saved.record.id);
  await expect(page.locator('.local-note')).toContainText('ذخیره شد');await expect(page.locator('[data-action=retry-save]')).toHaveCount(0);await expect(page.locator('.result-actions button').first()).toBeEnabled();
  await page.unroute('**/api/bootstrap*');await click(page,'dashboard');await expect(page.locator('.report-metrics')).toBeVisible();

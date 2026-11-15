@@ -38,7 +38,7 @@ export class SearchSession extends Session {
     this.material = options.material === 'letters' ? 'letters' : 'shapes';
     this.layout = options.layout === 'scattered' ? 'scattered' : 'grid';
     this.targetCount = options.targetCount === 2 ? 2 : 1;
-    this.reactionMeasure = 'search-onset'; this.index = 0;this.pacedRounds=options.pacedRounds===true;this.roundBreak=null;
+    this.reactionMeasure = 'search-onset'; this.index = 0;this.pacedRounds=this.experienceVersion===1&&options.pacedRounds===true;this.roundBreak=null;
     this.total = options.practice ? PROTOCOL.practiceTrials : PROTOCOL.searchRounds;
     this.maxScore = this.total * this.targetCount; this.roundTargets=[];this.newRound();
   }

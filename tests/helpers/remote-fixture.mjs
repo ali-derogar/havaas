@@ -1,5 +1,5 @@
 import { recommendLevel } from '../../src/core/reports.js';
-import { GAME_PROTOCOLS } from '../../src/config.js';
+import { GAME_PROTOCOLS, EXPERIENCE_VERSION, PRESENTATION_VERSION } from '../../src/config.js';
 import { FACTORIES } from '../../src/games/index.js';
 import { CLIENTS_KEY } from '../../src/core/clients.js';
 import { seededRandom } from '../../src/core/random.js';
@@ -20,7 +20,7 @@ export function mockRemote(values){
     else if(path.endsWith('/difficulty')&&method==='PATCH')result={setting:body};
     else if(path.endsWith('/sessions')&&method==='POST'){
       const engine=FACTORIES[body.gameId]({...body,practice:body.kind==='baseline',random:seededRandom(42),now:()=>0});
-      result={id:`run-${++number}`,kind:body.kind,settings:{...body,level:body.kind==='baseline'?'easy':(data.difficulties||[]).find(d=>d.gameId===body.gameId&&d.variant===engine.variant)?.level||body.level,reviewEnabled:body.kind==='baseline',seed:42,variant:engine.variant,protocolVersion:engine.protocolVersion}};runs.set(result.id,{...result,childId:path.split('/')[3]});
+      result={id:`run-${++number}`,kind:body.kind,settings:{...body,experienceVersion:EXPERIENCE_VERSION,stimulusVersion:PRESENTATION_VERSION,...(body.gameId==='search'?{pacedRounds:false}:{}),level:body.kind==='baseline'?'easy':(data.difficulties||[]).find(d=>d.gameId===body.gameId&&d.variant===engine.variant)?.level||body.level,reviewEnabled:body.kind==='baseline',seed:42,variant:engine.variant,protocolVersion:engine.protocolVersion}};runs.set(result.id,{...result,childId:path.split('/')[3]});
     }else if(path.endsWith('/complete')){
       const run=runs.get(path.split('/')[5]);if(!run)throw Error('Unknown mocked run');
       let record=data.records.find(r=>r.id===run.id);if(!record){record={id:run.id,profileId:run.childId,kind:run.kind,result:body.result};data.records.push(record);const ds=data.difficulties||=[],d=ds.find(d=>d.gameId===body.result.gameId&&d.variant===body.result.variant);if(!d||d.mode==='adaptive'){if(d)d.level=recommendLevel(body.result).level;else ds.push({gameId:body.result.gameId,variant:body.result.variant,protocolVersion:body.result.protocolVersion,mode:'adaptive',level:recommendLevel(body.result).level});data.difficulties=ds;}write(data);}result={record};

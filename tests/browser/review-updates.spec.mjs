@@ -1,3 +1,4 @@
+import {trialMs} from '../helpers/browser-timing.mjs';
 import {test,expect,request} from '@playwright/test';
 import {readFile} from 'node:fs/promises';
 import {playSession} from '../helpers/play-session.mjs';
@@ -45,7 +46,7 @@ test('review: Persian audio really plays, stops before countdown, and traffic re
   await advance(page,100);if(green)await click(page,'respond');
   const before=Number(await page.locator('.traffic-road').getAttribute('data-progress'));expect(before).toBeGreaterThanOrEqual(previous);previous=before;
   if(before===1){arrived=true;await expect(page.locator('.road-destination')).toHaveClass(/arrived/);await page.screenshot({path:'.local/verification/review-traffic-arrived.png',fullPage:true});}
-  await advance(page,900);
+  await advance(page,(await trialMs(page))-100);
   if(i<4){await click(page,'continue-review');expect(Number(await page.locator('.traffic-road').getAttribute('data-progress'))).toBeGreaterThanOrEqual(previous);}
  }
  expect(arrived).toBe(true);await click(page,'continue-review');await expect(page.locator('.local-note')).toContainText('ذخیره شد');
@@ -142,9 +143,9 @@ test('review: keyboard hunting evaluates the focused lookalike instead of the wh
    const wrong=page.locator(`.hunt-choice[data-choice="${field.wrong}"]`);await wrong.focus();await page.keyboard.press('Space');
    await expect(page.locator('.play-panel')).toHaveAttribute('data-response','wrong');
    await expect(wrong).toHaveAttribute('data-picked','wrong');
-   await advance(page,1000);await expect(page.locator('.practice-review.retry')).toBeVisible();return;
+   await advance(page,await trialMs(page));await expect(page.locator('.practice-review.retry')).toBeVisible();return;
   }
-  await advance(page,1000);await click(page,'continue-review');
+  await advance(page,await trialMs(page));await click(page,'continue-review');
  }
  throw Error('Practice must contain two target trials');
 });

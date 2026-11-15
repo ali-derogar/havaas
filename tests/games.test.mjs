@@ -20,10 +20,10 @@ for (const game of GAMES) for (const level of Object.keys(LEVELS)) for (const pr
     if(game.kind==='reaction') {
       let guard=0;
       while(!s.done&&guard++<200) {
-        if(s.gate) { const before=s.clock.elapsed;t.advance(7000);assert.equal(s.clock.elapsed,before);s.acknowledge(); }
+        if(s.gate) { const before=s.clock.elapsed;t.advance(7000);assert.equal(s.clock.elapsed,before);if(s.transitionClock)s.tick();else s.acknowledge(); }
         t.advance(240);
         if(s.current.target&&s.current.scored!==false) assert.equal(s.respond(),true);
-        t.advance(760);s.tick();
+        t.advance(s.intervalMs-240);s.tick();
       }
       assert.ok(s.done);assert.equal(s.metrics.hits,practice?2:30);assert.equal(s.metrics.misses,0);assert.equal(s.metrics.falseAlarms,0);
       assert.equal(s.position,practice?5:150);assert.equal(s.result.meanReactionMs,240);
@@ -75,16 +75,16 @@ test('Stroop color, word and conjunction are distinct rules',()=>{
   assert.equal(isStroopTarget(3,a),false);assert.equal(isStroopTarget(3,b),false);assert.equal(isStroopTarget(3,{word:'yellow',color:'yellow'}),true);
 });
 test('reaction scoring distinguishes hits, false alarms, omissions and correct rejection',()=>{
-  const t=clock(),s=new ReactionSession({gameId:'traffic',now:t.now},[true,false,true,false].map(target=>({target,phase:0})));
+  const t=clock(),s=new ReactionSession({gameId:'traffic',now:t.now,experienceVersion:1},[true,false,true,false].map(target=>({target,phase:0})));
   t.advance(400);assert.equal(s.respond(),true);assert.equal(s.respond(),null);t.advance(600);s.tick();
   t.advance(200);assert.equal(s.respond(),false);assert.equal(s.respond(),null);t.advance(800);s.tick();
   t.advance(1000);s.tick();t.advance(1000);s.tick();
   assert.deepEqual([s.metrics.hits,s.metrics.falseAlarms,s.metrics.misses,s.metrics.correctRejects],[1,1,1,1]);
   assert.equal(s.score,0);assert.equal(s.result.meanReactionMs,400);assert.equal(s.result.longestStreak,1);
 });
-test('reaction exposure changes by level but the response window remains one second',()=>{
+test('legacy reaction exposure changes by level but the response window remains one second',()=>{
   for(const level of Object.keys(LEVELS)) {
-    const t=clock(),s=new ReactionSession({gameId:'hunt',level,now:t.now},[{target:true,phase:0}]);
+    const t=clock(),s=new ReactionSession({gameId:'hunt',level,now:t.now,experienceVersion:1},[{target:true,phase:0}]);
     t.advance(LEVELS[level].visibleMs-1);assert.ok(s.visible);t.advance(1);assert.equal(s.visible,false);
     t.advance(999-LEVELS[level].visibleMs);assert.equal(s.respond(),true);t.advance(1);s.tick();assert.ok(s.done);assert.equal(s.result.meanReactionMs,999);
   }
@@ -93,15 +93,15 @@ test('pause excludes inactive time, replays unresponded trial and never scores a
   const {timer:t,session:s}=create('traffic');
   t.advance(180);s.pause();const elapsed=s.clock.elapsed;t.advance(25000);assert.equal(s.clock.elapsed,elapsed);assert.equal(s.respond(),null);
   s.resume();assert.ok(s.visible);assert.equal(s.index,0);t.advance(120);s.respond();s.pause();t.advance(12000);s.resume();
-  assert.equal(s.respond(),null);t.advance(880);s.tick();
-  assert.equal(s.index,1);assert.equal(s.metrics.hits+s.metrics.falseAlarms,1);assert.equal(s.clock.elapsed,1180);
+  assert.equal(s.respond(),null);t.advance(s.intervalMs-120);s.tick();
+  assert.equal(s.index,1);assert.equal(s.metrics.hits+s.metrics.falseAlarms,1);assert.equal(s.clock.elapsed,s.intervalMs+180);
 });
 test('active clock supports pause at zero and repeated pause/resume',()=>{
   const t=clock(),c=new ActiveClock(t.now);c.pause();t.advance(100);c.pause();assert.equal(c.elapsed,0);c.resume();c.resume();t.advance(30);assert.equal(c.elapsed,30);
 });
 test('n-back warm-up cannot be answered or scored',()=>{
   const {timer:t,session:s}=create('nback','hard');
-  for(let i=0;i<3;i++){assert.equal(s.respond(),null);t.advance(1000);s.tick();}
+  for(let i=0;i<3;i++){assert.equal(s.respond(),null);t.advance(s.intervalMs);s.tick();}
   assert.equal(s.position,0);assert.equal(s.index,3);assert.equal(s.result.correctResponses,0);assert.equal(s.metrics.misses,0);
 });
 test('search has one exact target and meaningful difficulty',()=>{
@@ -166,12 +166,12 @@ test('a corrupted best score is replaced by a valid session result',()=>{
 });
 
 test('a late reaction cannot be assigned to the next, unseen stimulus',()=>{
-  const t=clock(),s=new ReactionSession({gameId:'hunt',now:t.now},[{target:true,phase:0},{target:true,phase:0}]);
+  const t=clock(),s=new ReactionSession({gameId:'hunt',now:t.now,experienceVersion:1},[{target:true,phase:0},{target:true,phase:0}]);
   t.advance(1001);assert.equal(s.respond(),null);assert.equal(s.index,1);assert.equal(s.response,null);assert.equal(s.metrics.misses,1);assert.equal(s.metrics.hits,0);
   t.advance(200);assert.equal(s.respond(),true);t.advance(800);s.tick();assert.equal(s.result.hits,1);assert.equal(s.result.omissions,1);assert.equal(s.result.meanReactionMs,200);
 });
 test('direct stimulus input validates visibility, trial identity and one response per trial',()=>{
-  const t=clock(),s=new ReactionSession({gameId:'hunt',level:'hard',now:t.now},[{target:true,phase:0},{target:false,phase:0}]);
+  const t=clock(),s=new ReactionSession({gameId:'hunt',level:'hard',now:t.now,experienceVersion:1},[{target:true,phase:0},{target:false,phase:0}]);
   t.advance(50);assert.equal(s.respondToStimulus(1),null);assert.equal(s.respondToStimulus(0),true);assert.equal(s.respond(),null);
   t.advance(950);s.tick();assert.equal(s.respondToStimulus(0),null);t.advance(101);assert.equal(s.respondToStimulus(1),null);assert.equal(s.respond(),false);
   t.advance(899);s.tick();assert.equal(s.metrics.hits,1);assert.equal(s.metrics.falseAlarms,1);assert.equal(s.metrics.misses,0);
@@ -262,7 +262,7 @@ test('five Stroop tutorial trials teach all four rules',()=>{
   for(const t of trials)assert.equal(t.target,isStroopTarget(t.phase,t.stimulus));
 });
 test('outcome history distinguishes omissions, errors, correct rejection and response time',()=>{
-  const t=clock(),s=new ReactionSession({gameId:'traffic',now:t.now},[true,false,true,false].map(target=>({target,phase:0,stimulus:{shape:'circle',color:target?'green':'red'}})));
+  const t=clock(),s=new ReactionSession({gameId:'traffic',now:t.now,experienceVersion:1},[true,false,true,false].map(target=>({target,phase:0,stimulus:{shape:'circle',color:target?'green':'red'}})));
   t.advance(100);s.respond();t.advance(900);s.tick();t.advance(200);s.respond();t.advance(800);s.tick();t.advance(1000);s.tick();t.advance(1000);s.tick();
   assert.equal(s.result.outcomes.length,4);assert.deepEqual(s.result.outcomes.map(o=>[o.target,o.response,o.correct]),[[true,true,true],[false,true,false],[true,false,false],[false,false,true]]);
   assert.equal(s.result.outcomes[0].reactionMs,100);assert.equal(s.result.outcomes[1].reactionMs,200);assert.equal(s.result.outcomes[2].reactionMs,null);
@@ -291,7 +291,7 @@ test('clicking a hunt distractor during a target scene is one wrong selection, n
   const {session:s,timer:t}=create('hunt');
   while(!s.current.target){t.advance(1000);s.tick();if(s.gate)s.acknowledge();}
   const wrong=s.current.choices.findIndex(c=>!c.target),target=s.current.choices.findIndex(c=>c.target),prior=s.metrics.correctRejects;
-  t.advance(50);assert.equal(s.respondToStimulus(s.index,wrong),false);assert.equal(s.respondToStimulus(s.index,target),null);t.advance(950);s.tick();
+  t.advance(50);assert.equal(s.respondToStimulus(s.index,wrong),false);assert.equal(s.respondToStimulus(s.index,target),null);t.advance(s.intervalMs-50);s.tick();
   assert.equal(s.metrics.hits,0);assert.equal(s.metrics.misses,0);assert.equal(s.metrics.falseAlarms,1);
   assert.equal(s.metrics.correctRejects,prior);assert.equal(s.result.meanReactionMs,null);
   const outcome=s.result.outcomes.at(-1);assert.equal(outcome.target,true);assert.equal(outcome.response,true);assert.equal(outcome.correct,false);assert.equal(outcome.selectedTarget,false);
@@ -299,7 +299,7 @@ test('clicking a hunt distractor during a target scene is one wrong selection, n
 test('all hunt levels complete with direct selection of the target among distractors',()=>{
   for(const level of Object.keys(LEVELS))for(const targetCount of [1,2]) {
     const t=clock(),s=FACTORIES.hunt({level,targetCount,now:t.now,random:seededRandom(1)});
-    while(!s.done){if(s.gate)s.acknowledge();t.advance(50);if(s.current.target)assert.equal(s.respondToStimulus(s.index,s.current.choices.findIndex(c=>c.target)),true);t.advance(950);s.tick();}
+    while(!s.done){if(s.gate)s.acknowledge();t.advance(50);if(s.current.target)assert.equal(s.respondToStimulus(s.index,s.current.choices.findIndex(c=>c.target)),true);t.advance(s.intervalMs-50);s.tick();}
     assert.equal(s.result.hits,30);assert.equal(s.result.omissions,0);assert.equal(s.result.falseSelections,0);assert.equal(s.result.outcomes.length,150);
   }
 });

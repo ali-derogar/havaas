@@ -60,7 +60,7 @@ test('hard search lessons teach the actual added attachments rather than only pl
 
 test('departed moving targets lose direct-selection eligibility in revision seven while older runs retain their rules',()=>{
  for(const stimulusVersion of [6,7]){
-  let now=0;const session=FACTORIES.hunt({level:'easy',theme:'bird',stimulusVersion,now:()=>now,random:seededRandom(42)});
+  let now=0;const session=FACTORIES.hunt({level:'easy',theme:'bird',stimulusVersion,experienceVersion:1,now:()=>now,random:seededRandom(42)});
   const index=session.current.choices.findIndex(choice=>choice.position.x>73);assert.ok(index>=0);
   now=1580;assert.equal(huntOnScreen(session.current.choices[index],now,session.visibleMs),false);
   const result=session.respondToStimulus(session.index,index);
@@ -81,7 +81,7 @@ test('spoken playback tracks only its own key and stopping removes the active ke
 test('the shipped voice scripts match the rebuilt files and explain reviews without asking for unavailable actions',async()=>{
  const manifest=JSON.parse(await readFile(new URL('../assets/audio/scripts.json',import.meta.url),'utf8'));
  assert.deepEqual(manifest.scripts,GUIDANCE);
- assert.equal(manifest.voice,'fa-IR-DilaraNeural');assert.equal(manifest.rate,'-6%');
+ assert.equal(manifest.voice,'fa-IR-DilaraNeural');assert.equal(manifest.rate,'-4%');
  for(const key of ['water','food','medkit','vest','flashlight','compass','oxygen','suit','fuel','helmet','map'])assert.ok(!GUIDANCE[key].includes('بردار'));
  assert.ok(!GUIDANCE['not-needed'].includes('دکمه'));
 });

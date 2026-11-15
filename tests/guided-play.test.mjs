@@ -16,7 +16,7 @@ for(const game of GAMES)test(`guided ${game.id}: five reviews freeze time and re
   let guard=0;
   while(!s.done&&guard++<30){
     if(s.gate)s.acknowledge();
-    if(game.kind==='reaction'){const warmup=s.current.scored===false;now+=150;if(s.current.scored!==false&&s.current.target)s.respond();now+=850;s.tick();if(warmup)continue;}
+    if(game.kind==='reaction'){const warmup=s.current.scored===false;now+=150;if(s.current.scored!==false&&s.current.target)s.respond();now+=s.intervalMs-150;s.tick();if(warmup)continue;}
     else if(game.kind==='search'){now+=2150;for(const [i,c] of s.current.choices.entries())if(c.target)s.choose(i);}
     else {now+=150;const item=s.currentItem;if(item.blocked)s.choose(item.id);if(item.required)s.choose(item.id);else s.reject();}
     assert.ok(s.review,`missing review at decision ${reviews}`);reviews++;
@@ -32,13 +32,13 @@ for(const game of GAMES)test(`guided ${game.id}: five reviews freeze time and re
     s.continueReview();s.continueReview();assert.equal(s.outcomes.length,reviews);
   }
   assert.ok(s.done);assert.equal(reviews,5);assert.equal(s.result.correctResponses,5);assert.equal(s.result.feedbackMode,'guided');
-  assert.equal(s.result.durationMs,game.kind==='reaction'?(5+(s.n||0))*1000:game.kind==='search'?5*2150:5*150);
+  assert.equal(s.result.durationMs,game.kind==='reaction'?(5+(s.n||0))*s.intervalMs:game.kind==='search'?5*2150:5*150);
 });
 
 test('guided reviews apply only to practice; main reaction streams retain 150 trials and 30 targets',()=>{
   for(const gameId of ['hunt','traffic','nback','stroop']){
     let now=0;const s=FACTORIES[gameId]({level:'hard',practice:false,reviewEnabled:true,now:()=>now,random:seededRandom(2)});
-    for(let i=0;!s.done&&i<155;i++){if(s.gate)s.acknowledge();now+=50;if(s.current.target)s.respond();now+=950;s.tick();assert.equal(s.review,null);}
+    for(let i=0;!s.done&&i<155;i++){if(s.transitionClock){now+=3000;s.tick();}else if(s.gate)s.acknowledge();now+=50;if(s.current.target)s.respond();now+=s.intervalMs-50;s.tick();assert.equal(s.review,null);}
     assert.ok(s.done);assert.equal(s.result.hits,30);assert.equal(s.outcomes.length,150);assert.equal(s.result.feedbackMode,'continuous');
   }
 });
@@ -68,7 +68,7 @@ test('mission preparation lists needs; packing equipment checks only the matchin
     const target=s.items.find(i=>i.required&&!i.blocked);s.choose(target.id);
     const {document}=parseHTML(missionChecklist(s));assert.equal(document.querySelectorAll('.packed').length,1);
     assert.ok(!document.querySelector('.packed').textContent.includes(target.name));
-    assert.ok(preparationView(s).includes(s.mission.story));
+    assert.ok(!preparationView(s).includes(s.mission.story));assert.ok(preparationView({...s,practice:true}).includes(s.mission.story));
   }
 });
 test('guided assessments and revised letter drawings are compared only with matching conditions',()=>{
@@ -87,7 +87,7 @@ test('canonical results derive guidance and stimulus revision from the authorita
 test('hunt review compares the actually selected distractor with the goal',()=>{
   let now=0;const s=FACTORIES.hunt({level:'hard',practice:true,reviewEnabled:true,now:()=>now,random:seededRandom(17)});
   s.index=s.trials.findIndex(t=>t.target);const choice=s.current.choices.findIndex(c=>!c.target),selected=s.current.choices[choice].stimulus;
-  now=50;assert.equal(s.respondToStimulus(s.index,choice),false);now=1000;s.tick();assert.ok(s.review);
+  now=50;assert.equal(s.respondToStimulus(s.index,choice),false);now=s.intervalMs;s.tick();assert.ok(s.review);
   const {document}=parseHTML(reviewView(s));const chosen=document.querySelector('.review-comparison>div');assert.equal(chosen.querySelector('small').textContent,'انتخاب تو');
   assert.equal(chosen.querySelector('.symbol').outerHTML,parseHTML(preparationView({...s,targets:[selected]})).document.querySelector('.hunt-preparation-targets .symbol').outerHTML);
 });

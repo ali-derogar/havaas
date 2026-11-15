@@ -25,7 +25,7 @@ import {adminShell,adminOverview,adminUsersView,createUserView,registrationView,
 import { seededRandom } from './core/random.js';
 import { ActiveClock } from './core/session.js';
 import { preparationView, countdownView, reviewView, transitionView, stroopStages, trafficRoad, missionChecklist, searchTargetStatus, searchRounds, huntBlocks, learningRecap, roundBreakView, guideControl, trafficProgress, trafficRulePicture, stroopScorecard, missionInventory } from './play-ui.js';
-import { GAMES, GAME_MAP, GAME_PROTOCOLS, LEVELS, THEMES, HUNT_SETTINGS, HUNT_MOTION_TIMING, MOVING_THEMES } from './config.js';
+import { GAMES, GAME_MAP, GAME_PROTOCOLS, LEVELS, THEMES, HUNT_SETTINGS, reactionTiming, RULE_NOTICE_MS, EXPERIENCE_VERSION } from './config.js';
 import { FACTORIES } from './games/index.js';
 import { searchVariant } from './games/search.js';
 import { assessmentSteps, nextAssessmentGame } from './core/assessment.js';
@@ -64,6 +64,12 @@ let route = 'home', selectedGame = 'hunt', selectedLevel = 'easy', selectedTheme
 let engine = null, frame = 0, arenaKey = '', modalKind = '', audioContext;
 let playPhase='ready', preparationClock=null, reactionPointerInput=false, loadedWorld=null,lastSpokenContext='';
 const guestScreen=()=>['registration','invitation','connecting','connection-error'].includes(route);
+
+function cardDuration(game) {
+  if(game.kind!=='reaction')return game.time;
+  const durations=Object.keys(LEVELS).flatMap(level=>(game.id==='hunt'?['star','fish']:['star']).map(theme=>(150+(game.id==='nback'?LEVELS[level].n:0))*reactionTiming({gameId:game.id,level,theme}).intervalMs));
+  return `${time(Math.min(...durations))} تا ${time(Math.max(...durations))}`;
+}
 
 function header() {
  if(publicReportData||!currentUser||guestScreen())return `<header class="site-header"><div class="header-inner"><span class="brand">${logo()} حواس</span><span>${publicReportData?'گزارش خانواده':'همراه رشد و توجه'}</span></div></header>`;
@@ -123,7 +129,7 @@ function gameCards() {
   const shown = GAMES.filter(game => filter === 'all' || game.tags.includes(filter));
   return shown.map((game, index) => {
     const records = profileRecords(clients).filter(item => item.kind === 'training' && item.result.gameId === game.id);
-    return `<button class="game-card" data-action="open" data-game="${game.id}" style="--card-color:${game.color};--card-accent:${game.accent};--card-index:${index}"><div class="card-picture"><span class="card-number">${fa(GAMES.indexOf(game) + 1).padStart(2, '۰')}</span>${gameArtwork(game.id,{lazy:true})}${records.length ? `<span class="played-badge">${icon('check')} بازی کردی</span>` : ''}</div><div class="card-content"><span class="skill-label">${game.skill}</span><h3>${game.title}</h3><p>${game.subtitle}</p><div class="card-bottom"><span>${icon('clock')} ${game.time}</span><span class="card-arrow" aria-hidden="true">${icon('arrow')}</span></div></div></button>`;
+    return `<button class="game-card" data-action="open" data-game="${game.id}" style="--card-color:${game.color};--card-accent:${game.accent};--card-index:${index}"><div class="card-picture"><span class="card-number">${fa(GAMES.indexOf(game) + 1).padStart(2, '۰')}</span>${gameArtwork(game.id,{lazy:true})}${records.length ? `<span class="played-badge">${icon('check')} بازی کردی</span>` : ''}</div><div class="card-content"><span class="skill-label">${game.skill}</span><h3>${game.title}</h3><p>${game.subtitle}</p><div class="card-bottom"><span>${icon('clock')} ${cardDuration(game)}</span><span class="card-arrow" aria-hidden="true">${icon('arrow')}</span></div></div></button>`;
   }).join('') + (filter === 'all' ? `<div class="routine-card"><span class="routine-flower">✳</span><span class="section-kicker">یک یادآوری کوچولو</span><h3>هر روز،<br>چند دقیقه برای ذهنت.</h3><p>یک بازی رو انتخاب کن.<br>شاید امروز رکورد تازه‌ای بزنی!</p><button class="text-button" data-action="about">راهنمای شروع ${icon('arrow')}</button><span class="routine-dots">● ● ●</span></div>` : '');
 }
 
@@ -221,6 +227,9 @@ function gameCopy(game) {
 async function detail(id, updateHash = true) {
   if(!currentUser)return showLogin();if(currentUser.role==='admin')return adminPanel();
   const view=beginView();if(!await refreshClients(view))return;
+  return renderDetail(id,updateHash);
+}
+function renderDetail(id, updateHash = true) {
   if (!Object.hasOwn(GAME_MAP,id)) return home();
   if (selectedGame !== id) selectedMaterial = 'shapes';
   engine = null; route = 'detail'; selectedGame = id; if (modal.open) modal.close(); if (updateHash) setHash(`#${id}`);
@@ -235,8 +244,8 @@ async function detail(id, updateHash = true) {
 }
 function levelSummary(game) {
   const l = LEVELS[selectedLevel];
-  const moving=game.id==='hunt'&&MOVING_THEMES.includes(selectedTheme),visibleMs=moving?HUNT_MOTION_TIMING[selectedLevel].visibleMs:l.visibleMs;
-  if (game.kind === 'reaction') return `<span><b>۱۵۰</b> نوبت · ۳۰ هدف</span><span><b>${fa(visibleMs)}</b> میلی‌ثانیه نمایش</span>${game.id==='hunt'?`<span><b>${fa(HUNT_SETTINGS[selectedLevel].sceneItems)}</b> شکل هم‌زمان</span>`:''}`;
+  const {visibleMs,intervalMs}=reactionTiming(gameOptions());
+  if (game.kind === 'reaction') return `<span><b>۱۵۰</b> نوبت · ۳۰ هدف</span><span><b>${fa(visibleMs)}</b> میلی‌ثانیه نمایش</span><span><b>${time((150+(game.id==='nback'?l.n:0))*intervalMs)}</b> زمان فعال</span>${game.id==='hunt'?`<span><b>${fa(HUNT_SETTINGS[selectedLevel].sceneItems)}</b> شکل هم‌زمان</span>`:''}`;
   if (game.kind === 'search') return `<span><b>۱۰</b> دور جست‌وجو</span><span><b>${fa(l.searchSeconds)}</b> ثانیه برای هر دور</span><span><b>${selectedSearchMode==='dual'?'۲':'۱'}</b> هدف در هر دور</span>`;
   return `<span><b>${fa(l.required)}</b> وسیلهٔ ضروری</span><span><b>${fa(l.seconds)}</b> ثانیه فرصت</span>`;
 }
@@ -245,10 +254,16 @@ async function start(practice, forceBaseline = false) {
   if(starting)return;
   if(!currentUser)return showLogin();
   if (!activeProfile(clients)) { pendingStart = { practice, forceBaseline }; return profiles(); }
+  // Starting takes precedence over an older, still-loading guide for this game.
+  beginView();
   sessionAssessment = Boolean(guideState && guideState.gameId===selectedGame && guideState.profileId===clients.activeId);
   if (sessionAssessment) { practice=true;forceBaseline=true;selectedLevel='easy'; }
   if (!practice && !latestBaseline(clients, selectedGame, currentVariant())) practice = true;
   sessionIsBaseline = practice && (forceBaseline || !latestBaseline(clients, selectedGame, currentVariant()));
+  if(practice&&!sessionIsBaseline){
+    const policy=clients.difficulties.find(d=>d.gameId===selectedGame&&d.variant===currentVariant()&&d.protocolVersion===GAME_PROTOCOLS[selectedGame]);
+    if(policy)selectedLevel=policy.level;
+  }
   const options=gameOptions();
   const attempt={};launchAttempt=attempt;starting=true;notify('در حال آماده‌سازی بازی…');document.querySelectorAll('[data-action="practice"],[data-action="main-game"],[data-action="replay"]').forEach(button=>button.disabled=true);
   try {
@@ -256,15 +271,21 @@ async function start(practice, forceBaseline = false) {
     const world=await preloadWorld(run?.settings||options);
     if(launchAttempt!==attempt)return;
     remoteRun=run;loadedWorld=world;
-  }catch(error){if(launchAttempt===attempt)throw error;return;}
+  }catch(error){
+    if(launchAttempt!==attempt)return;
+    // A failed launch may have superseded a mode change's pending guide fetch.
+    // Restore its selected mode from local state, including while offline.
+    if(route==='detail'&&error.status!==401&&error.code!=='PASSWORD_CHANGE_REQUIRED')renderDetail(selectedGame,false);
+    throw error;
+  }
   finally {if(launchAttempt===attempt){launchAttempt=null;starting=false;document.querySelectorAll('[data-action="practice"],[data-action="main-game"],[data-action="replay"]').forEach(button=>button.disabled=false);}}
   if(remoteRun){selectedLevel=remoteRun.settings.level;selectedGame=remoteRun.settings.gameId;}
   if (modal.open) modal.close();
   sessionRecordId=null;
   route = 'play'; playPhase='ready'; preparationClock=null;
-  engine = FACTORIES[selectedGame]({ ...options,...remoteRun?.settings,level:selectedLevel,practice,pacedRounds:remoteRun?remoteRun.settings.pacedRounds:true,reviewEnabled:remoteRun?remoteRun.settings.reviewEnabled:practice,random:remoteRun?seededRandom(remoteRun.settings.seed):Math.random }); engine.clock.pause(); arenaKey = '';
+  engine = FACTORIES[selectedGame]({ ...options,...remoteRun?.settings,...(remoteRun?{experienceVersion:remoteRun.settings.experienceVersion??1}:{}),level:selectedLevel,practice,reviewEnabled:remoteRun?remoteRun.settings.reviewEnabled:practice,random:remoteRun?seededRandom(remoteRun.settings.seed):Math.random }); engine.clock.pause(); arenaKey = '';
   const game = GAME_MAP[selectedGame];
-  page(`<div class="play-heading"><div><span class="section-kicker">${practice ? sessionIsBaseline ? '۵ تمرین برای آموزش و ارزیابی پایه' : 'وقت تمرینه؛ امتیازت ثبت نمی‌شه' : 'نوبت ماجراجویی توئه'}</span><h1>${game.title}<span class="level-pill">${LEVELS[selectedLevel].label}</span></h1></div><div class="play-heading-actions"><button class="icon-button sound-button" data-action="sound" aria-label="${progress.sound?'خاموش‌کردن صدا و راهنمای گویا':'روشن‌کردن صدا و راهنمای گویا'}" aria-pressed="${progress.sound}">${icon(progress.sound?'sound':'mute')}</button><button class="button subtle pause-button" data-action="pause">${icon('pause')} توقف</button></div></div><section class="play-panel ${game.kind}" data-game="${game.id}" data-interval-ms="${engine.intervalMs||1000}" style="--game-color:${game.color};--game-accent:${game.accent}" aria-label="محیط بازی"><div class="play-hud"><div><span id="progress-label"></span><b id="position"></b></div><div class="hud-time">${icon('clock')}<div><span id="time-label"></span><b id="time"></b></div></div><div><span>پاسخ‌های هدف درست</span><b id="hits">۰</b></div></div><div class="progress-track"><span id="progress-fill"></span></div><div class="instruction-strip" id="instruction"></div><div id="arena" class="arena"></div><div class="play-controls" id="play-controls"></div><div class="visual-feedback" id="visual-feedback" aria-hidden="true"><span class="feedback-good">${icon('check')}</span><span class="feedback-wrong">${icon('repeat')}</span><span class="feedback-cleared">${icon('spark')}</span><strong class="feedback-label"></strong></div><div id="feedback" class="feedback" role="status">با آرامش و دقت شروع کن؛ تو می‌تونی!</div></section><p class="play-footnote">${icon('info')} ${practice ? sessionIsBaseline ? 'این پنج تمرین برای آموزش و پیشنهاد سطح اولیه ثبت می‌شوند.' : 'این بخش فقط برای یادگرفتن قانون بازیه.' : game.kind==='reaction' ? 'محرک کوتاه دیده می‌شه؛ تا شروع نوبت بعد فرصت پاسخ داری.' : 'عجله نکن؛ انتخاب درست، مهم‌تر از انتخاب سریعه.'}</p>`, 'play-main');
+  page(`<div class="play-heading"><div><span class="section-kicker">${practice ? sessionIsBaseline ? '۵ تمرین برای آموزش و ارزیابی پایه' : 'وقت تمرینه؛ امتیازت ثبت نمی‌شه' : 'نوبت ماجراجویی توئه'}</span><h1>${game.title}<span class="level-pill">${LEVELS[selectedLevel].label}</span></h1></div><div class="play-heading-actions"><button class="icon-button sound-button" data-action="sound" aria-label="${progress.sound?'خاموش‌کردن صدا و راهنمای گویا':'روشن‌کردن صدا و راهنمای گویا'}" aria-pressed="${progress.sound}">${icon(progress.sound?'sound':'mute')}</button><button class="button subtle pause-button" data-action="pause">${icon('pause')} توقف</button></div></div><section class="play-panel ${game.kind}" data-game="${game.id}" data-interval-ms="${engine.intervalMs||1000}" data-visible-ms="${engine.visibleMs||0}" style="--game-color:${game.color};--game-accent:${game.accent}" aria-label="محیط بازی"><div class="play-hud"><div><span id="progress-label"></span><b id="position"></b></div><div class="hud-time">${icon('clock')}<div><span id="time-label"></span><b id="time"></b></div></div><div><span>پاسخ‌های هدف درست</span><b id="hits">۰</b></div></div><div class="progress-track"><span id="progress-fill"></span></div><div class="instruction-strip" id="instruction"></div><div id="arena" class="arena"></div><div class="play-controls" id="play-controls"></div><div class="visual-feedback" id="visual-feedback" aria-hidden="true"><span class="feedback-good">${icon('check')}</span><span class="feedback-wrong">${icon('repeat')}</span><span class="feedback-cleared">${icon('spark')}</span><strong class="feedback-label"></strong></div><div id="feedback" class="feedback" role="status">با آرامش و دقت شروع کن؛ تو می‌تونی!</div></section><p class="play-footnote">${icon('info')} ${practice ? sessionIsBaseline ? 'این پنج تمرین برای آموزش و پیشنهاد سطح اولیه ثبت می‌شوند.' : 'این بخش فقط برای یادگرفتن قانون بازیه.' : game.kind==='reaction' ? 'محرک کوتاه دیده می‌شه؛ تا شروع نوبت بعد فرصت پاسخ داری.' : 'عجله نکن؛ انتخاب درست، مهم‌تر از انتخاب سریعه.'}</p>`, 'play-main');
   updatePlay();
   frame = requestAnimationFrame(loop);
 }
@@ -287,7 +308,7 @@ function updatePreparation() {
     document.querySelector('#arena').innerHTML=playPhase==='ready'?preparationView(engine):countdownView();
     document.querySelector('#play-controls').innerHTML=playPhase==='ready'?`<button class="button primary begin-button" data-action="begin-game">آماده‌ام، شروع کنیم ${icon('play')}</button><span class="keyboard-hint">یا کلید <kbd>فاصله</kbd></span>`:'';
     setText('feedback','زمان آماده‌شدن و خواندن توضیحات، جزو زمان بازی نیست.');
-    if(playPhase==='ready')narrateFrozen(guidanceKey({...engine,targetCount:engine.targets?.length||engine.targetCount}),`ready:${viewVersion}`);
+    if(playPhase==='ready'&&(engine.practice||engine.experienceVersion===1))narrateFrozen(guidanceKey({...engine,targetCount:engine.targets?.length||engine.targetCount}),`ready:${viewVersion}`);
   }
   if(playPhase==='countdown'){
     const number=Math.max(1,3-Math.floor(preparationClock.elapsed/1000)),node=document.getElementById('countdown-number');
@@ -305,6 +326,7 @@ function updatePlay() {
     updatePreparation();return;
   }
   engine.tick(); if (engine.done) return finish();
+  if(engine.transitionClock)setText('transition-seconds',fa(Math.max(1,Math.ceil((RULE_NOTICE_MS-engine.transitionClock.elapsed)/1000))));
   const game = GAME_MAP[engine.gameId], reaction = game.kind === 'reaction', search = game.kind === 'search';
   const position = reaction ? engine.position : search ? engine.index : engine.practice ? engine.judged : engine.metrics.hits;
   const total = engine.total;
@@ -324,12 +346,15 @@ function updatePlay() {
     const focus=keyboardPlay?(capturePlayFocus(panel)||(document.activeElement===document.body?{action:''}:null)):null;
     delete panel.dataset.response;
     const presenting = !engine.gate && !engine.paused;
+    const transitionClock=engine.transitionClock,transitioning=transitionClock&&!transitionClock.paused;
     if (presenting) engine.clock.pause();
+    if (transitioning) transitionClock.pause();
     renderArena(game);
     restorePlayFocus(panel,focus);
     if(search&&engine.preview&&!engine.review){const node=document.querySelector('.search-preview');const bounds=node?.getBoundingClientRect?.();if(bounds&&(bounds.top<0||bounds.bottom>window.innerHeight))node.scrollIntoView({block:'center',behavior:'instant'});}
     if(game.kind==='adventure'&&!engine.practice&&engine.ready){const button=document.querySelector('[data-action="depart"]');const bounds=button?.getBoundingClientRect?.();if(bounds&&(bounds.bottom>window.innerHeight||bounds.top<0))button.scrollIntoView({block:'nearest',behavior:'instant'});}
     if (presenting) { engine.clock.resume(); if(reaction) engine.onset = engine.clock.elapsed; }
+    if (transitioning&&!modal.open&&!document.hidden) transitionClock.resume();
   }
   if (reaction) {
     const huntFocus=engine.gameId==='hunt'&&engine.moving?document.activeElement:null;
@@ -383,7 +408,7 @@ function renderArena(game) {
     if (game.id === 'stroop') { cue = `${stroopRulePicture(engine.current.phase)}<span class="sr-only">مرحلهٔ ${fa(engine.current.phase+1)}: ${STROOP_RULES[engine.current.phase].title}</span>`; button = 'این هدفه'; }
     instruction.innerHTML = cue;
     if (engine.gate) {
-      arena.innerHTML=transitionView(engine);narrateFrozen(guidanceKey({...engine,phase:engine.current.phase,targetCount:engine.targets?.length}),`rule:${viewVersion}:${engine.current.phase}`);
+      arena.innerHTML=transitionView(engine);if(!engine.transitionClock)narrateFrozen(guidanceKey({...engine,phase:engine.current.phase,targetCount:engine.targets?.length}),`rule:${viewVersion}:${engine.current.phase}`);
     } else arena.innerHTML = reactionScene(game);
     controls.innerHTML = game.id==='hunt'?huntControls(engine):game.id==='nback'?memoryControls(engine):game.id==='stroop'?stroopControls(engine):`<button class="button response-button" data-action="respond" ${engine.gate || engine.response || engine.current.scored === false ? 'disabled' : ''}>${icon('tap')} <span>${game.id==='traffic'?'حرکت':'بزن'}</span><span class="sr-only">${button}</span></button><span class="keyboard-hint">یا کلید <kbd>فاصله</kbd> روی کیبورد</span>`;
   } else if (game.kind === 'search') {
@@ -445,7 +470,7 @@ function pause() {
 function closeModal() {
   guidance.stop();
   if(modal.open) modal.close();
-  if(route==='play'&&engine){if(playPhase==='countdown')preparationClock?.resume();else if(playPhase==='playing'&&engine.paused&&!engine.gate&&!engine.review)engine.resume();updatePlay();}
+  if(route==='play'&&engine){if(playPhase==='countdown')preparationClock?.resume();else if(playPhase==='playing'&&engine.paused)engine.resume();updatePlay();}
   if(route==='play'&&['hunt','traffic','nback','stroop'].includes(engine?.gameId)&&modalKind==='pause'&&!modal.open){
     (document.querySelector('.response-button:not(:disabled)')||document.querySelector('#main'))?.focus({preventScroll:true});
   }
@@ -765,15 +790,15 @@ document.addEventListener('keydown', event=>{
     if(playPhase!=='playing')return;
     if(engine.roundBreak){engine.continueRound();arenaKey='';return updatePlay();}
     if(engine.review){guidance.stop();engine.continueReview();arenaKey='';return updatePlay();}
-    if(engine.gate){guidance.stop();engine.acknowledge();arenaKey='';return updatePlay();}
+    if(engine.gate){if(engine.transitionClock)return;guidance.stop();engine.acknowledge();arenaKey='';return updatePlay();}
     if(control?.matches('[data-action="stimulus-response"]'))return answer(engine.respondToStimulus(Number(control.dataset.trial),control.dataset.choice===undefined?null:Number(control.dataset.choice)),{choiceIndex:control.dataset.choice});
     if(GAME_MAP[selectedGame].kind==='reaction')answer(engine.respond());
   }
 });
-document.addEventListener('visibilitychange', ()=>{ if(document.hidden&&route==='play'&&engine&&(!engine.paused||playPhase==='countdown')) { if(modal.open) { engine.pause(); } else pause(); } });
-window.addEventListener('orientationchange',()=>{if(route==='play'&&engine&&(!engine.paused||playPhase==='countdown')&&!modal.open)pause();});
+document.addEventListener('visibilitychange', ()=>{ if(document.hidden&&route==='play'&&engine&&(!engine.paused||engine.transitionClock||playPhase==='countdown')) { if(modal.open) { engine.pause();preparationClock?.pause(); } else pause(); } });
+window.addEventListener('orientationchange',()=>{if(route==='play'&&engine&&(!engine.paused||engine.transitionClock||playPhase==='countdown')&&!modal.open)pause();});
 window.addEventListener('popstate',()=>{if(pendingSave){setHash(`#${pendingSave.result.gameId}`);notify('نتیجه هنوز در سرور ثبت نشده است.');return;}void navigate().catch(showError);});
-function gameOptions(){return {gameId:selectedGame,...(selectedGame==='search'?{pacedRounds:true}:{}),level:selectedLevel,theme:selectedTheme,material:selectedMaterial,layout:selectedLayout,trafficMode:selectedTrafficMode,targetCount:selectedGame==='search'?(selectedSearchMode==='dual'?2:1):(selectedHuntMode==='divided'?2:1)};}
+function gameOptions(){return {gameId:selectedGame,clientExperienceVersion:EXPERIENCE_VERSION,level:selectedLevel,theme:selectedTheme,material:selectedMaterial,layout:selectedLayout,trafficMode:selectedTrafficMode,targetCount:selectedGame==='search'?(selectedSearchMode==='dual'?2:1):(selectedHuntMode==='divided'?2:1)};}
 async function refreshClients(view=null){
  const viewerId=currentUser?.id,viewerRole=currentUser?.role;
  const valid=()=>currentUser?.id===viewerId&&currentUser?.role===viewerRole&&(!view||currentView(view));let data;

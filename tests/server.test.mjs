@@ -5,7 +5,7 @@ import { spawn } from 'node:child_process';
 import { createApp } from '../server/app.js';
 import { testDatabase,seedAccounts,testPassword } from './helpers/database.mjs';
 import { playSession } from './helpers/play-session.mjs';
-import { GAMES } from '../src/config.js';
+import { GAMES, EXPERIENCE_VERSION } from '../src/config.js';
 const source=process.env.TEST_DATABASE_URL||process.env.DATABASE_URL;
 let db,server,base,seed,admin,user,otherUser;
 class Client{
@@ -25,7 +25,7 @@ before(async()=>{
  admin=await new Client().login(seed.users.admin);user=await new Client().login(seed.users.user);otherUser=await new Client().login(seed.users.otherUser);
 });
 after(async()=>{if(!source)return;await new Promise(r=>{server.close(r);server.closeAllConnections();});await db.close();});
-const start=async(client,gameId,kind='baseline',extra={})=>{const r=await client.call(`/children/${seed.children[0].id}/sessions`,{method:'POST',body:{gameId,kind,...extra}});assert.equal(r.status,201,JSON.stringify(r.data));return r.data;};
+const start=async(client,gameId,kind='baseline',extra={})=>{const r=await client.call(`/children/${seed.children[0].id}/sessions`,{method:'POST',body:{gameId,kind,clientExperienceVersion:EXPERIENCE_VERSION,...extra}});assert.equal(r.status,201,JSON.stringify(r.data));return r.data;};
 const complete=(client,run,payload=playSession(run))=>client.call(`/children/${seed.children[0].id}/sessions/${run.id}/complete`,{method:'POST',body:{result:payload}});
 apiTest('server: roles protect lists, clinical notes, direct IDs and raw exports',async()=>{
  const own=await user.call('/bootstrap');assert.equal(own.status,200);assert.equal(own.data.profiles.length,1);assert.equal(own.data.profiles[0].concerns,undefined);assert.ok(!JSON.stringify(own.data).includes('clinical-secret'));
@@ -378,4 +378,30 @@ apiTest('server: user filters reject invalid parameters and search treats wildca
  const created=await admin.call('/users',{method:'POST',body:{role:'admin',method:'invite',username:'literal-search-user',name:'کاربر % آزمون'}});assert.equal(created.status,201);
  const percent=await admin.call('/users?page=1&search=%25');assert.equal(percent.status,200);assert.equal(percent.data.pagination.total,1);assert.equal(percent.data.users[0].id,created.data.user.id);
  const injection=await admin.call('/users?page=1&search='+encodeURIComponent("' OR 1=1 --"));assert.equal(injection.status,200);assert.equal(injection.data.pagination.total,0);
+});
+
+apiTest('server: experience versions are authoritative and old baselines still unlock the new main game',async()=>{
+ const child=seed.children[0].id;
+ const old=await start(admin,'traffic','baseline',{trafficMode:'signs'});delete old.settings.experienceVersion;
+ await db.pool.query('UPDATE game_sessions SET settings=$1 WHERE id=$2',[old.settings,old.id]);
+ const saved=await complete(admin,old);assert.equal(saved.status,200,JSON.stringify(saved.data));assert.equal(saved.data.record.result.experienceVersion,1);
+ const run=await start(user,'traffic','training',{trafficMode:'signs',experienceVersion:1});assert.equal(run.settings.experienceVersion,2);
+ const result=await complete(user,run,{...playSession(run),experienceVersion:1});assert.equal(result.status,200);assert.equal(result.data.record.result.experienceVersion,2);
+ const reports=await user.call(`/children/${child}/reports`);assert.equal(reports.data.records.find(record=>record.id===run.id).result.experienceVersion,2);
+});
+
+apiTest('server: an installed legacy client can still save its old reaction timing after a server upgrade',async()=>{
+ for(const gameId of ['traffic','search'])for(const kind of ['baseline','training']){
+  const response=await user.call(`/children/${seed.children[0].id}/sessions`,{method:'POST',body:{gameId,kind}});assert.equal(response.status,201);
+  const run=response.data,legacy={...run,settings:{...run.settings,experienceVersion:1,...(gameId==='search'?{pacedRounds:true}:{})}},payload=playSession(legacy);delete payload.experienceVersion;
+  const saved=await complete(user,run,payload);assert.equal(saved.status,200,`${gameId}: ${JSON.stringify(saved.data)}`);assert.equal(run.settings.experienceVersion,1);assert.equal(saved.data.record.result.experienceVersion,1);
+  if(gameId==='search'){assert.equal(run.settings.pacedRounds,true);assert.equal(saved.data.record.result.roundFlow,kind==='baseline'?'continuous':'ready');}
+ }
+});
+apiTest('server: unsupported client timing versions cannot create a session',async()=>{
+ const child=seed.children[0].id,before=await db.pool.query('SELECT count(*) FROM game_sessions WHERE child_id=$1',[child]);
+ for(const clientExperienceVersion of [0,3,'2',{},[]]){
+  const response=await user.call(`/children/${child}/sessions`,{method:'POST',body:{gameId:'traffic',kind:'baseline',clientExperienceVersion}});assert.equal(response.status,409);assert.equal(response.data.code,'CLIENT_VERSION_UNSUPPORTED');
+ }
+ assert.deepEqual((await db.pool.query('SELECT count(*) FROM game_sessions WHERE child_id=$1',[child])).rows,before.rows);
 });

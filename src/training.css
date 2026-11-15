@@ -281,3 +281,29 @@ body[data-panel=client] .site-footer { color: #6a7d88; }
   body[data-panel=client] { color: #222; background: #fff; }
   body[data-panel=client] .result-card { background: #fff; box-shadow: none; }
 }
+
+/* Main sessions retain only their current goals before the countdown. */
+.game-preparation.compact-preparation{min-height:0;padding:24px 20px;gap:14px;max-width:680px}
+.compact-preparation>h2{font-size:23px}.compact-preparation .visual-rule{margin:4px 0;font-size:17px}
+.automatic-rule-notice{padding:22px 18px;min-height:0}.automatic-rule-notice>p{font-size:17px;line-height:2}
+.automatic-rule-notice #transition-seconds{display:inline-grid;place-items:center;min-width:42px;border-radius:12px;background:#eee6fa;color:#64428b;font-size:26px;font-variant-numeric:tabular-nums}
+@media(max-height:600px){.game-preparation.compact-preparation{padding:12px;gap:9px}.compact-preparation>h2{font-size:19px}.automatic-rule-notice{padding:10px}.automatic-rule-notice>h2{font-size:20px}}
+/* The automatic notice must fit before its three-second window expires. */
+.play-panel[data-game=stroop][data-phase=rule]:has(.automatic-rule-notice)>.instruction-strip{display:none}
+.play-panel[data-game=stroop][data-phase=rule] .automatic-rule-notice>.stroop-rule-picture{animation:none;opacity:1}
+@media(max-height:600px){
+ .play-panel[data-game=stroop][data-phase=rule] .automatic-rule-notice{padding:12px;gap:8px}
+ .play-panel[data-game=stroop][data-phase=rule] .automatic-rule-notice>h2{font-size:20px}
+ .play-panel[data-game=stroop][data-phase=rule] .automatic-rule-notice>p{margin:0}
+}
+@media(max-height:400px) and (min-width:640px){
+ body[data-screen=play] .play-main:has(.automatic-rule-notice){padding:8px 16px}
+ .play-main:has(.automatic-rule-notice) .play-heading{margin-bottom:8px}
+ .play-main:has(.automatic-rule-notice) .play-heading h1{font-size:19px}
+ .play-panel[data-game=stroop][data-phase=rule]:has(.automatic-rule-notice)>.play-hud{min-height:48px;padding:4px 18px}
+ .play-panel[data-game=stroop][data-phase=rule] .automatic-rule-notice{display:grid;grid-template-columns:1fr 1fr;gap:8px 16px}
+ .play-panel[data-game=stroop][data-phase=rule] .automatic-rule-notice>:is(.studio-phase-path,.section-kicker){display:none}
+ .play-panel[data-game=stroop][data-phase=rule] .automatic-rule-notice>h2{grid-column:1;grid-row:1}
+ .play-panel[data-game=stroop][data-phase=rule] .automatic-rule-notice>p{grid-column:1;grid-row:2}
+ .play-panel[data-game=stroop][data-phase=rule] .automatic-rule-notice>.stroop-rule-picture{grid-column:2;grid-row:1 / span 2;justify-self:center}
+}

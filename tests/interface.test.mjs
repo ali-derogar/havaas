@@ -42,6 +42,7 @@ async function fixture({blockedStorage=false,withProfile=true,autoReady=true,aut
   return {document,window,click,advance,values,location,register,slowRendering,setPolicy};
 }
 
+const trialMs=ui=>Number(ui.document.querySelector('.play-panel')?.dataset.intervalMs)||1000;
 async function finishReaction(ui, practice, n=0) {
   let steps=0;
   while(!ui.document.querySelector('.result-card')&&steps++<180) {
@@ -115,9 +116,9 @@ test('interface: denied localStorage does not interrupt a full game',async()=>{
 });
 test('interface: pause and restart also work at a Stroop rule transition',async()=>{
   const ui=await fixture();await ui.click('open','[data-game="stroop"]');await ui.click('practice');await finishReaction(ui,true);await ui.click('main-game');
-  for(let i=0;i<40;i++)await ui.advance(1000);
-  assert.ok(ui.document.querySelector('[data-action="acknowledge"]'));await ui.click('pause');assert.ok(ui.document.querySelector('#modal').open);
-  await ui.click('resume');assert.ok(ui.document.querySelector('[data-action="acknowledge"]'));await ui.click('pause');await ui.click('restart');
+  for(let i=0;i<40;i++)await ui.advance(trialMs(ui));
+  assert.ok(ui.document.querySelector('.automatic-rule-notice'));await ui.click('pause');assert.ok(ui.document.querySelector('#modal').open);
+  await ui.click('resume');assert.ok(ui.document.querySelector('.automatic-rule-notice'));await ui.click('pause');await ui.click('restart');
   assert.equal(ui.document.querySelector('#position').textContent,'۱ از ۱۵۰');assert.ok(!ui.document.querySelector('[data-action="acknowledge"]'));
 });
 
@@ -142,7 +143,7 @@ test('interface: variants teach and complete through the real controls',async()=
 
 test('interface: hunt renders simultaneous choices and preserves the selected attention mode when changing theme',async()=>{
   const ui=await fixture();await ui.click('open','[data-game="hunt"]');await ui.click('hunt-mode','[data-mode="divided"]');await ui.click('theme','[data-theme="fish"]');
-  assert.match(ui.document.querySelector('#session-summary').textContent,/۱٬۶۰۰.*میلی‌ثانیه نمایش.*۴.*شکل هم‌زمان/);
+  assert.match(ui.document.querySelector('#session-summary').textContent,/۲٬۰۰۰.*میلی‌ثانیه نمایش.*۴.*شکل هم‌زمان/);
   assert.equal(ui.document.querySelector('.hunt-mode.selected').dataset.mode,'divided');await ui.click('practice');
   assert.equal(ui.document.querySelectorAll('.hunt-choice').length,4);assert.equal(ui.document.querySelectorAll('.target-mini').length,2);
   const choice=ui.document.querySelector('.hunt-choice');assert.ok(choice.hasAttribute('data-choice'));
@@ -156,15 +157,15 @@ test('interface: space explains the mission and reports mandatory obstacle clear
 });
 
 
-test('interface: slow DOM rendering does not consume the 100ms stimulus exposure',async()=>{
+test('interface: slow DOM rendering does not consume the 300ms stimulus exposure',async()=>{
   const ui=await fixture(),restore=ui.slowRendering(400);
   try {
     await ui.click('open','[data-game="hunt"]');await ui.click('practice');await finishReaction(ui,true);await ui.click('detail');await ui.setPolicy('hard');await ui.click('main-game');
     assert.equal(ui.document.querySelector('.stimulus-shell').style.visibility,'visible');
     assert.equal(ui.document.querySelector('#position').textContent,'۱ از ۱۵۰');
-    await ui.advance(99);assert.equal(ui.document.querySelector('.stimulus-shell').style.visibility,'visible');
+    await ui.advance(299);assert.equal(ui.document.querySelector('.stimulus-shell').style.visibility,'visible');
     await ui.advance(1);assert.equal(ui.document.querySelector('.stimulus-shell').style.visibility,'hidden');
-    await ui.advance(900);assert.equal(ui.document.querySelector('#position').textContent,'۲ از ۱۵۰');
+    await ui.advance(700);assert.equal(ui.document.querySelector('#position').textContent,'۲ از ۱۵۰');
     assert.equal(ui.document.querySelector('.stimulus-shell').style.visibility,'visible');
   } finally {restore();}
 });
@@ -237,15 +238,15 @@ test('interface: readiness and paused countdown never consume a reaction trial',
   await ui.click('begin-game');await ui.advance(1000);assert.equal(ui.document.querySelector('#countdown-number').textContent,'۲');
   await ui.click('pause');await ui.advance(40000);await ui.click('resume');await ui.advance(1999);assert.ok(ui.document.querySelector('.game-countdown'));
   await ui.advance(1);assert.equal(ui.document.querySelector('.stimulus-shell').style.visibility,'visible');assert.equal(ui.document.querySelector('#position').textContent,'۱ از ۵');assert.equal(ui.document.querySelector('#time').textContent,'۰۰:۰۰');
-  await ui.advance(1000);assert.ok(ui.document.querySelector('.practice-review'));assert.equal(ui.document.querySelector('#time').textContent,'۰۰:۰۱');
+  await ui.advance(trialMs(ui));assert.ok(ui.document.querySelector('.practice-review'));assert.equal(ui.document.querySelector('#time').textContent,'۰۰:۰۲');
 });
 test('interface: reviewing a response survives a long pause and advances exactly one trial',async()=>{
   const ui=await fixture({autoReview:false});await ui.click('open','[data-game="hunt"]');await ui.click('practice');
-  await ui.advance(100);await ui.click('respond');assert.ok(ui.document.querySelector('[data-action="respond"]').disabled);await ui.advance(900);
+  await ui.advance(100);await ui.click('respond');assert.ok(ui.document.querySelector('[data-action="respond"]').disabled);await ui.advance(trialMs(ui)-100);
   assert.ok(ui.document.querySelector('.practice-review'));assert.equal(ui.document.querySelector('[data-action="respond"]'),null);
-  await ui.advance(90000);assert.ok(ui.document.querySelector('.practice-review'));assert.equal(ui.document.querySelector('#time').textContent,'۰۰:۰۱');
+  await ui.advance(90000);assert.ok(ui.document.querySelector('.practice-review'));assert.equal(ui.document.querySelector('#time').textContent,'۰۰:۰۲');
   await ui.click('pause');await ui.click('resume');await ui.advance(90000);assert.ok(ui.document.querySelector('.practice-review'));
-  await ui.click('continue-review');assert.equal(ui.document.querySelector('#position').textContent,'۲ از ۵');assert.equal(ui.document.querySelector('.stimulus-shell').style.visibility,'visible');assert.equal(ui.document.querySelector('#time').textContent,'۰۰:۰۱');
+  await ui.click('continue-review');assert.equal(ui.document.querySelector('#position').textContent,'۲ از ۵');assert.equal(ui.document.querySelector('.stimulus-shell').style.visibility,'visible');assert.equal(ui.document.querySelector('#time').textContent,'۰۰:۰۲');
 });
 test('interface: the next search preview gets two full seconds after an untimed review',async()=>{
   const ui=await fixture({autoReview:false});await ui.click('open','[data-game="search"]');await ui.click('practice');
@@ -257,8 +258,8 @@ test('interface: the next search preview gets two full seconds after an untimed 
 test('interface: n-back reviews reveal the reference only after responding',async()=>{
   const ui=await fixture({autoReview:false});await ui.click('open','[data-game="nback"]');await ui.click('material','[data-material="toys"]');await ui.click('practice');
   assert.ok(ui.document.querySelector('.memory-status'));assert.equal(ui.document.querySelector('.memory-sequence'),null);
-  await ui.advance(1000);assert.equal(ui.document.querySelector('.practice-review'),null);assert.equal(ui.document.querySelector('.memory-sequence'),null);
-  await ui.advance(1000);assert.ok(ui.document.querySelector('.practice-review .memory-token.reference'));assert.equal(ui.document.querySelectorAll('.practice-review .memory-token').length,2);
+  await ui.advance(trialMs(ui));assert.equal(ui.document.querySelector('.practice-review'),null);assert.equal(ui.document.querySelector('.memory-sequence'),null);
+  await ui.advance(trialMs(ui));assert.ok(ui.document.querySelector('.practice-review .memory-token.reference'));assert.equal(ui.document.querySelectorAll('.practice-review .memory-token').length,2);
   await ui.click('continue-review');assert.equal(ui.document.querySelector('.memory-sequence'),null);
 });
 
@@ -319,9 +320,9 @@ test('interface: response is timed at pointer-down and a late pointer click neve
  const ui=await fixture();await ui.click('open','[data-game="traffic"]');await ui.click('practice');await finishReaction(ui,true);await ui.click('main-game');
  assert.equal(ui.document.body.dataset.screen,'play');await ui.advance(100);
  const pointer=new ui.window.Event('pointerdown',{bubbles:true,cancelable:true});Object.defineProperties(pointer,{button:{value:0},isPrimary:{value:true}});ui.document.querySelector('[data-action="respond"]').dispatchEvent(pointer);
- assert.ok(ui.document.querySelector('[data-action="respond"]').disabled);await ui.advance(900);
+ assert.ok(ui.document.querySelector('[data-action="respond"]').disabled);await ui.advance(trialMs(ui)-100);
  const release=new ui.window.Event('click',{bubbles:true,cancelable:true});Object.defineProperty(release,'detail',{value:1});ui.document.querySelector('[data-action="respond"]').dispatchEvent(release);
- await ui.advance(1000);await finishReaction(ui,false);
+ await ui.advance(trialMs(ui));await finishReaction(ui,false);
  const result=JSON.parse(ui.values.get(CLIENTS_KEY)).records.at(-1).result;assert.equal(result.outcomes[0].reactionMs,100);assert.equal(result.outcomes[0].response,true);assert.equal(result.outcomes[1].response,false);assert.equal(ui.document.body.dataset.screen,'result');
 });
 test('interface: optional result recap uses actual n-back references after gameplay ends',async()=>{
@@ -330,18 +331,19 @@ test('interface: optional result recap uses actual n-back references after gamep
  const result=JSON.parse(ui.values.get(CLIENTS_KEY)).records.at(-1).result;const before=result.durationMs;await ui.advance(60000);assert.equal(JSON.parse(ui.values.get(CLIENTS_KEY)).records.at(-1).result.durationMs,before);
 });
 
-test('interface: main search waits for readiness and keeps every next sample visible for two full seconds',async()=>{
+test('interface: main search automatically starts the next full preview and can pause it',async()=>{
  const ui=await fixture({autoRound:false});await ui.click('open','[data-game="search"]');await ui.click('practice');await finishSearch(ui,5);await ui.click('main-game');
  const target=ui.document.querySelector('.preview-target .symbol').outerHTML;await ui.advance(2000);await ui.advance(150);
  const option=[...ui.document.querySelectorAll('.search-choice')].find(el=>el.querySelector('.symbol').outerHTML===target);await ui.click('search-choice',`[data-index="${option.dataset.index}"]`);
- assert.ok(ui.document.querySelector('.round-intermission'));assert.equal(ui.document.querySelector('.search-preview'),null);assert.equal(ui.document.querySelectorAll('.round-intermission .symbol').length,0);
- await ui.advance(90000);assert.ok(ui.document.querySelector('.round-intermission'));await ui.click('pause');await ui.click('resume');await ui.advance(90000);assert.ok(ui.document.querySelector('.round-intermission'));
- await ui.click('next-round');assert.equal(ui.document.querySelector('#position').textContent,'۲ از ۱۰');await ui.advance(1999);assert.ok(ui.document.querySelector('.search-preview'));await ui.advance(1);assert.ok(ui.document.querySelector('.search-grid'));
+ assert.equal(ui.document.querySelector('.round-intermission'),null);assert.ok(ui.document.querySelector('.search-preview'));assert.equal(ui.document.querySelector('#position').textContent,'۲ از ۱۰');
+ await ui.advance(999);await ui.click('pause');await ui.advance(90000);assert.ok(ui.document.querySelector('.search-preview'));await ui.click('resume');
+ await ui.advance(1000);assert.ok(ui.document.querySelector('.search-preview'));await ui.advance(1);assert.ok(ui.document.querySelector('.search-grid'));
 });
+
 test('interface: device rotation pauses a timed reaction without recording extra responses',async()=>{
  const ui=await fixture({autoReview:false});await ui.click('open','[data-game="traffic"]');await ui.click('practice');await ui.advance(100);
  ui.window.dispatchEvent(new ui.window.Event('orientationchange'));assert.ok(ui.document.querySelector('#modal').open);const before=ui.document.querySelector('#time').textContent;await ui.advance(90000);assert.equal(ui.document.querySelector('#time').textContent,before);
- await ui.click('resume');assert.equal(ui.document.querySelector('.stimulus-shell').style.visibility,'visible');await ui.advance(1000);assert.ok(ui.document.querySelector('.practice-review'));assert.equal(ui.document.querySelector('#position').textContent,'۱ از ۵');
+ await ui.click('resume');assert.equal(ui.document.querySelector('.stimulus-shell').style.visibility,'visible');await ui.advance(trialMs(ui));assert.ok(ui.document.querySelector('.practice-review'));assert.equal(ui.document.querySelector('#position').textContent,'۱ از ۵');
 });
 
 test('interface: device rotation also freezes the remaining countdown',async()=>{
@@ -360,4 +362,48 @@ test('interface: illustration decoding completes before the game clock is create
   await ui.click('open','[data-game="ark"]');await ui.click('practice');assert.equal(ui.document.querySelector('.play-panel'),null);await ui.advance(90000);assert.equal(ui.document.querySelector('.play-panel'),null);
   finishDecode();await ui.advance(0);assert.ok(ui.document.querySelector('.game-preparation'));await ui.click('begin-game');await ui.advance(3000);assert.equal(ui.document.querySelector('#time').textContent,'۰۰:۰۰');assert.ok(ui.document.querySelector('.adventure-scene .world-backdrop'));
  }finally{if(original===undefined)delete globalThis.Image;else globalThis.Image=original;}
+});
+
+test('interface: a rule notice keeps its full three seconds even when building the screen is slow',async()=>{
+ const ui=await fixture();await ui.click('open','[data-game="stroop"]');await ui.click('practice');await finishReaction(ui,true);await ui.click('main-game');
+ for(let i=0;i<39;i++)await ui.advance(trialMs(ui));
+ const restore=ui.slowRendering(1500);
+ try{
+  await ui.advance(trialMs(ui));assert.ok(ui.document.querySelector('.automatic-rule-notice'));
+  const active=ui.document.querySelector('#time').textContent;
+  await ui.advance(0);assert.ok(ui.document.querySelector('.automatic-rule-notice'),'rendering must not consume the rule notice');
+  await ui.advance(2999);assert.ok(ui.document.querySelector('.automatic-rule-notice'));assert.equal(ui.document.querySelector('#time').textContent,active);
+  await ui.advance(1);assert.equal(ui.document.querySelector('.automatic-rule-notice'),null);assert.equal(ui.document.querySelector('.studio-stage').dataset.rulePhase,'1');assert.equal(ui.document.querySelector('.stimulus-shell').style.visibility,'visible');assert.equal(ui.document.querySelector('#time').textContent,active);
+ }finally{restore();}
+});
+
+test('interface: starting immediately after changing material cannot be cancelled by its late guide refresh',async()=>{
+ const ui=await fixture({autoReady:false});await ui.click('open','[data-game="nback"]');
+ const fetcher=globalThis.fetch;let releaseGuide,releaseStart;
+ const guide=new Promise(resolve=>{releaseGuide=resolve;}),start=new Promise(resolve=>{releaseStart=resolve;});let starts=0;
+ globalThis.fetch=async(url,options)=>{
+  const response=await fetcher(url,options);
+  if(String(url).includes('/bootstrap'))await guide;
+  if(String(url).endsWith('/sessions')&&options?.method==='POST'){starts++;await start;}
+  return response;
+ };
+ await ui.click('material','[data-material="numbers"]');await ui.click('practice');assert.equal(starts,1);
+ releaseGuide();await ui.advance(0);releaseStart();await ui.advance(0);
+ assert.ok(ui.document.querySelector('.memory-preparation'),'the requested session must survive the older guide response');
+ await ui.click('begin-game');await ui.advance(3000);assert.match(ui.document.querySelector('.memory-stage .symbol text').textContent,/^[0-9]$/);
+});
+
+test('interface: a failed start after changing material restores a coherent guide without another network request',async()=>{
+ const ui=await fixture({autoReady:false});await ui.click('open','[data-game="nback"]');
+ const fetcher=globalThis.fetch;let releaseGuide,failStart=true,refreshes=0;
+ const guide=new Promise(resolve=>{releaseGuide=resolve;});
+ globalThis.fetch=async(url,options)=>{
+  if(String(url).endsWith('/sessions')&&options?.method==='POST'&&failStart)throw new Error('ارتباط قطع شد');
+  if(String(url).includes('/bootstrap')){refreshes++;if(refreshes>1)throw new Error('هنوز آفلاین است');const response=await fetcher(url,options);await guide;return response;}
+  return fetcher(url,options);
+ };
+ await ui.click('material','[data-material="numbers"]');await ui.click('practice');releaseGuide();await ui.advance(0);
+ assert.equal(ui.document.querySelector('[data-action="material"].selected').dataset.material,'numbers','the selected mode must match the next session even after its start fails');
+ assert.equal(ui.document.querySelector('[data-action="practice"]').disabled,false);assert.equal(refreshes,1,'restoring the guide must work offline');
+ failStart=false;await ui.click('practice');assert.ok(ui.document.querySelector('.memory-preparation'));await ui.click('begin-game');await ui.advance(3000);assert.match(ui.document.querySelector('.memory-stage .symbol text').textContent,/^[0-9]$/);
 });

@@ -1,10 +1,11 @@
-import { Session } from './session.js';
-import { LEVELS, PROTOCOL } from '../config.js';
+import { Session, ActiveClock } from './session.js';
+import { reactionTiming, RULE_NOTICE_MS } from '../config.js';
 
 export class ReactionSession extends Session {
   constructor(options, trials) {
     super(options); this.trials = trials; this.index = 0; this.onset = 0; this.response = null; this.gate = false;
-    this.intervalMs=PROTOCOL.intervalMs;this.visibleMs=LEVELS[this.level].visibleMs;
+    Object.assign(this,reactionTiming({...options,level:this.level,stimulusVersion:this.stimulusVersion,experienceVersion:this.experienceVersion}));
+    this.transitionClock=null;
     this.maxScore = trials.filter(t => t.scored !== false && t.target).length;
     this.total = trials.filter(t => t.scored !== false).length;
   }
@@ -14,6 +15,12 @@ export class ReactionSession extends Session {
   get visible() { return !this.done && !this.gate && !this.paused && this.clock.elapsed - this.onset < this.visibleMs; }
   get remainingMs() { return Math.max(0, this.intervalMs - (this.clock.elapsed - this.onset)); }
   tick() {
+    if(this.transitionClock){
+      if(!this.transitionClock.paused&&this.transitionClock.elapsed>=RULE_NOTICE_MS){
+        this.transitionClock=null;this.gate=false;this.clock.resume();this.onset=this.clock.elapsed;
+      }
+      return;
+    }
     if (this.done || this.paused || this.gate || this.clock.elapsed - this.onset < this.intervalMs) return;
     const old = this.current;
     if (old.scored !== false) this.record(old.target, !!this.response, this.response?.reactionMs ?? null, { phase: old.phase, stimulus: old.stimulus, ...(this.response ? { selectedTarget: this.response.selectedTarget, selectedStimulus: this.response.selectedStimulus } : {}) });
@@ -30,7 +37,11 @@ export class ReactionSession extends Session {
     const old=this.current;this.index++;this.response=null;
     if(this.index>=this.trials.length){this.finish();return;}
     this.onset=this.clock.elapsed;
-    if(old.phase!==this.current.phase){this.gate=true;this.clock.pause();}
+    if(old.phase!==this.current.phase){
+      if(this.experienceVersion>=2&&!this.practice&&this.gameId==='hunt')return;
+      this.gate=true;this.clock.pause();
+      if(this.experienceVersion>=2&&!this.practice&&this.gameId==='stroop')this.transitionClock=new ActiveClock(this.clock.now);
+    }
   }
   continueReview(){if(!this.review)return;this.review=null;this.clock.resume();this.advanceTrial();}
   respond(selectedTarget = this.current?.target, selectedStimulus = this.current?.stimulus) {
@@ -53,11 +64,13 @@ export class ReactionSession extends Session {
     }
     return this.respond();
   }
+  pause() { super.pause();this.transitionClock?.pause(); }
   resume() {
+    if(this.transitionClock){this.transitionClock.resume();return;}
     if (this.gate || this.review) return;
     super.resume();
     // A replay is the same trial. Its previous response, if any, remains locked.
     if (!this.response && !this.moving) this.onset = this.clock.elapsed;
   }
-  acknowledge() { if (!this.gate) return; this.gate = false; this.clock.resume(); this.onset = this.clock.elapsed; }
+  acknowledge() { if (!this.gate||this.transitionClock) return; this.gate = false; this.clock.resume(); this.onset = this.clock.elapsed; }
 }

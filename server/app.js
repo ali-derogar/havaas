@@ -17,6 +17,7 @@ import { registerPublicReport,registerReportLinks,reportResult } from './report-
 import {appOrigin,normalizeAppOrigin} from './origin.js';
 import {serializeCsv} from './csv.js';
 import {registerPwa} from './pwa.js';
+import {EXPERIENCE_VERSION} from '../src/config.js';
 
 const PgStore=connectPg(session);
 const role=(req,roles)=>check(roles.includes(req.user.role),'اجازهٔ این عملیات را ندارید.',403,'FORBIDDEN');
@@ -80,7 +81,11 @@ export function createApp({pool,secret=process.env.SESSION_SECRET,production=pro
     const row=(await pool.query(`INSERT INTO difficulty(child_id,game_id,variant,protocol,mode,level,updated_by) VALUES($1,$2,$3,$4,$5,$6,$7) ON CONFLICT(child_id,game_id,variant,protocol) DO UPDATE SET mode=EXCLUDED.mode,level=EXCLUDED.level,revision=difficulty.revision+1,updated_by=EXCLUDED.updated_by,updated_at=now() RETURNING *`,[req.params.id,s.gameId,s.variant,s.protocolVersion,req.body.mode,req.body.level,req.user.id])).rows[0];res.json({setting:row});
   });
   app.post('/api/children/:id/sessions',async(req,res)=>{
-    await childAccess(pool,req.user,req.params.id);const s=normalizeSettings(req.body),kind=req.body.kind;check(['baseline','training'].includes(kind),'نوع جلسه معتبر نیست.');
+    await childAccess(pool,req.user,req.params.id);
+    // Cached clients predating timing negotiation still run the original engine.
+    const clientVersion=req.body.clientExperienceVersion??1;
+    check([1,EXPERIENCE_VERSION].includes(clientVersion),'نسخهٔ برنامه با سرور سازگار نیست؛ برنامه را به‌روزرسانی کنید.',409,'CLIENT_VERSION_UNSUPPORTED');
+    const s=normalizeSettings(req.body,{experienceVersion:clientVersion}),kind=req.body.kind;check(['baseline','training'].includes(kind),'نوع جلسه معتبر نیست.');
     const run=await transaction(pool,async db=>{
       if(kind==='training')check((await db.query("SELECT 1 FROM game_sessions WHERE child_id=$1 AND kind='baseline' AND result->>'gameId'=$2 AND COALESCE(result->>'variant','standard')=$3 AND (result->>'protocolVersion')::int=$4 AND result IS NOT NULL",[req.params.id,s.gameId,s.variant,s.protocolVersion])).rowCount,'اول ارزیابی پایه را انجام دهید.',409,'BASELINE_REQUIRED');
       await db.query('INSERT INTO difficulty(child_id,game_id,variant,protocol) VALUES($1,$2,$3,$4) ON CONFLICT DO NOTHING',[req.params.id,s.gameId,s.variant,s.protocolVersion]);

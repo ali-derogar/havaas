@@ -1,3 +1,4 @@
+import {trialMs} from '../helpers/browser-timing.mjs';
 import {test,expect,request} from '@playwright/test';
 import {readFile} from 'node:fs/promises';
 import {playSession} from '../helpers/play-session.mjs';
@@ -24,7 +25,7 @@ async function warmup(page,n,visibleMs){
  const seen=[];
  for(let i=0;i<n;i++){
   await expect(page.locator('.memory-stage')).toHaveAttribute('data-memory-phase','remember');await expect(page.locator('.response-button')).toBeDisabled();await expect(page.locator('.memory-stimulus')).toBeDisabled();
-  seen.push(await current(page));await advance(page,visibleMs-1);await expect(page.locator('.stimulus-shell')).toBeVisible();await advance(page,1);await expect(page.locator('.stimulus-shell')).toBeHidden();await advance(page,1000-visibleMs);
+  seen.push(await current(page));await advance(page,visibleMs-1);await expect(page.locator('.stimulus-shell')).toBeVisible();await advance(page,1);await expect(page.locator('.stimulus-shell')).toBeHidden();await advance(page,(await trialMs(page))-visibleMs);
  }
  await expect(page.locator('.memory-stage')).toHaveAttribute('data-memory-phase','compare');return seen;
 }
@@ -32,7 +33,7 @@ async function leave(page){await click(page,'pause');await click(page,'home');aw
 
 test('memory: all three distances and materials teach a sequence, hide old stimuli, and review five decisions',async({page})=>{
  const errors=[];page.on('pageerror',error=>errors.push(error.message));await clock(page);await login(page);
- for(const [level,n,visibleMs,material] of [['easy',1,300,'shapes'],['medium',2,200,'numbers'],['hard',3,100,'toys']]){
+ for(const [level,n,visibleMs,material] of [['easy',1,800,'shapes'],['medium',2,500,'numbers'],['hard',3,300,'toys']]){
   await setup(page,level,material);await open(page,material);
   const lesson=page.locator('#lesson-box');await expect(lesson.locator('.lesson-token')).toHaveCount(1);await expect(lesson.locator('[data-action=lesson-answer]')).toHaveCount(0);
   for(let i=0;i<n;i++)await click(page,'lesson-memory-next');
@@ -42,7 +43,7 @@ test('memory: all three distances and materials teach a sequence, hide old stimu
   for(let trial=0;trial<5;trial++){
    const shape=await current(page),match=shape===seen.at(-n);await expect(page.locator('.memory-stage .symbol')).toHaveCount(1);await expect(page.locator('.memory-stage .reference,.memory-stage [data-target],.memory-status .symbol')).toHaveCount(0);
    if(n===3&&trial===0)await page.screenshot({path:'.local/verification/nback_toys_desktop.png',fullPage:true,animations:'disabled'});
-   const mistake=!match&&!wrong;if(mistake)wrong=true;await advance(page,50);if(match||mistake)await click(page,'respond');await advance(page,950);
+   const mistake=!match&&!wrong;if(mistake)wrong=true;await advance(page,50);if(match||mistake)await click(page,'respond');await advance(page,(await trialMs(page))-50);
    await expect(page.locator(`.practice-review.${mistake?'retry':'good'}`)).toBeVisible();await expect(page.locator('.memory-example .memory-token')).toHaveCount(n+1);
    expect(await page.locator('.memory-example .reference .symbol').evaluate(node=>node.outerHTML)).toBe(seen.at(-n));expect(await page.locator('.memory-example .current .symbol').evaluate(node=>node.outerHTML)).toBe(shape);
    const frozen=await page.locator('#time').textContent();await advance(page,20000);await expect(page.locator('#time')).toHaveText(frozen);
@@ -56,7 +57,7 @@ test('memory: all three distances and materials teach a sequence, hide old stimu
 
 test('memory: 150 scored trials preserve exposure, late keyboard responses, pause, mistakes and a saved album',async({page})=>{
  const errors=[];page.on('pageerror',error=>errors.push(error.message));await clock(page);await login(page);await setup(page,'hard','numbers');await open(page,'numbers');await start(page,false);await begin(page);
- const seen=await warmup(page,3,100);let omitted=false,falseAlarm=false,hits=0,correctRejections=0;
+ const seen=await warmup(page,3,300);let omitted=false,falseAlarm=false,hits=0,correctRejections=0;
  for(let trial=0;trial<150;trial++){
   const shape=await current(page),match=shape===seen.at(-3);await expect(page.locator('.memory-stage .symbol')).toHaveCount(1);await expect(page.locator('.memory-stage .reference,.memory-status .symbol')).toHaveCount(0);
   if(trial===0){
@@ -72,22 +73,52 @@ test('memory: 150 scored trials preserve exposure, late keyboard responses, paus
    }
    await page.setViewportSize({width:390,height:844});await page.evaluate(()=>scrollTo(0,0));
   }
-  await advance(page,99);await expect(page.locator('.stimulus-shell')).toBeVisible();await advance(page,1);await expect(page.locator('.stimulus-shell')).toBeHidden();await expect(page.locator('.response-button')).toBeEnabled();
+  await advance(page,299);await expect(page.locator('.stimulus-shell')).toBeVisible();await advance(page,1);await expect(page.locator('.stimulus-shell')).toBeHidden();await expect(page.locator('.response-button')).toBeEnabled();
   const omit=match&&!omitted;if(omit)omitted=true;const falseResponse=!match&&!falseAlarm;if(falseResponse)falseAlarm=true;
   await advance(page,50);
   if(match&&!omit||falseResponse){await page.locator('.response-button').focus();await page.keyboard.press('Space');await expect(page.locator('.response-button')).toBeDisabled();await page.keyboard.press('Space');if(match)hits++;}else if(!match)correctRejections++;
-  seen.push(shape);await advance(page,850);if(trial<149)await expect(page.locator('.play-effects')).toHaveCount(0);
+  seen.push(shape);await advance(page,650);if(trial<149)await expect(page.locator('.play-effects')).toHaveCount(0);
  }
  expect(hits).toBe(29);expect(correctRejections).toBe(119);await expect(page.locator('.result-main-score>b')).toHaveText('۲۸');await expect(page.locator('.memory-result-tile')).toHaveCount(15);
  expect(await page.locator('.memory-result-tile').evaluateAll(nodes=>nodes.reduce((sum,node)=>sum+Number(node.dataset.correct),0))).toBe(148);await expect(page.locator('.local-note')).toContainText('ذخیره شد');await page.setViewportSize({width:1440,height:1400});await page.screenshot({path:'.local/verification/nback_result.png',fullPage:true,animations:'disabled'});expect(errors).toEqual([]);
 });
 
 test('memory: reduced motion keeps toys immediate and the response works while the stimulus is hidden',async({page})=>{
- await page.emulateMedia({reducedMotion:'reduce'});await clock(page);await login(page);await setup(page,'medium','toys');await open(page,'toys');await start(page,false);await begin(page);const seen=await warmup(page,2,200);await page.setViewportSize({width:360,height:740});
+ await page.emulateMedia({reducedMotion:'reduce'});await clock(page);await login(page);await setup(page,'medium','toys');await open(page,'toys');await start(page,false);await begin(page);const seen=await warmup(page,2,500);await page.setViewportSize({width:360,height:740});
  for(let trial=0;trial<150;trial++){
-  const shape=await current(page),match=shape===seen.at(-2);await advance(page,200);await expect(page.locator('.stimulus-shell')).toBeHidden();
+  const shape=await current(page),match=shape===seen.at(-2);await advance(page,500);await expect(page.locator('.stimulus-shell')).toBeHidden();
   if(match){await page.locator('.response-button').focus();await page.keyboard.press('Space');await expect(page.locator('.play-panel')).toHaveAttribute('data-response','good');await expect(page.locator('.play-panel')).toHaveAttribute('data-motion','reduced');await expect(page.locator('.play-effects')).toHaveCount(0);await expect(page.locator('.response-button')).toBeInViewport();break;}
-  seen.push(shape);await advance(page,800);
+  seen.push(shape);await advance(page,(await trialMs(page))-500);
  }
  await leave(page);
+});
+
+test('memory: starting during a material refresh keeps the selected mode and ignores the late guide',async({page})=>{
+ await clock(page);await login(page);await setup(page,'hard','shapes');await setup(page,'hard','numbers');await open(page,'shapes');await expect(page.locator('[data-action=main-game]')).toBeVisible();
+ let releaseGuide,releaseStart,guideFetched;
+ const guideGate=new Promise(resolve=>{releaseGuide=resolve;}),startGate=new Promise(resolve=>{releaseStart=resolve;}),fetched=new Promise(resolve=>{guideFetched=resolve;});
+ await page.route('**/api/bootstrap*',async route=>{const response=await route.fetch();guideFetched();await guideGate;await route.fulfill({response});});
+ await page.route('**/api/children/*/sessions',async route=>{const response=await route.fetch();await startGate;await route.fulfill({response});});
+ try{
+  await page.locator('[data-action=material][data-material=numbers]').click();await fetched;
+  const requested=page.waitForRequest(r=>r.method()==='POST'&&r.url().endsWith('/sessions'));
+  await click(page,'main-game');const launch=await requested;expect(launch.postDataJSON()).toMatchObject({material:'numbers',clientExperienceVersion:2,kind:'training'});
+  const guideResponse=page.waitForResponse(r=>r.url().includes('/api/bootstrap')&&r.status()===200);releaseGuide();await(await guideResponse).finished();await page.evaluate(()=>new Promise(resolve=>setTimeout(resolve,0)));
+  releaseStart();await expect(page.locator('.memory-preparation')).toBeVisible();await expect(page.locator('.level-pill')).toHaveText('سخت');await begin(page);await expect(page.locator('.memory-stage .symbol text')).toHaveText(/^[0-9]$/);await expect(page.locator('#position')).toHaveText('۱ از ۳');
+ }finally{releaseGuide();releaseStart();}
+});
+
+test('memory: a failed launch restores the selected guide offline and can retry without stale choices',async({page})=>{
+ await clock(page);await login(page);await setup(page,'hard','shapes');await setup(page,'hard','numbers');await open(page,'shapes');await expect(page.locator('[data-action=main-game]')).toBeVisible();
+ let releaseGuide,guideFetched,refreshes=0,starts=0;
+ const guideGate=new Promise(resolve=>{releaseGuide=resolve;}),fetched=new Promise(resolve=>{guideFetched=resolve;});
+ await page.route('**/api/bootstrap*',async route=>{refreshes++;if(refreshes>1)return route.abort('failed');const response=await route.fetch();guideFetched();await guideGate;await route.fulfill({response});});
+ await page.route('**/api/children/*/sessions',async route=>{starts++;if(starts===1)return route.abort('failed');return route.continue();});
+ try{
+  await page.locator('[data-action=material][data-material=numbers]').click();await fetched;await click(page,'main-game');
+  await expect(page.locator('[data-action=material][data-material=numbers]')).toHaveAttribute('aria-pressed','true');await expect(page.locator('#lesson-box .lesson-token .symbol text')).toHaveText(/^[0-9]$/);await expect(page.locator('[data-action=main-game]')).toBeEnabled();expect(starts).toBe(1);expect(refreshes).toBe(1);
+  const response=page.waitForResponse(r=>r.url().includes('/api/bootstrap')&&r.status()===200);releaseGuide();await(await response).finished();await page.evaluate(()=>new Promise(resolve=>setTimeout(resolve,0)));await expect(page.locator('[data-action=material][data-material=numbers]')).toHaveAttribute('aria-pressed','true');
+  await click(page,'main-game');await expect(page.locator('.memory-preparation')).toBeVisible();await begin(page);await expect(page.locator('.memory-stage .symbol text')).toHaveText(/^[0-9]$/);expect(starts).toBe(2);expect(refreshes).toBe(1);
+  await page.setViewportSize({width:390,height:844});await page.screenshot({path:'.local/verification/bug-audit-offline-retry.png',animations:'disabled'});
+ }finally{releaseGuide();}
 });

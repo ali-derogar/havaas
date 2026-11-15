@@ -1,6 +1,6 @@
 import { ReactionSession } from '../core/reaction.js';
 import { pick, shuffle, targetMask } from '../core/random.js';
-import { HUNT_SETTINGS, LEGACY_HUNT_SETTINGS, HUNT_MOTION_TIMING, MOVING_THEMES, PRESENTATION_VERSION, PROTOCOL } from '../config.js';
+import { HUNT_SETTINGS, LEGACY_HUNT_SETTINGS, MOVING_THEMES, PRESENTATION_VERSION, PROTOCOL } from '../config.js';
 
 export function createHunt(options) {
   const random = options.random ?? Math.random, theme = options.theme || 'star';
@@ -33,7 +33,6 @@ export function createHunt(options) {
     }
   }
   const session = new ReactionSession({ ...options, gameId:'hunt', protocolVersion:3, variant:targetCount===2?'divided':'standard' },trials);
-  if(moving)Object.assign(session,HUNT_MOTION_TIMING[level]);
   if(moving&&revision>=7)session.choiceSelectable=choice=>huntOnScreen(choice,session.clock.elapsed-session.onset,session.visibleMs);
   session.moving=moving;session.targets=targets;session.target=targets[0];session.theme=theme;session.background=settings.background;session.blockLengths=blockLengths;return session;
 }

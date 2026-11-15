@@ -31,7 +31,7 @@ test('memory station presents only the current canonical stimulus and never reve
 });
 
 test('memory ring follows the active clock and exposure; result album summarizes actual decisions',()=>{
- let now=0;const session=FACTORIES.nback({level:'hard',material:'numbers',now:()=>now,random:seededRandom(15)});
+ let now=0;const session=FACTORIES.nback({level:'hard',material:'numbers',experienceVersion:1,now:()=>now,random:seededRandom(15)});
  const panel=parseHTML(`<div>${memoryStage(session)}</div>`).document.querySelector('div');
  now=99;syncMemoryStage(panel,session);assert.equal(panel.querySelector('.memory-stage').dataset.exposure,'shown');
  now=100;syncMemoryStage(panel,session);assert.equal(panel.querySelector('.memory-stage').dataset.exposure,'hidden');

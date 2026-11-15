@@ -1,3 +1,4 @@
+import {trialMs} from '../helpers/browser-timing.mjs';
 import {test,expect,request,chromium} from '@playwright/test';
 import {readFile,mkdtemp,rm} from 'node:fs/promises';
 import {randomUUID} from 'node:crypto';
@@ -72,7 +73,7 @@ test('PWA update cannot interrupt another window playing or awaiting a save, the
   const update=idle.locator('[data-pwa-action=update]');await expect(update).toBeVisible();await update.click();await expect(idle.locator('#pwa-banner')).toContainText('ابتدا بازی');
   expect(await page.evaluate(()=>document.querySelector('#app').inert)).toBe(false);expect(await idle.evaluate(()=>document.querySelector('#app').inert)).toBe(false);await expect(page.locator('.play-panel')).toHaveAttribute('data-phase','playing');
   await page.route('**/api/children/*/sessions/*/complete',route=>route.abort('failed'));
-  for(let n=0;n<5;n++){await advance(page,1000);await expect(page.locator('.practice-review')).toBeVisible();await action(page,'continue-review').click();}
+  for(let n=0;n<5;n++){await advance(page,await trialMs(page));await expect(page.locator('.practice-review')).toBeVisible();await action(page,'continue-review').click();}
   await expect(action(page,'retry-save')).toBeVisible();await update.click();await expect(idle.locator('#pwa-banner')).toContainText('ابتدا بازی');await expect(action(page,'retry-save')).toBeVisible();
   await page.unroute('**/api/children/*/sessions/*/complete');await action(page,'retry-save').click();await expect(page.locator('.local-note')).toContainText('ذخیره شد');await action(page,'home').click();await expect(page.locator('.hero')).toBeVisible();
   await Promise.all([page.waitForEvent('domcontentloaded'),idle.waitForEvent('domcontentloaded'),update.click()]);await expect(page.locator('.hero')).toBeVisible();await expect(idle.locator('.hero')).toBeVisible();

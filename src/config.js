@@ -1,6 +1,6 @@
 /** @typedef {'easy'|'medium'|'hard'} Difficulty */
 /** @typedef {{id:string,title:string,subtitle:string,kind:'reaction'|'adventure'|'search',tags:string[],description:string,rules:string[],color:string,accent:string,time:string}} GameConfig */
-/** @typedef {{version:1,protocolVersion:number,gameId:string,level:Difficulty,variant:string,score:number,maxScore:number,hits:number,correctResponses:number,correctRejections:number,omissions:number,falseSelections:number,meanReactionMs:number|null,reactionMeasure:'stimulus-onset'|'search-onset'|'decision-interval',longestStreak:number,durationMs:number,completed:boolean,finishedAt:string,outcomes:Array<{number:number,target:boolean,response:boolean,correct:boolean,reactionMs:number|null,atMs:number}>}} SessionResult */
+/** @typedef {{version:1,experienceVersion:number,protocolVersion:number,gameId:string,level:Difficulty,variant:string,score:number,maxScore:number,hits:number,correctResponses:number,correctRejections:number,omissions:number,falseSelections:number,meanReactionMs:number|null,reactionMeasure:'stimulus-onset'|'search-onset'|'decision-interval',longestStreak:number,durationMs:number,completed:boolean,finishedAt:string,outcomes:Array<{number:number,target:boolean,response:boolean,correct:boolean,reactionMs:number|null,atMs:number}>}} SessionResult */
 
 export const LEVELS = {
   easy: { label: 'آسان', caption: 'با خیال راحت شروع کن', visibleMs: 300, items: 16, required: 4, seconds: 60, obstacles: 2, searchSeconds: 30, n: 1 },
@@ -8,6 +8,10 @@ export const LEVELS = {
   hard: { label: 'سخت', caption: 'آمادهٔ تمرکز بیشتر؟', visibleMs: 100, items: 36, required: 6, seconds: 30, obstacles: 4, searchSeconds: 15, n: 3 },
 };
 export const PRESENTATION_VERSION = 8;
+export const EXPERIENCE_VERSION = 2;
+export const RULE_NOTICE_MS = 3000;
+export const REACTION_TIMING = {easy:{visibleMs:800,intervalMs:1500},medium:{visibleMs:500,intervalMs:1200},hard:{visibleMs:300,intervalMs:1000}};
+export const MOVING_REACTION_TIMING = {easy:{visibleMs:2000,intervalMs:2500},medium:{visibleMs:1400,intervalMs:1800},hard:{visibleMs:900,intervalMs:1200}};
 export const LEGACY_ITEM_COUNTS = {easy:12,medium:18,hard:24};
 export const PROTOCOL = { trials: 150, targets: 30, intervalMs: 1000, practiceTrials: 5, previewMs: 2000, searchRounds: 10, penaltyMs: 2000, huntBlocks: [20,50,80] };
 export const LEGACY_HUNT_SETTINGS = {
@@ -22,6 +26,12 @@ export const HUNT_SETTINGS = {
 };
 export const MOVING_THEMES = ['fish','bird','butterfly'];
 export const HUNT_MOTION_TIMING = {easy:{visibleMs:1600,intervalMs:2000},medium:{visibleMs:1100,intervalMs:1500},hard:{visibleMs:650,intervalMs:1000}};
+// Missing versions in persisted sessions are resolved to 1 by the server.
+export function reactionTiming({gameId,level='easy',theme='star',stimulusVersion=PRESENTATION_VERSION,experienceVersion=EXPERIENCE_VERSION}={}) {
+  const moving=gameId==='hunt'&&stimulusVersion>=6&&MOVING_THEMES.includes(theme);
+  if(experienceVersion>=2)return {...(moving?MOVING_REACTION_TIMING:REACTION_TIMING)[level]};
+  return moving?{...HUNT_MOTION_TIMING[level]}:{visibleMs:LEVELS[level].visibleMs,intervalMs:PROTOCOL.intervalMs};
+}
 export const THEMES = { star: 'ستاره‌ها', shape: 'شکل‌ها', fish: 'ماهی‌ها', butterfly: 'پروانه‌ها', bird: 'پرنده‌ها' };
 export const COLORS = { blue: '#176fe5', green: '#0ba867', red: '#ed3545', yellow: '#dc9b00', purple: '#9846da', pink: '#e94c98' };
 export const COLOR_NAMES = { blue: 'آبی', green: 'سبز', red: 'قرمز', yellow: 'زرد', purple: 'بنفش', pink: 'صورتی' };

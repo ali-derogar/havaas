@@ -1,3 +1,4 @@
+import {trialMs} from '../helpers/browser-timing.mjs';
 import {test,expect,request} from '@playwright/test';
 import {readFile} from 'node:fs/promises';
 import {playSession} from '../helpers/play-session.mjs';
@@ -19,6 +20,10 @@ async function start(page,practice){await page.locator('[data-action=open][data-
 async function begin(page){await click(page,'begin-game');await advance(page,3000);await expect(page.locator('.studio-stage')).toBeVisible();}
 const stimulus=page=>page.locator('.studio-stage').evaluate(stage=>{const node=stage.querySelector('.studio-stimulus').firstElementChild,phase=Number(stage.dataset.rulePhase),yellow=node.getAttribute('style')?.includes('#dc9b00')||node.outerHTML.includes('fill="#dc9b00"'),word=node.classList.contains('word-stimulus')?node.textContent:'';return {phase,yellow,word,target:phase<=1?yellow:phase===2?word==='زرد':yellow&&word==='زرد',html:node.outerHTML};});
 async function gate(page,phase){
+ if(await page.locator('.automatic-rule-notice').count()){
+  await expect(page.locator('.rule-sample,[data-action=acknowledge]')).toHaveCount(0);
+  const frozen=await page.locator('#time').textContent();await advance(page,1000);await click(page,'pause');await advance(page,20000);await expect(page.locator('#time')).toHaveText(frozen);await click(page,'resume');await advance(page,1999);await expect(page.locator('.automatic-rule-notice')).toBeVisible();await advance(page,1);await expect(page.locator('.studio-stage')).toHaveAttribute('data-rule-phase',String(phase));return;
+ }
  await expect(page.locator('.studio-transition')).toBeVisible();await expect(page.locator('.studio-transition .stroop-rule-picture')).toHaveAttribute('data-rule-phase',String(phase));await expect(page.locator('.rule-sample')).toHaveCount(2);
  await expect(page.locator('.play-controls')).toBeHidden();
  const frozen=await page.locator('#time').textContent();await advance(page,20000);await expect(page.locator('#time')).toHaveText(frozen);await expect(page.locator('.studio-stimulus')).toHaveCount(0);await click(page,'acknowledge');await expect(page.locator('.studio-stage')).toHaveAttribute('data-rule-phase',String(phase));
@@ -33,7 +38,7 @@ test('studio: all eight illustrated lessons and five frozen practice reviews ret
  await click(page,'practice');await page.setViewportSize({width:1440,height:1250});await page.screenshot({path:'.local/verification/stroop_preparation.png',fullPage:true,animations:'disabled'});await begin(page);
  for(let trial=0;trial<5;trial++){
   if(await page.locator('.studio-transition').count()){const phase=Number(await page.locator('.studio-transition .stroop-rule-picture').getAttribute('data-rule-phase'));await gate(page,phase);}
-  const current=await stimulus(page);await advance(page,50);if(current.target)await page.locator('.studio-stimulus').click();await advance(page,950);await expect(page.locator('.practice-review.good')).toBeVisible();await expect(page.locator('.studio-review-sample .stroop-rule-picture')).toHaveAttribute('data-rule-phase',String(current.phase));
+  const current=await stimulus(page);await advance(page,50);if(current.target)await page.locator('.studio-stimulus').click();await advance(page,(await trialMs(page))-50);await expect(page.locator('.practice-review.good')).toBeVisible();await expect(page.locator('.studio-review-sample .stroop-rule-picture')).toHaveAttribute('data-rule-phase',String(current.phase));
   const paper=page.locator('.studio-review-paper .ready-token');expect(await paper.evaluate(node=>node.firstElementChild.outerHTML)).toBe(current.html);const frozen=await page.locator('#time').textContent();await advance(page,15000);await expect(page.locator('#time')).toHaveText(frozen);await click(page,'continue-review');
  }
  await expect(page.locator('.result-card')).toBeVisible();await expect(page.locator('.local-note')).toContainText('ذخیره شد');
@@ -58,10 +63,10 @@ test('studio: all 150 trials preserve ink, exposure, keyboard timing, rule pause
    await page.setViewportSize({width:390,height:844});await page.evaluate(()=>scrollTo(0,0));
   }
   if(trial===40){await advance(page,50);const before=await page.locator('.studio-interval-track>span').getAttribute('style');await click(page,'pause');await advance(page,20000);expect(await page.locator('.studio-interval-track>span').getAttribute('style')).toBe(before);await click(page,'resume');await expect(page.locator('.response-button')).toBeFocused();expect((await stimulus(page)).html).toBe(current.html);}
-  await advance(page,99);await expect(page.locator('.stimulus-shell')).toBeVisible();await advance(page,1);await expect(page.locator('.stimulus-shell')).toBeHidden();await expect(page.locator('.response-button')).toBeEnabled();
+  await advance(page,299);await expect(page.locator('.stimulus-shell')).toBeVisible();await advance(page,1);await expect(page.locator('.stimulus-shell')).toBeHidden();await expect(page.locator('.response-button')).toBeEnabled();
   const omit=current.target&&!omitted[phase];if(omit)omitted[phase]=true;const falseResponse=!current.target&&!wrong[phase];if(falseResponse)wrong[phase]=true;await advance(page,100);
   if(current.target&&!omit||falseResponse){await page.locator('.response-button').focus();await page.keyboard.press('Space');await expect(page.locator('.response-button')).toBeDisabled();await page.keyboard.press('Space');}
-  await advance(page,800);if(trial<149)await expect(page.locator('.play-effects')).toHaveCount(0);
+  await advance(page,600);if(trial<149)await expect(page.locator('.play-effects')).toHaveCount(0);
  }
  expect(counts).toEqual([40,40,40,30]);expect(omitted.every(Boolean)&&wrong.every(Boolean)).toBe(true);await expect(page.locator('.result-main-score>b')).toHaveText('۲۲');await expect(page.locator('.local-note')).toContainText('ذخیره شد');
  expect(await page.locator('.studio-result-pot').evaluateAll(nodes=>nodes.map(node=>[Number(node.dataset.correct),Number(node.dataset.total)]))).toEqual([[38,40],[38,40],[38,40],[28,30]]);
@@ -70,7 +75,7 @@ test('studio: all 150 trials preserve ink, exposure, keyboard timing, rule pause
 
 test('studio: reduced motion and all difficulty exposures keep the complete response window',async({page})=>{
  await page.emulateMedia({reducedMotion:'reduce'});await clock(page);await login(page);
- for(const [level,visible] of [['easy',300],['medium',200]]){
+ for(const [level,visible] of [['easy',800],['medium',500]]){
   await setup(page,level);await start(page,false);await begin(page);await advance(page,visible-1);await expect(page.locator('.stimulus-shell')).toBeVisible();await advance(page,1);await expect(page.locator('.stimulus-shell')).toBeHidden();await advance(page,400);await page.locator('.response-button').focus();await page.keyboard.press('Space');await expect(page.locator('.play-panel')).toHaveAttribute('data-motion','reduced');await expect(page.locator('.response-button')).toBeDisabled();await expect(page.locator('.play-effects')).toHaveCount(0);await click(page,'pause');await click(page,'home');
  }
 });

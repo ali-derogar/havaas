@@ -1,20 +1,21 @@
-import { GAME_MAP, GAME_PROTOCOLS, LEVELS, PROTOCOL } from '../src/config.js';
+import { GAME_MAP, GAME_PROTOCOLS, LEVELS, PROTOCOL, EXPERIENCE_VERSION } from '../src/config.js';
 import { FACTORIES } from '../src/games/index.js';
 import { generateSearch } from '../src/games/search.js';
 import { seededRandom } from '../src/core/random.js';
 import { Session } from '../src/core/session.js';
 import { requireValue as check } from './security.js';
 
-export function normalizeSettings(input={}) {
+export function normalizeSettings(input={}, {experienceVersion=EXPERIENCE_VERSION}={}) {
   check(input&&typeof input.gameId==='string'&&Object.hasOwn(GAME_MAP,input.gameId),'بازی معتبر نیست.');
   const options={gameId:input.gameId,level:'easy',theme:['star','shape','fish','butterfly','bird'].includes(input.theme)?input.theme:'star',material:['shapes','letters','numbers','toys'].includes(input.material)?input.material:'shapes',layout:input.layout==='scattered'?'scattered':'grid',trafficMode:input.trafficMode==='signs'?'signs':'circles',targetCount:input.targetCount===2?2:1};
-  if(options.gameId==='search')options.pacedRounds=true;
+  options.experienceVersion=experienceVersion;
+  if(options.gameId==='search')options.pacedRounds=experienceVersion===1;
   const sample=FACTORIES[options.gameId]({...options,practice:true,now:()=>0,random:seededRandom(0)});
   return {...options,variant:sample.variant,protocolVersion:GAME_PROTOCOLS[options.gameId],stimulusVersion:sample.stimulusVersion||1};
 }
 const same=(a,b)=>a&&b&&['shape','color','detail','word'].every(k=>(a[k]??(k==='detail'?0:undefined))===(b[k]??(k==='detail'?0:undefined)));
 export function canonicalResult(run,payload) {
-  const settings=run.settings, game=GAME_MAP[settings.gameId],practice=run.kind==='baseline';
+  const settings={...run.settings,experienceVersion:run.settings.experienceVersion??1}, game=GAME_MAP[settings.gameId],practice=run.kind==='baseline';
   check(payload&&Array.isArray(payload.outcomes)&&payload.outcomes.length<=1000,'پاسخ‌های جلسه معتبر نیستند.');
   check(Number.isFinite(payload.durationMs)&&payload.durationMs>=0&&payload.durationMs<=86400000,'زمان جلسه معتبر نیست.');
   const engine=FACTORIES[game.id]({...settings,practice,now:()=>0,random:seededRandom(settings.seed)});
@@ -99,6 +100,6 @@ export function canonicalResult(run,payload) {
   for(const o of records)aggregate.record(o.target,o.response,o.reactionMs,{selectedTarget:o.selectedTarget});
   const m=aggregate.metrics,times=m.reactionTimes;
   const score=game.kind==='reaction'?Math.max(0,m.hits-m.falseAlarms):m.hits;
-  return {version:1,...(game.id==='hunt'?{stimulusFamily:settings.theme||'star'}:{}),feedbackMode:practice&&settings.reviewEnabled?'guided':'continuous',stimulusVersion:settings.stimulusVersion??engine.stimulusVersion??1,protocolVersion:settings.protocolVersion,gameId:game.id,level:settings.level,variant:settings.variant,score,maxScore:engine.maxScore,hits:m.hits,correctResponses:m.hits+m.correctRejects,correctRejections:m.correctRejects,omissions:m.misses,falseSelections:m.falseAlarms,meanReactionMs:times.length?Math.round(times.reduce((a,b)=>a+b,0)/times.length):null,reactionMeasure:engine.reactionMeasure,longestStreak:m.maxStreak,durationMs:Math.round(payload.durationMs),completed,finishedAt:new Date().toISOString(),outcomes:records,sessionId:run.id,settingsSnapshot:settings,...(game.kind==='search'?{targetsPerRound:settings.targetCount,rounds:engine.total,roundFlow:!practice&&settings.pacedRounds?'ready':'continuous'}:{}),...(game.kind==='adventure'?{events:clearEvents.map(event=>({...event})),mission:engine.mission.title,departed:!practice&&completed,obstaclesCleared:cleared.size,inventory:records.filter(o=>o.target&&o.response).map(o=>o.item)}:{})};
+  return {version:1,experienceVersion:settings.experienceVersion,...(game.id==='hunt'?{stimulusFamily:settings.theme||'star'}:{}),feedbackMode:practice&&settings.reviewEnabled?'guided':'continuous',stimulusVersion:settings.stimulusVersion??engine.stimulusVersion??1,protocolVersion:settings.protocolVersion,gameId:game.id,level:settings.level,variant:settings.variant,score,maxScore:engine.maxScore,hits:m.hits,correctResponses:m.hits+m.correctRejects,correctRejections:m.correctRejects,omissions:m.misses,falseSelections:m.falseAlarms,meanReactionMs:times.length?Math.round(times.reduce((a,b)=>a+b,0)/times.length):null,reactionMeasure:engine.reactionMeasure,longestStreak:m.maxStreak,durationMs:Math.round(payload.durationMs),completed,finishedAt:new Date().toISOString(),outcomes:records,sessionId:run.id,settingsSnapshot:settings,...(game.kind==='search'?{targetsPerRound:settings.targetCount,rounds:engine.total,roundFlow:engine.result.roundFlow}:{}),...(game.kind==='adventure'?{events:clearEvents.map(event=>({...event})),mission:engine.mission.title,departed:!practice&&completed,obstaclesCleared:cleared.size,inventory:records.filter(o=>o.target&&o.response).map(o=>o.item)}:{})};
 }
-export function summaryResult(result){if(!result)return result;const source={...result,...(result.gameId==='hunt'&&result.settingsSnapshot?.theme?{stimulusFamily:result.stimulusFamily||result.settingsSnapshot.theme}:{})};return Object.fromEntries(['version','stimulusFamily','feedbackMode','stimulusVersion','protocolVersion','gameId','level','variant','score','maxScore','hits','correctResponses','correctRejections','omissions','falseSelections','meanReactionMs','reactionMeasure','longestStreak','durationMs','completed','finishedAt','sessionId','targetsPerRound','rounds','roundFlow','mission','departed','obstaclesCleared','inventory','legacyId','source'].filter(key=>Object.hasOwn(source,key)).map(key=>[key,source[key]]));}
+export function summaryResult(result){if(!result)return result;const source={...result,experienceVersion:result.experienceVersion??1,...(result.gameId==='hunt'&&result.settingsSnapshot?.theme?{stimulusFamily:result.stimulusFamily||result.settingsSnapshot.theme}:{})};return Object.fromEntries(['version','experienceVersion','stimulusFamily','feedbackMode','stimulusVersion','protocolVersion','gameId','level','variant','score','maxScore','hits','correctResponses','correctRejections','omissions','falseSelections','meanReactionMs','reactionMeasure','longestStreak','durationMs','completed','finishedAt','sessionId','targetsPerRound','rounds','roundFlow','mission','departed','obstaclesCleared','inventory','legacyId','source'].filter(key=>Object.hasOwn(source,key)).map(key=>[key,source[key]]));}

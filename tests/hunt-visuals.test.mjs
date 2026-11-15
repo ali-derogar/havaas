@@ -26,7 +26,7 @@ test('hunt presentation preserves exact symbols, original positions and moving p
 });
 
 test('hunt clocks freeze, static choices stop accepting input after exposure, and result trail uses actual decisions',()=>{
- let now=0;const session=FACTORIES.hunt({theme:'star',level:'hard',now:()=>now,random:seededRandom(9)});
+ let now=0;const session=FACTORIES.hunt({theme:'star',level:'hard',experienceVersion:1,now:()=>now,random:seededRandom(9)});
  const panel=parseHTML(`<section>${huntScene(session)}${huntControls(session)}</section>`).document.querySelector('section');
  now=99;syncHuntStage(panel,session);assert.equal(panel.querySelectorAll('.hunt-choice:disabled').length,0);
  now=100;syncHuntStage(panel,session);assert.equal(panel.querySelectorAll('.hunt-choice:disabled').length,10);

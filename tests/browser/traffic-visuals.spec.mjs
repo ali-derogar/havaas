@@ -1,3 +1,4 @@
+import {trialMs} from '../helpers/browser-timing.mjs';
 import {test,expect,request} from '@playwright/test';
 import {readFile} from 'node:fs/promises';
 import {playSession} from '../helpers/play-session.mjs';
@@ -39,7 +40,7 @@ test('traffic: five lessons teach go and wait, reach the park and freeze reviews
   await advance(page,100);if(go)await click(page,'respond');
   await advance(page,450);const progress=Number(await page.locator('.traffic-road').getAttribute('data-visual-progress'));expect(progress).toBeGreaterThanOrEqual(previous);previous=progress;
   if(progress===1){arrived=true;await expect(page.locator('.road-destination')).toHaveClass(/arrived/);await page.screenshot({path:'.local/verification/traffic_park_arrived.png',fullPage:true,animations:'disabled'});}
-  await advance(page,450);await expect(page.locator('.practice-review.good')).toBeVisible();const time=await page.locator('#time').textContent();await advance(page,20000);await expect(page.locator('#time')).toHaveText(time);await click(page,'continue-review');
+  await advance(page,(await trialMs(page))-550);await expect(page.locator('.practice-review.good')).toBeVisible();const time=await page.locator('#time').textContent();await advance(page,20000);await expect(page.locator('#time')).toHaveText(time);await click(page,'continue-review');
  }
  expect(arrived).toBe(true);await expect(page.locator('.result-card')).toBeVisible();if(await page.locator('.local-note').count())await expect(page.locator('.local-note')).toContainText('ذخیره شد');
 });
@@ -52,7 +53,7 @@ test('traffic: all 150 trials keep exact exposure, reject red and carry the car 
  }
  await page.setViewportSize({width:390,height:844});let wrong=false,goCount=0,previous=0,mobile=false;
  for(let trial=0;trial<150;trial++){
-  const go=await isGo(page);if(go&&!mobile)await page.screenshot({path:'.local/verification/traffic_town_mobile.png',animations:'disabled'});await advance(page,99);await expect(page.locator('.stimulus-shell')).toBeVisible();await advance(page,1);await expect(page.locator('.stimulus-shell')).toBeHidden();
+  const go=await isGo(page);if(go&&!mobile)await page.screenshot({path:'.local/verification/traffic_town_mobile.png',animations:'disabled'});await advance(page,299);await expect(page.locator('.stimulus-shell')).toBeVisible();await advance(page,1);await expect(page.locator('.stimulus-shell')).toBeHidden();
   expect(await page.locator('.stimulus-shell').evaluate(node=>getComputedStyle(node).transitionDuration)).toBe('0s');
   if(go){
    goCount++;await page.keyboard.press('Space');
@@ -67,17 +68,17 @@ test('traffic: all 150 trials keep exact exposure, reject red and carry the car 
    expect(progress).toBe(1);const car=await page.locator('.road-car').boundingBox(),finish=await page.locator('.road-destination>path').first().boundingBox();expect(car.x+car.width).toBeGreaterThanOrEqual(finish.x+finish.width);
    await expect(page.locator('.road-destination')).toHaveClass(/arrived/);
   }
-  await advance(page,450);
+  await advance(page,250);
  }
  expect(goCount).toBe(30);expect(wrong).toBe(true);await expect(page.locator('.traffic-outcome.arrived')).toBeVisible();await expect(page.locator('.result-main-score>b')).toHaveText('۲۹');await expect(page.locator('.local-note')).toContainText('ذخیره شد');await page.setViewportSize({width:1440,height:1350});await page.screenshot({path:'.local/verification/traffic_result.png',fullPage:true,animations:'disabled'});expect(errors).toEqual([]);
 });
 
 test('traffic: signs keep all three exposure times and reduced motion gives immediate forward feedback',async({page})=>{
  await page.emulateMedia({reducedMotion:'reduce'});await clock(page);await login(page);
- for(const [level,visibleMs] of [['easy',300],['medium',200],['hard',100]]){
-  await setupMain(page,level,'signs');await start(page,false,'signs');await expect(page.locator('.traffic-preparation h2')).toContainText('فلش آبی');await begin(page);await expect(page.locator('.traffic-signal')).toHaveClass(/sign-mode/);
-  await advance(page,visibleMs-1);await expect(page.locator('.stimulus-shell')).toBeVisible();await advance(page,1);await expect(page.locator('.stimulus-shell')).toBeHidden();await advance(page,1000-visibleMs);
-  while(!await isGo(page))await advance(page,1000);
+ for(const [level,visibleMs] of [['easy',800],['medium',500],['hard',300]]){
+  await setupMain(page,level,'signs');await start(page,false,'signs');await expect(page.locator('.traffic-preparation')).toContainText('فلش آبی');await begin(page);await expect(page.locator('.traffic-signal')).toHaveClass(/sign-mode/);
+  await advance(page,visibleMs-1);await expect(page.locator('.stimulus-shell')).toBeVisible();await advance(page,1);await expect(page.locator('.stimulus-shell')).toBeHidden();await advance(page,(await trialMs(page))-visibleMs);
+  while(!await isGo(page))await advance(page,await trialMs(page));
   await advance(page,50);await click(page,'respond');const road=page.locator('.traffic-road');expect(Number(await road.getAttribute('data-visual-progress'))).toBe(Number(await road.getAttribute('data-progress')));expect(Number(await road.getAttribute('data-progress'))).toBeGreaterThan(0);
   await expect(page.locator('.play-effects')).toHaveCount(0);if(level==='hard'){await page.setViewportSize({width:390,height:844});await page.screenshot({path:'.local/verification/traffic_signs_mobile.png',animations:'disabled'});}await leave(page);
  }

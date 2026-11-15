@@ -23,15 +23,15 @@ test('moving animal fields have usable exposure, reproducible motion, and freeze
   now=300;a.pause();const frozen=huntPosition(choice,a.clock.elapsed,a.visibleMs);now+=10000;assert.deepEqual(huntPosition(choice,a.clock.elapsed,a.visibleMs),frozen);
   a.resume();assert.equal(a.visible,true);assert.deepEqual(huntPosition(choice,a.clock.elapsed-a.onset,a.visibleMs),frozen);
  }
- for(const theme of ['star','shape'])assert.equal(FACTORIES.hunt({theme,random:seededRandom(1)}).intervalMs,1000);
+ for(const theme of ['star','shape'])assert.equal(FACTORIES.hunt({theme,random:seededRandom(1)}).intervalMs,1500);
 });
 
 test('the server validates the longer animal response window and rejects shortened or forged runs',()=>{
  const settings={...normalizeSettings({gameId:'hunt',theme:'fish'}),level:'easy',seed:42};
  const run={id:'moving-fish',kind:'training',settings},payload=playSession(run);
- assert.equal(payload.durationMs,300000);assert.equal(canonicalResult(run,payload).hits,30);
+ assert.equal(payload.durationMs,375000);assert.equal(canonicalResult(run,payload).hits,30);
  assert.throws(()=>canonicalResult(run,{...payload,durationMs:150000}));
- const forged=structuredClone(payload),response=forged.outcomes.find(o=>o.response);response.reactionMs=2000;assert.throws(()=>canonicalResult(run,forged));
+ const forged=structuredClone(payload),response=forged.outcomes.find(o=>o.response);response.reactionMs=2500;assert.throws(()=>canonicalResult(run,forged));
 });
 
 test('traffic advances once per hit, never retreats on scene redraw, and reaches the destination',()=>{
@@ -39,7 +39,7 @@ test('traffic advances once per hit, never retreats on scene redraw, and reaches
  while(!s.done){
   now+=100;if(s.current.target){assert.equal(s.respond(),true);assert.equal(s.respond(),null);}
   const before=trafficProgress(s);assert.ok(before>=previous);assert.ok(trafficRoad(s).includes(`data-progress="${before}"`));
-  previous=before;now+=900;s.tick();assert.ok(trafficProgress(s)>=previous);previous=trafficProgress(s);
+  previous=before;now+=s.intervalMs-100;s.tick();assert.ok(trafficProgress(s)>=previous);previous=trafficProgress(s);
  }
  assert.equal(previous,1);assert.match(trafficRoad(s),/road-destination arrived/);
  const wrong=FACTORIES.traffic({random:seededRandom(1)});wrong.index=wrong.trials.findIndex(t=>!t.target);wrong.respond();assert.equal(trafficProgress(wrong),0);

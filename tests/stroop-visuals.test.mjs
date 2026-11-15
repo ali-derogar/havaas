@@ -25,7 +25,7 @@ test('studio displays the original ink and word for every trial without exposing
 });
 
 test('studio intervals, frozen rule changes and paint pots reflect actual time and decisions',()=>{
- let now=0;const session=FACTORIES.stroop({level:'hard',now:()=>now,random:seededRandom(19)});
+ let now=0;const session=FACTORIES.stroop({level:'hard',experienceVersion:1,now:()=>now,random:seededRandom(19)});
  const panel=parseHTML(`<section>${stroopScene(session)}</section>`).document.querySelector('section');
  now=250;syncStroopStage(panel,session);assert.equal(panel.querySelector('.studio-interval-track>span').style.width,'75%');assert.equal(panel.querySelector('.studio-stimulus').disabled,true);
  session.pause();now+=20000;syncStroopStage(panel,session);assert.equal(panel.querySelector('.studio-interval-track>span').style.width,'75%');session.resume();

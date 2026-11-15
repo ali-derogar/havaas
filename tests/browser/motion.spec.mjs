@@ -1,3 +1,4 @@
+import {trialMs} from '../helpers/browser-timing.mjs';
 import {test,expect} from '@playwright/test';
 import {readFile} from 'node:fs/promises';
 import {playSession} from '../helpers/play-session.mjs';
@@ -46,7 +47,7 @@ test('motion: the car eases forward with turning wheels and never retreats acros
  await clock(page);await login(page);await begin(page,'traffic');
  for(let trial=0;trial<5;trial++){
   const green=await page.locator('.stimulus-shell').evaluate(node=>node.innerHTML.includes('#0ba867'));
-  if(green)break;await advance(page,1000);await click(page,'continue-review');
+  if(green)break;await advance(page,await trialMs(page));await click(page,'continue-review');
  }
  await advance(page,100);await click(page,'respond');const road=page.locator('.traffic-road'),target=Number(await road.getAttribute('data-progress'));
  expect(target).toBeGreaterThan(0);expect(Number(await road.getAttribute('data-visual-progress'))).toBeLessThan(target);

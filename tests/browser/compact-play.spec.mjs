@@ -47,7 +47,7 @@ for(const [gameId,extra] of [['hunt',{}],['traffic',{}],['traffic',{trafficMode:
 });
 
 test('compact: hunt direction keys never focus an animal already clipped beyond the field',async({page})=>{
- await start(page,'hunt',{theme:'fish'});await page.setViewportSize({width:800,height:360});await page.evaluate(()=>{scrollTo(0,0);window.advanceCompact(550);});
+ await start(page,'hunt',{theme:'fish'});await page.setViewportSize({width:800,height:360});await page.evaluate(()=>{scrollTo(0,0);window.advanceCompact(770);});
  const state=await page.locator('.hunt-choice').evaluateAll(nodes=>nodes.filter(node=>!node.disabled).map(node=>{const box=node.getBoundingClientRect(),clip=node.closest('.hunt-surface').getBoundingClientRect();return {index:node.dataset.choice,visible:box.left<clip.right&&box.right>clip.left&&box.top<clip.bottom&&box.bottom>clip.top};}));
  expect(state.some(node=>!node.visible)).toBe(true);
  const visible=state.filter(node=>node.visible).map(node=>node.index);
@@ -55,7 +55,7 @@ test('compact: hunt direction keys never focus an animal already clipped beyond 
 });
 
 test('compact: native Tab skips animals beyond the clipped field without scrolling their hidden paths into view',async({page})=>{
- await start(page,'hunt',{theme:'fish'});await page.setViewportSize({width:800,height:360});await page.evaluate(()=>{scrollTo(0,0);window.advanceCompact(550);});
+ await start(page,'hunt',{theme:'fish'});await page.setViewportSize({width:800,height:360});await page.evaluate(()=>{scrollTo(0,0);window.advanceCompact(770);});
  const hidden=await page.locator('.hunt-choice').evaluateAll(nodes=>nodes.filter(node=>{const box=node.getBoundingClientRect(),clip=node.closest('.hunt-surface').getBoundingClientRect();return box.left>=clip.right||box.right<=clip.left||box.top>=clip.bottom||box.bottom<=clip.top;}).map(node=>node.dataset.choice));expect(hidden.length).toBeGreaterThan(0);
  await page.locator('[data-action=pause]').focus();
  for(let step=0;step<14;step++){
@@ -67,6 +67,6 @@ test('compact: native Tab skips animals beyond the clipped field without scrolli
 test('compact: an animal leaving the field hands keyboard focus to the response button',async({page})=>{
  await start(page,'hunt',{theme:'fish'});await page.setViewportSize({width:800,height:360});await page.evaluate(()=>{scrollTo(0,0);window.advanceCompact(0);});
  const index=await page.locator('.hunt-choice:not(:disabled)').evaluateAll(nodes=>nodes.toSorted((a,b)=>b.getBoundingClientRect().x-a.getBoundingClientRect().x)[0].dataset.choice),animal=page.locator(`.hunt-choice[data-choice="${index}"]`);
- await animal.focus();await page.keyboard.press('ArrowRight');await expect(animal).toBeFocused();await page.evaluate(()=>window.advanceCompact(550));
+ await animal.focus();await page.keyboard.press('ArrowRight');await expect(animal).toBeFocused();await page.evaluate(()=>window.advanceCompact(770));
  await expect(animal).toHaveAttribute('aria-hidden','true');await expect(page.locator('[data-action=respond]')).toBeFocused();expect(await page.locator('.hunt-surface').evaluate(node=>Math.abs(node.scrollLeft))).toBe(0);
 });
