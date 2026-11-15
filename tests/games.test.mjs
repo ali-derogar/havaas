@@ -8,6 +8,7 @@ import { seededRandom } from '../src/core/random.js';
 import { generateNBack } from '../src/games/nback.js';
 import { generateStroop, isStroopTarget } from '../src/games/stroop.js';
 import { generateSearch } from '../src/games/search.js';
+import { EQUIPMENT_REASONS } from '../src/games/adventure.js';
 import { readProgress, writeProgress, saveResult, resultKey } from '../src/core/storage.js';
 import { symbol } from '../src/visuals.js';
 
@@ -315,9 +316,15 @@ test('space always requires clearing obstacles to collect all required equipment
 });
 test('practice feedback explains why essential equipment is needed',()=>{
   for(const id of ['ark','space']) {
-    const {session:s}=create(id);
-    const item=s.items.find(i=>i.required);if(item.blocked)s.choose(item.id);s.choose(item.id);
-    assert.ok(s.feedback.includes(item.name));assert.ok(s.feedback.length>item.name.length+25);
+    const {session:s}=create(id,'easy',true);let explained=0;
+    while(!s.done){
+      const item=s.currentItem;if(item.blocked)s.choose(item.id);
+      if(item.required){
+        s.choose(item.id);explained++;
+        assert.ok(s.feedback.includes(item.name));assert.ok(s.feedback.includes(EQUIPMENT_REASONS[item.icon]));
+      }else s.reject();
+    }
+    assert.equal(explained,3);
   }
 });
 

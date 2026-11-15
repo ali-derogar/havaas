@@ -74,7 +74,9 @@ export class AdventureSession extends Session {
     this.decisionOnset=this.clock.elapsed;
     if (item.required) item.collected = true;
     else { item.rejected = true; if (!this.practice) this.penaltyMs += PROTOCOL.penaltyMs; }
-    this.feedback = item.required ? `آفرین! ${item.name}: ${EQUIPMENT_REASONS[item.icon]}` : this.practice ? `${item.name} برای این سفر ضروری نیست.` : 'این وسیله ضروری نبود؛ ۲ ثانیه کمتر شد.';
+    this.feedback = item.required
+      ? (this.practice ? `آفرین! ${item.name}: ${EQUIPMENT_REASONS[item.icon]}` : `${item.name} جمع شد.`)
+      : this.practice ? `${item.name} برای این سفر ضروری نیست.` : 'این وسیله ضروری نبود؛ ۲ ثانیه کمتر شد.';
     this.feedbackKind = item.required ? 'good' : 'wrong';
     if (this.practice) this.advancePractice(); else this.tick();
     return item.required;

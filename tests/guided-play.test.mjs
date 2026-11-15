@@ -8,6 +8,7 @@ import { seededRandom } from '../src/core/random.js';
 import { comparableRecords } from '../src/core/reports.js';
 import { preparationView, reviewView, transitionView, missionChecklist } from '../src/play-ui.js';
 import { generateNBack } from '../src/games/nback.js';
+import { EQUIPMENT_REASONS } from '../src/games/adventure.js';
 import { canonicalResult } from '../server/domain.js';
 import { playSession } from './helpers/play-session.mjs';
 
@@ -66,6 +67,7 @@ test('mission preparation lists needs; packing equipment checks only the matchin
     const s=FACTORIES[id]({gameId:id,level:'hard',random:seededRandom(9)});
     assert.equal(parseHTML(missionChecklist(s)).document.querySelectorAll('.mission-need').length,6);
     const target=s.items.find(i=>i.required&&!i.blocked);s.choose(target.id);
+    assert.ok(s.feedback.includes(target.name));assert.ok(!s.feedback.includes(EQUIPMENT_REASONS[target.icon]),'equipment explanations belong to practice, not the main game');
     const {document}=parseHTML(missionChecklist(s));assert.equal(document.querySelectorAll('.packed').length,1);
     assert.ok(!document.querySelector('.packed').textContent.includes(target.name));
     assert.ok(!preparationView(s).includes(s.mission.story));assert.ok(preparationView({...s,practice:true}).includes(s.mission.story));
