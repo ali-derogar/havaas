@@ -78,10 +78,20 @@ test('spoken playback tracks only its own key and stopping removes the active ke
  player.stop();assert.equal(player.key,null);assert.deepEqual(states.at(-1),{state:'idle',key:null});
 });
 
-test('the shipped voice scripts match the rebuilt files and explain reviews without asking for unavailable actions',async()=>{
+test('the shipped recordings cover every guidance script and explain reviews without asking for unavailable actions',async()=>{
  const manifest=JSON.parse(await readFile(new URL('../assets/audio/scripts.json',import.meta.url),'utf8'));
  assert.deepEqual(manifest.scripts,GUIDANCE);
- assert.equal(manifest.voice,'fa-IR-DilaraNeural');assert.equal(manifest.rate,'-4%');
+ assert.equal(manifest.voice,'user-provided-recordings');assert.equal(manifest.revision,3);
+ assert.deepEqual(Object.keys(manifest.clips),Object.keys(GUIDANCE));
+ assert.equal(Object.keys(manifest.recordings).length,5);
+ const counts=new Map(),ends=new Map();
+ for(const clip of Object.values(manifest.clips)){
+  const source=manifest.recordings[clip.recording];assert.ok(source,clip.recording);assert.match(source.sha256,/^[a-f0-9]{64}$/);
+  assert.ok(clip.start>=0&&clip.end>clip.start&&clip.end<=source.duration,clip.recording);
+  assert.ok(clip.start>=(ends.get(clip.recording)||0),'clips must stay in recording order without overlap');
+  ends.set(clip.recording,clip.end);counts.set(clip.recording,(counts.get(clip.recording)||0)+1);
+ }
+ assert.deepEqual([...counts.values()],[7,6,6,6,6]);
  for(const key of ['water','food','medkit','vest','flashlight','compass','oxygen','suit','fuel','helmet','map'])assert.ok(!GUIDANCE[key].includes('بردار'));
  assert.ok(!GUIDANCE['not-needed'].includes('دکمه'));
 });

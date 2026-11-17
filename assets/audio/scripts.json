@@ -1,43 +1,187 @@
 {
-  "generator": "Microsoft Edge neural Persian via edge-tts 7.3.1",
-  "revision": 2,
-  "voice": "fa-IR-DilaraNeural",
-  "rate": "-4%",
-  "pitch": "+0Hz",
-  "rates": {
-    "hunt": "-4%",
-    "hunt-dual": "-4%",
-    "hunt-moving": "-4%",
-    "hunt-moving-dual": "-4%",
-    "traffic": "-4%",
-    "traffic-signs": "-4%",
-    "search": "-4%",
-    "search-dual": "-4%",
-    "nback-1": "-4%",
-    "nback-2": "-4%",
-    "nback-3": "-4%",
-    "stroop-0": "-4%",
-    "stroop-1": "-4%",
-    "stroop-2": "-4%",
-    "stroop-3": "-4%",
-    "ark": "-4%",
-    "space": "-4%",
-    "correct": "+0%",
-    "retry": "+0%",
-    "water": "-2%",
-    "food": "-2%",
-    "medkit": "-2%",
-    "vest": "-2%",
-    "flashlight": "-2%",
-    "compass": "-2%",
-    "oxygen": "-2%",
-    "suit": "-2%",
-    "fuel": "-2%",
-    "helmet": "-2%",
-    "map": "-2%",
-    "not-needed": "-2%"
+  "generator": "FFmpeg segmentation of user-provided recordings",
+  "revision": 3,
+  "voice": "user-provided-recordings",
+  "encoding": "MP3, mono, 44.1 kHz, 128 kbps",
+  "recordings": {
+    "voice/1.mp3": {
+      "sha256": "481b199f2d2a75dcc9bdaf3a1a67cf32c812d92c9cd21ea55d12867185e454c0",
+      "duration": 62.56
+    },
+    "voice/2.mp3": {
+      "sha256": "a020ae38a0ae8523f122df6b6f767aa88ff77281310f5eb04a76a1d591aab8aa",
+      "duration": 57.52
+    },
+    "voice/3.mp3": {
+      "sha256": "817ef9ce8c3ed562b63919ac1f7bc994c9ec2ac875e73e6ece79df6d64393731",
+      "duration": 47.2
+    },
+    "voice/4.mp3": {
+      "sha256": "53bd51a671be8db2bbc96bbca11e153efc0ffa42eb63b31a817a75690b9b55e7",
+      "duration": 23.68
+    },
+    "voice/5.mp3": {
+      "sha256": "f5c337468114fdff509c47be6866a06826784760732ed9c57210199365d56446",
+      "duration": 24.8
+    }
   },
-  "encoding": "MP3, mono, 24 kHz, 48 kbps",
+  "clips": {
+    "hunt": {
+      "recording": "voice/1.mp3",
+      "start": 0,
+      "end": 8.19
+    },
+    "hunt-dual": {
+      "recording": "voice/1.mp3",
+      "start": 8.85,
+      "end": 16.88
+    },
+    "hunt-moving": {
+      "recording": "voice/1.mp3",
+      "start": 17.44,
+      "end": 25.0
+    },
+    "hunt-moving-dual": {
+      "recording": "voice/1.mp3",
+      "start": 25.56,
+      "end": 34.45
+    },
+    "traffic": {
+      "recording": "voice/1.mp3",
+      "start": 35.04,
+      "end": 44.8
+    },
+    "traffic-signs": {
+      "recording": "voice/1.mp3",
+      "start": 45.42,
+      "end": 52.35
+    },
+    "search": {
+      "recording": "voice/1.mp3",
+      "start": 53.0,
+      "end": 62.56
+    },
+    "search-dual": {
+      "recording": "voice/2.mp3",
+      "start": 0,
+      "end": 8.35
+    },
+    "nback-1": {
+      "recording": "voice/2.mp3",
+      "start": 8.6,
+      "end": 16.88
+    },
+    "nback-2": {
+      "recording": "voice/2.mp3",
+      "start": 17.1,
+      "end": 28.96
+    },
+    "nback-3": {
+      "recording": "voice/2.mp3",
+      "start": 29.27,
+      "end": 41.14
+    },
+    "stroop-0": {
+      "recording": "voice/2.mp3",
+      "start": 41.4,
+      "end": 49.03
+    },
+    "stroop-1": {
+      "recording": "voice/2.mp3",
+      "start": 49.36,
+      "end": 57.52
+    },
+    "stroop-2": {
+      "recording": "voice/3.mp3",
+      "start": 0,
+      "end": 7.31
+    },
+    "stroop-3": {
+      "recording": "voice/3.mp3",
+      "start": 7.68,
+      "end": 15.64
+    },
+    "ark": {
+      "recording": "voice/3.mp3",
+      "start": 15.97,
+      "end": 25.74
+    },
+    "space": {
+      "recording": "voice/3.mp3",
+      "start": 26.06,
+      "end": 36.61
+    },
+    "correct": {
+      "recording": "voice/3.mp3",
+      "start": 36.84,
+      "end": 41.38
+    },
+    "retry": {
+      "recording": "voice/3.mp3",
+      "start": 41.65,
+      "end": 47.2
+    },
+    "water": {
+      "recording": "voice/4.mp3",
+      "start": 0,
+      "end": 2.89
+    },
+    "food": {
+      "recording": "voice/4.mp3",
+      "start": 3.18,
+      "end": 7.61
+    },
+    "medkit": {
+      "recording": "voice/4.mp3",
+      "start": 7.84,
+      "end": 12.6
+    },
+    "vest": {
+      "recording": "voice/4.mp3",
+      "start": 12.82,
+      "end": 15.8
+    },
+    "flashlight": {
+      "recording": "voice/4.mp3",
+      "start": 16.03,
+      "end": 19.6
+    },
+    "compass": {
+      "recording": "voice/4.mp3",
+      "start": 19.83,
+      "end": 23.68
+    },
+    "oxygen": {
+      "recording": "voice/5.mp3",
+      "start": 0,
+      "end": 5.03
+    },
+    "suit": {
+      "recording": "voice/5.mp3",
+      "start": 5.36,
+      "end": 9.33
+    },
+    "fuel": {
+      "recording": "voice/5.mp3",
+      "start": 9.61,
+      "end": 12.67
+    },
+    "helmet": {
+      "recording": "voice/5.mp3",
+      "start": 12.96,
+      "end": 16.13
+    },
+    "map": {
+      "recording": "voice/5.mp3",
+      "start": 16.4,
+      "end": 19.9
+    },
+    "not-needed": {
+      "recording": "voice/5.mp3",
+      "start": 20.2,
+      "end": 24.8
+    }
+  },
   "scripts": {
     "hunt": "نمونه رو نگاه کن. فقط شکل آبی، بدون علامت، هدف ماست. همون رو بزن؛ به بقیه دست نزن.",
     "hunt-dual": "این دو نمونه رو نگاه کن. آبی و قرمز، هر دو بدون علامت. هر کدوم رو دیدی بزن؛ به بقیه دست نزن.",
