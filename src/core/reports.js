@@ -6,13 +6,17 @@ export function performanceOf(result) {
   const count = correct + misses + wrong;
   return { count, accuracy: count ? correct / count : 0, recall: result.maxScore > 0 ? hits / result.maxScore : hits + misses ? hits / (hits + misses) : 0, errorRate: count ? wrong / count : 0 };
 }
+export function needsMorePractice(result) {
+  const p = performanceOf(result);
+  return p.recall < .6 || p.accuracy < .65 || p.errorRate > .25 || !result.completed;
+}
 export function recommendLevel(result) {
   const levels = ['easy','medium','hard'], index = Math.max(0, levels.indexOf(result.level));
   const p = performanceOf(result), kind = GAME_MAP[result.gameId]?.kind;
   const speedLimit = kind === 'reaction' ? 650 : kind === 'search' ? 5000 : 6000;
   const fast = Number.isFinite(result.meanReactionMs) && result.meanReactionMs <= speedLimit;
   const streak = result.longestStreak >= Math.min(10, p.count);
-  if (p.recall < .6 || p.accuracy < .65 || p.errorRate > .25 || !result.completed) return { level: levels[Math.max(0,index-1)], reason: 'برای تمرین تشخیص هدف و کاهش خطا، این سطح پیشنهاد می‌شود.' };
+  if (needsMorePractice(result)) return { level: levels[Math.max(0,index-1)], reason: 'برای تمرین تشخیص هدف و کاهش خطا، این سطح پیشنهاد می‌شود.' };
   if (p.count >= 5 && p.recall >= .85 && p.accuracy >= .9 && p.errorRate <= .1 && fast && streak) return { level: levels[Math.min(2,index+1)], reason: 'پاسخ‌های درست، سرعت مناسب و زنجیرهٔ پاسخ‌ها نشان می‌دهند که برای چالش بعدی آماده‌ای.' };
   return { level: levels[index], reason: 'ادامه در همین سطح به تمرین سرعت، دقت و پاسخ‌های پیوسته کمک می‌کند.' };
 }

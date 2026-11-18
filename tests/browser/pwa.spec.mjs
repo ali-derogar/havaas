@@ -128,7 +128,7 @@ test('PWA allows updating after a successful form save resets the password field
 
 test('PWA does not retain update protection from a cancelled modal form',async({page})=>{
  await adminLogin(page);
- await action(page,'new-user').click();await page.locator('#create-user-form [name=username]').fill('cancelled-pwa-user');await page.locator('#modal [data-action=close-modal]').first().click();await expect(page.locator('#modal')).toBeHidden();
+ await action(page,'new-user').click();await page.locator('#create-user-form [name=username]').fill('cancelled-pwa-user');await page.locator('#modal [data-action=close-modal]').first().click();await expect(page.locator('.navigation-confirm')).toBeVisible();await page.locator('[data-guard=discard]').click();await expect(page.locator('#modal')).toBeHidden();
  await expect(page.locator('#create-user-form [name=username]')).toHaveValue('cancelled-pwa-user');await nextRelease(page);const update=page.locator('[data-pwa-action=update]');await expect(update).toBeVisible();
  await Promise.all([page.waitForEvent('domcontentloaded'),update.click()]);await expect(page.locator('.admin-main')).toBeVisible();
 });

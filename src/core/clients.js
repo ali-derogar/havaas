@@ -29,6 +29,10 @@ export const activeProfile = clients => clients.profiles.find(p => p.id === clie
 export const profileRecords = (clients, id = clients.activeId) => clients.records.filter(r => r.profileId === id);
 export const variantOf = result => result.variant || 'standard';
 export function latestBaseline(clients, gameId, variant = 'standard', level = null) {
+  if(clients.panelSummary){
+    if(variant==='standard'&&level==='easy')return clients.panelSummary.assessmentSteps.find(s=>s.gameId===gameId)?.baseline||null;
+    return clients.panelSummary.baselines.find(r=>r.result.gameId===gameId&&variantOf(r.result)===variant&&(!level||r.result.level===level))?.result||null;
+  }
   return profileRecords(clients).filter(r => r.kind === 'baseline' && (!level || r.result.level === level) && r.result.gameId === gameId && (r.result.protocolVersion || 2) === GAME_PROTOCOLS[gameId] && variantOf(r.result) === variant).at(-1)?.result ?? null;
 }
 export function validateProfile(input, today = new Date()) {

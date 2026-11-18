@@ -1,3 +1,4 @@
+import {guardRevision,managedTransaction} from './management.js';
 import { randomUUID } from 'node:crypto';
 import { transaction } from './db.js';
 import { requireValue as check, HttpError, token, digest, passwordHash, verifyPassword, emailOf, usernameOf, uuid, publicUser, isValidText, textOf } from './security.js';
@@ -37,8 +38,9 @@ export function registerAccounts(app,pool,{authLimit,role,profileDTO}){
  app.post('/api/invitations/inspect',authLimit,async(req,res)=>{const i=await inspect(pool,req.body.token),u=(await pool.query('SELECT * FROM users WHERE id=$1',[i.user_id])).rows[0];res.json({username:u.username,name:u.name,role:u.role,purpose:i.purpose});});
  app.post('/api/invitations/accept',authLimit,async(req,res)=>{
   await inspect(pool,req.body.token);const hash=await passwordHash(req.body.password);
-  const user=await accountTransaction(pool,async db=>{const i=await inspect(db,req.body.token,true);await creatorActive(db,i.created_by);const u=(await db.query('SELECT * FROM users WHERE id=$1 FOR UPDATE',[i.user_id])).rows[0];
+  const user=await managedTransaction(pool,req,async db=>{const i=await inspect(db,req.body.token,true);await creatorActive(db,i.created_by);const u=(await db.query('SELECT * FROM users WHERE id=$1 FOR UPDATE',[i.user_id])).rows[0];
    check(u&&u.role===i.role&&(i.purpose==='invite'?u.pending:u.active&&!u.pending),'این حساب امکان پذیرش لینک را ندارد.',403);
+   if(!req.user)await db.query("SELECT set_config('havaas.actor_id',$1,true)",[u.id]);
    const updated=(await db.query('UPDATE users SET password_hash=$1,pending=false,active=true,password_change_required=false,auth_version=auth_version+1,last_login_at=now() WHERE id=$2 RETURNING *',[hash,u.id])).rows[0];
    await db.query('UPDATE invitations SET used_at=now() WHERE user_id=$1 AND used_at IS NULL',[u.id]);return updated;
   });res.json(await signIn(req,user));
@@ -46,7 +48,7 @@ export function registerAccounts(app,pool,{authLimit,role,profileDTO}){
  app.use('/api',(req,_res,next)=>req.user?next():next(new HttpError(401,'ابتدا وارد حساب شوید.','AUTH_REQUIRED')));
  app.post('/api/auth/change-password',authLimit,async(req,res)=>{
   check(await verifyPassword(req.body.currentPassword,req.user.password_hash),'رمز فعلی درست نیست.');check(req.body.password!==req.body.currentPassword,'رمز جدید باید با رمز فعلی متفاوت باشد.');
-  const hash=await passwordHash(req.body.password),u=await accountTransaction(pool,async db=>{
+  const hash=await passwordHash(req.body.password),u=await managedTransaction(pool,req,async db=>{
    const updated=(await db.query('UPDATE users SET password_hash=$1,password_change_required=false,auth_version=auth_version+1 WHERE id=$2 AND auth_version=$3 AND active=true RETURNING *',[hash,req.user.id,req.user.auth_version])).rows[0];check(updated,'حساب تغییر کرده است؛ دوباره وارد شوید.',401);
    await db.query('UPDATE invitations SET used_at=now() WHERE user_id=$1 AND used_at IS NULL',[updated.id]);return updated;
   });req.session.authVersion=u.auth_version;await save(req);res.json({ok:true,user:publicUser(u)});
@@ -66,7 +68,7 @@ export function registerAccounts(app,pool,{authLimit,role,profileDTO}){
  app.post('/api/users',async(req,res)=>{
   role(req,['admin']);const username=usernameOf(req.body.username),name=nameOf(req.body.name||`${req.body.profile?.firstName||''} ${req.body.profile?.lastName||''}`),accountRole=req.body.role;check(['admin','user'].includes(accountRole),'نقش معتبر نیست.');const invite=req.body.method==='invite';check(invite||req.body.method==='direct','روش ایجاد حساب معتبر نیست.');
   const hash=invite?null:await passwordHash(req.body.password),email=req.body.email?emailOf(req.body.email):null;
-  const result=await accountTransaction(pool,async db=>{await creatorActive(db,req.user.id);const id=randomUUID();
+  const result=await managedTransaction(pool,req,async db=>{await creatorActive(db,req.user.id);const id=randomUUID();
    const u=(await db.query('INSERT INTO users(id,username,email,name,role,password_hash,active,pending,password_change_required) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9) RETURNING *',[id,username,email,name,accountRole,hash,!invite,invite,!invite])).rows[0];let child=null;
    if(accountRole==='user'){
     if(req.body.childId){uuid(req.body.childId);child=(await db.query('SELECT * FROM children WHERE id=$1 FOR UPDATE',[req.body.childId])).rows[0];check(child&&!child.owner_user_id,'اطلاعات بدون مالک انتخاب کنید.',409);child=(await db.query('UPDATE children SET owner_user_id=$1 WHERE id=$2 RETURNING *',[id,child.id])).rows[0];}
@@ -78,16 +80,16 @@ export function registerAccounts(app,pool,{authLimit,role,profileDTO}){
  });
  app.patch('/api/users/:id',async(req,res)=>{
   role(req,['admin']);uuid(req.params.id);const changes={};if(req.body.name!==undefined)changes.name=nameOf(req.body.name);if(req.body.username!==undefined)changes.username=usernameOf(req.body.username);if(req.body.active!==undefined){check(typeof req.body.active==='boolean','وضعیت معتبر نیست.');changes.active=req.body.active;}
-  const u=await accountTransaction(pool,async db=>{await creatorActive(db,req.user.id);const current=(await db.query('SELECT * FROM users WHERE id=$1 FOR UPDATE',[req.params.id])).rows[0];check(current,'حساب پیدا نشد.',404);check(req.body.role===undefined||req.body.role===current.role,'نقش حساب پس از ایجاد تغییر نمی‌کند.');check(!(current.pending&&changes.active===true),'حساب در انتظار دعوت باید لینک را بپذیرد.');
+  const u=await managedTransaction(pool,req,async db=>{await creatorActive(db,req.user.id);const current=(await db.query('SELECT * FROM users WHERE id=$1 FOR UPDATE',[req.params.id])).rows[0];check(current,'حساب پیدا نشد.',404);guardRevision(req.body.expectedRevision,current.revision,{user:publicUser(current)});check(req.body.role===undefined||req.body.role===current.role,'نقش حساب پس از ایجاد تغییر نمی‌کند.');check(!(current.pending&&changes.active===true),'حساب در انتظار دعوت باید لینک را بپذیرد.');
    if(current.role==='user'&&changes.active===true)check((await db.query('SELECT 1 FROM children WHERE owner_user_id=$1',[current.id])).rowCount,'پیش از فعال‌کردن کاربر، اطلاعات اختصاصی او را متصل کنید.',409);
    if(current.role==='admin'&&current.active&&changes.active===false)check((await db.query("SELECT 1 FROM users WHERE role='admin' AND active=true AND id<>$1",[current.id])).rowCount,'آخرین ادمین فعال را نمی‌توان غیرفعال کرد.',409,'LAST_ADMIN');
    if(req.body.profile!==undefined){
     check(current.role==='user'&&req.body.profile&&typeof req.body.profile==='object'&&!Array.isArray(req.body.profile),'مشخصات مراجعه‌کننده معتبر نیست.');
-    const existing=(await db.query('SELECT * FROM children WHERE owner_user_id=$1 FOR UPDATE',[current.id])).rows[0],validation=validateProfile({...existing?.profile,...req.body.profile});check(!validation.error,validation.error);changes.name=nameOf(`${validation.profile.firstName} ${validation.profile.lastName}`);
+    const existing=(await db.query('SELECT * FROM children WHERE owner_user_id=$1 FOR UPDATE',[current.id])).rows[0],validation=validateProfile({...existing?.profile,...req.body.profile});guardRevision(req.body.expectedProfileRevision,existing?.revision??0,{user:publicUser(current),profile:existing?profileDTO(existing,req.user):null},true);check(!validation.error,validation.error);changes.name=nameOf(`${validation.profile.firstName} ${validation.profile.lastName}`);
     if(existing)await db.query('UPDATE children SET profile=$1 WHERE id=$2',[validation.profile,existing.id]);else await db.query('INSERT INTO children(id,owner_user_id,profile) VALUES($1,$2,$3)',[randomUUID(),current.id,validation.profile]);
    }
-   return (await db.query('UPDATE users SET name=COALESCE($1,name),username=COALESCE($2,username),active=COALESCE($3,active),auth_version=auth_version+1 WHERE id=$4 RETURNING *',[changes.name??null,changes.username??null,changes.active??null,current.id])).rows[0];
-  });if(u.id===req.user.id&&u.active){req.session.authVersion=u.auth_version;await save(req);}res.json({user:publicUser(u)});
+   return (await db.query('UPDATE users SET name=COALESCE($1,name),username=COALESCE($2,username),active=COALESCE($3,active),auth_version=auth_version+CASE WHEN username IS DISTINCT FROM COALESCE($2,username) OR active IS DISTINCT FROM COALESCE($3,active) THEN 1 ELSE 0 END WHERE id=$4 RETURNING *',[changes.name??null,changes.username??null,changes.active??null,current.id])).rows[0];
+  });if(u.id===req.user.id&&u.active){req.session.authVersion=u.auth_version;await save(req);}const child=u.role==='user'?(await pool.query('SELECT * FROM children WHERE owner_user_id=$1',[u.id])).rows[0]:null;res.json({user:publicUser(u),profile:child?profileDTO(child,req.user):null});
  });
- app.post('/api/invitations',async(req,res)=>{role(req,['admin']);uuid(req.body.userId);const result=await accountTransaction(pool,async db=>{await creatorActive(db,req.user.id);const u=(await db.query('SELECT * FROM users WHERE id=$1 FOR UPDATE',[req.body.userId])).rows[0];check(u,'حساب پیدا نشد.',404);const purpose=req.body.purpose==='invite'?'invite':'reset';check(purpose==='invite'?u.pending:u.active&&!u.pending,'وضعیت حساب با نوع لینک همخوان نیست.');return issue(db,req,u,purpose);});res.status(201).json(result);});
+ app.post('/api/invitations',async(req,res)=>{role(req,['admin']);uuid(req.body.userId);const result=await managedTransaction(pool,req,async db=>{await creatorActive(db,req.user.id);const u=(await db.query('SELECT * FROM users WHERE id=$1 FOR UPDATE',[req.body.userId])).rows[0];check(u,'حساب پیدا نشد.',404);const purpose=req.body.purpose==='invite'?'invite':'reset';check(purpose==='invite'?u.pending:u.active&&!u.pending,'وضعیت حساب با نوع لینک همخوان نیست.');return issue(db,req,u,purpose);});res.status(201).json(result);});
 }

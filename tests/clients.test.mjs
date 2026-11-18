@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { activeProfile, addRecord, CLIENTS_KEY, deleteProfile, escapeHTML, latestBaseline, profileRecords, readClients, validateProfile, writeClients } from '../src/core/clients.js';
-import { comparableRecords, observations, performanceOf, progressText, recommendLevel } from '../src/core/reports.js';
+import { comparableRecords, observations, performanceOf, progressText, recommendLevel, needsMorePractice } from '../src/core/reports.js';
 
 const result = overrides => ({ gameId:'traffic',level:'easy',variant:'standard',score:30,maxScore:30,hits:30,correctResponses:150,correctRejections:120,omissions:0,falseSelections:0,meanReactionMs:320,longestStreak:150,durationMs:150000,completed:true,finishedAt:'2026-10-27T10:00:00Z',outcomes:[],...overrides });
 const clients = () => ({version:1,activeId:'a',profiles:[{id:'a',firstName:'سارا',lastName:'الف'},{id:'b',firstName:'علی',lastName:'ب'}],records:[]});
@@ -40,6 +40,24 @@ test('level recommendation uses recall, errors, speed, streak, and completion wi
   assert.equal(recommendLevel(result({meanReactionMs:900})).level,'easy');assert.equal(recommendLevel(result({longestStreak:2})).level,'easy');
   assert.equal(recommendLevel(result({level:'hard',completed:false})).level,'medium');
   assert.equal(performanceOf(result({hits:0,omissions:30,correctResponses:120})).recall,0);
+});
+test('practice advice shares the existing difficulty thresholds, including their exact boundaries',()=>{
+  const cases=[
+    [{hits:18,omissions:12,correctResponses:138},false],
+    [{hits:17,omissions:13,correctResponses:137},true],
+    [{maxScore:100,hits:60,omissions:40,correctResponses:104,correctRejections:44,falseSelections:16},false],
+    [{maxScore:100,hits:60,omissions:40,correctResponses:103,correctRejections:43,falseSelections:17},true],
+    [{correctResponses:75,falseSelections:25},false],
+    [{correctResponses:74,falseSelections:26},true],
+    [{completed:false},true],
+    [{hits:0,omissions:30,correctResponses:120,meanReactionMs:null},true],
+    [{meanReactionMs:9000,longestStreak:1},false],
+  ];
+  for(const [changes,expected] of cases){
+    const r=result({level:'medium',...changes});
+    assert.equal(needsMorePractice(r),expected,JSON.stringify(changes));
+    assert.equal(recommendLevel(r).level==='easy',expected,'advice and difficulty must agree on weak performance');
+  }
 });
 test('progress compares only matching game, level, variant and session kind',()=>{
   const records=[{kind:'training',result:result({correctResponses:120,omissions:30})},{kind:'training',result:result({level:'hard'})},{kind:'baseline',result:result()},{kind:'training',result:result({variant:'signs'})},{kind:'training',result:result()}];

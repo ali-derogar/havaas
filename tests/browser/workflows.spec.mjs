@@ -7,12 +7,19 @@ test.afterAll(async()=>{await adminApi?.dispose();});
 async function setLevel(gameId,level,extra={}){const response=await adminApi.patch(`/api/children/${seed.children[0].id}/difficulty`,{headers:{'X-CSRF-Token':adminCsrf},data:{gameId,level,mode:'fixed',...extra}});expect(response.ok()).toBe(true);}
 async function clock(page){await page.addInitScript(()=>{let now=0,id=0;const callbacks=new Map();performance.now=()=>now;requestAnimationFrame=fn=>{callbacks.set(++id,fn);return id;};cancelAnimationFrame=id=>callbacks.delete(id);window.advanceGame=ms=>{now+=ms;const current=[...callbacks.values()];callbacks.clear();for(const fn of current)fn(now);};});}
 async function click(page,action,selector=''){
- if(action==='inspect-user'&&await page.locator(`[data-action="inspect-user"]${selector}`).count()===0)await click(page,'admin-users');
+ if(action==='inspect-user'&&await page.locator(`[data-action="inspect-user"]${selector}`).count()===0){
+  await click(page,'admin-users');
+  if(await page.locator(`[data-action="inspect-user"]${selector}`).count()===0){
+   const id=selector.match(/data-user="([^"]+)"/)?.[1],user=(await(await adminApi.get(`/api/users/${id}`)).json()).user;
+   await page.locator('#user-filter-form [name=search]').fill(user.username);const refreshed=page.waitForResponse(r=>r.url().includes('/api/users?')&&r.status()===200);await page.locator('#user-filter-form button[type=submit]').click();await refreshed;
+  }
+ }
  if(['export-profile','export-trials'].includes(action)&&await page.locator('[data-action="user-tab"][data-tab="sessions"]').count())await click(page,'user-tab','[data-tab="sessions"]');
  const target=page.locator(`[data-action="${action}"]${selector}:visible`).first();
  if(await target.count()&&await target.evaluate(el=>Boolean(el.closest('.admin-sidebar')))&&await page.locator('.menu-toggle').isVisible()&&!await page.locator('body').evaluate(el=>el.classList.contains('admin-menu-open')))await page.locator('.menu-toggle').click();
  const endpoint=action==='admin'?'/api/admin/dashboard':action==='admin-users'?'/api/users?':action==='admin-invitations'?'/api/registration-links':null;
- const refresh=endpoint?page.waitForResponse(r=>r.url().includes(endpoint)&&r.status()===200):['open','material','search-mode','search-layout','hunt-mode','theme','level','adaptive-level','dashboard','account','assessment-reports','select-record','inspect-user','report-links'].includes(action)?page.waitForResponse(r=>r.url().includes('/api/bootstrap')&&r.status()===200):null;
+ const reportRefresh=['dashboard','select-record'].includes(action)&&await page.locator('.user-tabs').count()>0;
+ const refresh=reportRefresh?page.waitForResponse(r=>r.url().includes('/reports?view=panel')&&r.status()===200):endpoint?page.waitForResponse(r=>r.url().includes(endpoint)&&r.status()===200):['open','material','search-mode','search-layout','hunt-mode','theme','level','adaptive-level','dashboard','account','assessment-reports','select-record','inspect-user','report-links'].includes(action)?page.waitForResponse(r=>r.url().includes('/api/bootstrap')&&r.status()===200):null;
  await target.click();
  if(refresh){const response=await refresh;await response.finished();await page.evaluate(()=>new Promise(resolve=>setTimeout(resolve,0)));}
  if(action==='inspect-user')await expect(page.locator('.user-tabs')).toBeVisible();
@@ -190,12 +197,12 @@ test('logout removes the private screen even if loading the next login session f
  await page.unroute('**/api/auth/session');await page.locator('#login-form [name=identifier]').fill(seed.users.user.username);await page.locator('#login-form [name=password]').fill(seed.password);await page.locator('#login-form button[type=submit]').click();await expect(page.locator('.hero')).toBeVisible();expect(await page.locator('body').textContent()).not.toContain('clinical-secret');
 });
 
-test('a report link created by a previous account cannot appear in the next family account',async({page})=>{
+test('a pending report link protects account changes and cannot appear in the next family account',async({page})=>{
  await login(page,'admin');await click(page,'inspect-user',`[data-user="${seed.users.user.id}"]`);await click(page,'report-links');let release,ready;const gate=new Promise(resolve=>release=resolve),fetched=new Promise(resolve=>ready=resolve);
  const path=`/api/children/${seed.children[0].id}/report-links`;await page.route(`**${path}`,async route=>{if(route.request().method()!=='POST')return route.continue();const response=await route.fetch();ready();await gate;await route.fulfill({response});});
  try{
-  await page.locator('#report-link-form button[type=submit]').click();await fetched;await click(page,'logout');await page.locator('#login-form [name=identifier]').fill(seed.users.otherUser.username);await page.locator('#login-form [name=password]').fill(seed.password);await page.locator('#login-form button[type=submit]').click();await expect(page.locator('.hero')).toBeVisible();await click(page,'report-links');
-  const response=page.waitForResponse(response=>response.url().endsWith(path)&&response.request().method()==='POST');release();await response;await page.waitForLoadState('networkidle');
+  await page.locator('#report-link-form button[type=submit]').click();await fetched;await click(page,'logout');await expect(page.locator('.navigation-confirm')).toContainText('در حال ثبت اطلاعات');await page.locator('[data-guard=stay]').click();
+  const response=page.waitForResponse(response=>response.url().endsWith(path)&&response.request().method()==='POST');release();await response;await expect(page.locator('#invitation-url')).toBeVisible();await click(page,'logout');await page.locator('#login-form [name=identifier]').fill(seed.users.otherUser.username);await page.locator('#login-form [name=password]').fill(seed.password);await page.locator('#login-form button[type=submit]').click();await expect(page.locator('.hero')).toBeVisible();await click(page,'report-links');await page.waitForLoadState('networkidle');
   await expect(page.locator('#invitation-url')).toHaveCount(0);expect(await page.locator('body').textContent()).not.toContain('سارا');await expect(page.locator('.page-title')).toContainText('علی');
  }finally{release();await page.unrouteAll({behavior:'wait'});}
 });
@@ -337,7 +344,7 @@ for(const source of ['overview','invitations'])test(`creating a registration lin
  if(source==='overview')await expect(page.locator('.metric-card').filter({hasText:'دعوت باز'}).locator('b')).toHaveText(Number(before.totals.openInvitations+1).toLocaleString('fa-IR'));
  else {
   await expect(page.locator('.invitation-row').filter({hasText:label})).toBeVisible();let release,ready;const gate=new Promise(resolve=>release=resolve),fetched=new Promise(resolve=>ready=resolve);await page.route('**/api/registration-links',async route=>{if(route.request().method()!=='POST')return route.continue();const response=await route.fetch();ready();await gate;await route.fulfill({response});});
-  try{await click(page,'new-registration');await page.locator('#registration-link-form [name=label]').fill('دعوت با پاسخ دیررس');await page.locator('#registration-link-form button[type=submit]').click();await fetched;await click(page,'close-modal');release();await expect(page.locator('.invitation-row').filter({hasText:'دعوت با پاسخ دیررس'})).toBeVisible();await expect(page.locator('#modal')).not.toBeVisible();}finally{release();await page.unrouteAll({behavior:'wait'});}
+  try{await click(page,'new-registration');await page.locator('#registration-link-form [name=label]').fill('دعوت با پاسخ دیررس');await page.locator('#registration-link-form button[type=submit]').click();await fetched;await click(page,'close-modal');await expect(page.locator('.navigation-confirm')).toContainText('در حال ثبت اطلاعات');await page.locator('[data-guard=stay]').click();release();await expect(page.locator('#invitation-url')).toBeVisible();await click(page,'close-modal');await expect(page.locator('.invitation-row').filter({hasText:'دعوت با پاسخ دیررس'})).toBeVisible();await expect(page.locator('#modal')).not.toBeVisible();}finally{release();await page.unrouteAll({behavior:'wait'});}
  }
 });
 
@@ -350,9 +357,9 @@ test('a delayed invitation revocation cannot pull the admin away from the user l
 test('the last administrator receives a visible error in the active tab when deactivation is blocked',async({page})=>{
  const headers={'X-CSRF-Token':adminCsrf},users=(await (await adminApi.get('/api/users')).json()).users,others=users.filter(u=>u.role==='admin'&&u.active&&u.id!==seed.users.admin.id);
  try{
-  for(const user of others)expect((await adminApi.patch(`/api/users/${user.id}`,{headers,data:{active:false}})).ok()).toBe(true);
+  for(const user of others)expect((await adminApi.patch(`/api/users/${user.id}`,{headers,data:{active:false,expectedRevision:(await(await adminApi.get(`/api/users/${user.id}`)).json()).user.revision}})).ok()).toBe(true);
   await login(page,'admin');await click(page,'inspect-user',`[data-user="${seed.users.admin.id}"]`);const blocked=page.waitForResponse(r=>r.url().endsWith(`/api/users/${seed.users.admin.id}`)&&r.request().method()==='PATCH'&&r.status()===409);await page.locator(`[data-action=toggle-user][data-user="${seed.users.admin.id}"]`).click();await blocked;await expect(page.locator('#account-status')).toBeVisible();await expect(page.locator('#account-status')).toContainText('آخرین ادمین');await expect(page.locator('.admin-sidebar')).toBeVisible();expect((await (await adminApi.get(`/api/users/${seed.users.admin.id}`)).json()).user.active).toBe(true);
- }finally{for(const user of others)expect((await adminApi.patch(`/api/users/${user.id}`,{headers,data:{active:true}})).ok()).toBe(true);}
+ }finally{for(const user of others)expect((await adminApi.patch(`/api/users/${user.id}`,{headers,data:{active:true,expectedRevision:(await(await adminApi.get(`/api/users/${user.id}`)).json()).user.revision}})).ok()).toBe(true);}
 });
 
 test('unknown game hashes return to the client home, including inherited object property names',async({page})=>{
@@ -432,7 +439,7 @@ test('an HTML response cannot be downloaded as a successful CSV export',async({p
 test('report exports wait for a delayed filter refresh before accepting another export',async({page})=>{
  await openExportableReport(page);await page.waitForLoadState('networkidle');
  let release,ready;const gate=new Promise(resolve=>release=resolve),fetched=new Promise(resolve=>ready=resolve);
- await page.route('**/api/bootstrap?**',async route=>{const response=await route.fetch();ready();await gate;await route.fulfill({response});});
+ await page.route('**/api/children/*/reports?**',async route=>{const response=await route.fetch();ready();await gate;await route.fulfill({response});});
  try{
   await page.locator('[data-report-filter=level]').selectOption('easy');await fetched;await expect(page.locator('[data-action=export-trials]')).toBeDisabled();
   release();await expect(page.locator('[data-action=export-trials]')).toBeEnabled();
@@ -443,7 +450,7 @@ test('report exports wait for a delayed filter refresh before accepting another 
 
 test('a failed report filter refresh re-enables exports and shows the loading error',async({page})=>{
  await openExportableReport(page);await page.waitForLoadState('networkidle');
- await page.route('**/api/bootstrap?**',route=>route.fulfill({status:503,contentType:'application/json',body:JSON.stringify({error:'بارگذاری گزارش انجام نشد؛ دوباره تلاش کنید.',code:'REPORT_UNAVAILABLE'})}));
+ await page.route('**/api/children/*/reports?**',route=>route.fulfill({status:503,contentType:'application/json',body:JSON.stringify({error:'بارگذاری گزارش انجام نشد؛ دوباره تلاش کنید.',code:'REPORT_UNAVAILABLE'})}));
  await page.locator('[data-report-filter=level]').selectOption('easy');await expect(page.locator('#account-status')).toContainText('بارگذاری گزارش انجام نشد');await expect(page.locator('[data-action=export-trials]')).toBeEnabled();
 });
 

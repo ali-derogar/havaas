@@ -1,6 +1,6 @@
 import {createFormTracker} from './pwa-forms.js';
 
-export function setupPwa({canUpdate=()=>true}={}){
+export function setupPwa({canUpdate=()=>true,formTracker=null}={}){
  if(!globalThis.navigator?.serviceWorker||!globalThis.isSecureContext)return null;
  const worker=navigator.serviceWorker,standalone=()=>matchMedia('(display-mode: standalone)').matches||navigator.standalone===true;
  const ios=/iPad|iPhone|iPod/.test(navigator.userAgent)||(navigator.platform==='MacIntel'&&navigator.maxTouchPoints>1);
@@ -8,7 +8,7 @@ export function setupPwa({canUpdate=()=>true}={}){
  banner.innerHTML='<p role="status" aria-live="polite"></p><button type="button" class="button subtle" data-pwa-action="update">به‌روزرسانی</button><button type="button" class="pwa-dismiss" data-pwa-action="dismiss" aria-label="بستن پیام">×</button>';
  document.body.append(banner);
  const message=banner.querySelector('p'),update=banner.querySelector('[data-pwa-action=update]');
- const forms=createFormTracker();
+ const forms=formTracker||createFormTracker();
  let registration=null,installPrompt=null,installed=standalone(),dismissed='',notice='',preparing=false,previousInert=false,updateTimer=null;
  const state=()=>navigator.onLine===false?'offline':notice?'notice':registration?.waiting?'update':'';
  const activeForms=()=>[...document.querySelectorAll('form')].filter(form=>!form.closest('dialog:not([open]),[hidden]'));

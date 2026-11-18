@@ -6,12 +6,14 @@ import { GAMES, LEVELS } from '../src/config.js';
 import { mockRemote } from './helpers/remote-fixture.mjs';
 import { CLIENTS_KEY } from '../src/core/clients.js';
 import { EQUIPMENT } from '../src/games/adventure.js';
+import { normalizeSettings } from '../server/domain.js';
+import { playSession } from './helpers/play-session.mjs';
 
 const html=await readFile(new URL('../index.html',import.meta.url),'utf8');
 let iteration=0;
-async function fixture({blockedStorage=false,withProfile=true,autoReady=true,autoReview=true,autoRound=true}={}) {
+async function fixture({blockedStorage=false,withProfile=true,autoReady=true,autoReview=true,autoRound=true,records=[]}={}) {
   const {window,document}=parseHTML(html);let now=0,next=0;const queue=new Map(),values=new Map();
-  if(withProfile)values.set(CLIENTS_KEY,JSON.stringify({version:1,activeId:'child-1',profiles:[{id:'child-1',firstName:'سارا',lastName:'احمدی',birthDate:'2016-01-01',grade:'پایهٔ ۳',school:'امید',concerns:''}],records:[]}));
+  if(withProfile)values.set(CLIENTS_KEY,JSON.stringify({version:1,activeId:'child-1',profiles:[{id:'child-1',firstName:'سارا',lastName:'احمدی',birthDate:'2016-01-01',grade:'پایهٔ ۳',school:'امید',concerns:''}],records}));
   const remote=mockRemote(values);globalThis.fetch=remote;
   const flush=()=>new Promise(resolve=>setImmediate(resolve));
   const location=new URL('http://localhost:4173/');
@@ -79,6 +81,82 @@ async function finishAdventure(ui,id,practice,level) {
   assert.ok(guard<50,'adventure interface did not finish');assert.ok(ui.document.querySelector('.result-card'));
 }
 
+async function finishWeakPractice(ui,game) {
+  if(game.kind==='reaction')return finishReaction(ui,true);
+  if(game.kind==='search')return finishSearch(ui,5);
+  for(let i=0;i<12&&!ui.document.querySelector('.result-card');i++){
+    const blocked=ui.document.querySelector('.scene-object.blocked');
+    if(blocked)await ui.click('item',`[data-index="${blocked.dataset.index}"]`);
+    else await ui.click('reject-item');
+    await ui.advance(100);
+  }
+  assert.ok(ui.document.querySelector('.result-card'));
+}
+const initialBaselines=count=>GAMES.slice(0,count).map(game=>({
+  id:`seed-${game.id}`,profileId:'child-1',kind:'baseline',
+  result:playSession({kind:'baseline',settings:{...normalizeSettings({gameId:game.id}),level:'easy',seed:42}}),
+}));
+
+for(const game of GAMES)test(`interface: ${game.id} suggests a free repeat at the completed level without blocking the main game`,async()=>{
+  const ui=await fixture();await ui.click('open',`[data-game="${game.id}"]`);await ui.setPolicy('hard');await ui.click('practice');
+  await finishWeakPractice(ui,game);
+  assert.equal(ui.document.querySelector('.result-actions>.primary').dataset.action,'repeat-practice');
+  assert.ok(ui.document.querySelector('.result-learning').hasAttribute('open'));
+  assert.match(ui.document.querySelector('.result-caption').textContent,/پیشنهاد می‌کنیم/);
+  assert.equal(ui.document.querySelector('[data-action="main-game"]').disabled,false);
+  const saved=ui.values.get(CLIENTS_KEY),fetcher=globalThis.fetch;let starts=0;
+  globalThis.fetch=async(url,options)=>{if(options?.method==='POST'&&String(url).endsWith('/sessions'))starts++;return fetcher(url,options);};
+  await ui.click('repeat-practice');assert.equal(ui.document.querySelector('.level-pill').textContent,'آسان');
+  await ui.click('pause');await ui.click('restart');assert.equal(ui.document.querySelector('.level-pill').textContent,'آسان');
+  await finishWeakPractice(ui,game);
+  assert.equal(starts,0);assert.equal(ui.values.get(CLIENTS_KEY),saved,'free practice must not alter records or policies');
+  assert.doesNotMatch(ui.document.querySelector('.result-caption').textContent,/قانون بازی رو یاد گرفتی/);
+  assert.equal(ui.document.querySelector('.result-actions>.primary').dataset.action,'repeat-practice');
+  await ui.click('main-game');assert.equal(starts,1);assert.equal(ui.document.querySelector('.level-pill').textContent,'سخت');
+});
+
+test('interface: successful practice prioritizes the main game and offers a repeat at the previous level',async()=>{
+  const ui=await fixture();await ui.click('open','[data-game="ark"]');await ui.click('practice');await finishAdventure(ui,'ark',true,'easy');
+  assert.equal(ui.document.querySelector('.result-actions>.primary').dataset.action,'main-game');
+  assert.equal(ui.document.querySelector('.result-learning'),null);
+  const saved=ui.values.get(CLIENTS_KEY);
+  assert.equal(JSON.parse(saved).difficulties[0].level,'medium');
+  await ui.click('repeat-practice');assert.equal(ui.document.querySelector('.level-pill').textContent,'آسان');
+  await finishAdventure(ui,'ark',true,'easy');assert.equal(ui.values.get(CLIENTS_KEY),saved);
+  assert.equal(ui.document.querySelector('.result-actions>.primary').dataset.action,'main-game');
+});
+
+for(const count of [3,6])test(`interface: a free repeat preserves the guided assessment after ${count+1} baselines`,async()=>{
+  const ui=await fixture({records:initialBaselines(count)});await ui.click('assessment');await ui.click('assessment-next');await ui.click('practice');
+  const game=GAMES[count];await finishWeakPractice(ui,game);const saved=ui.values.get(CLIENTS_KEY);
+  await ui.click('repeat-practice');await ui.click('pause');await ui.click('restart');await finishWeakPractice(ui,game);
+  assert.equal(ui.values.get(CLIENTS_KEY),saved);
+  const onward=ui.document.querySelector(`.result-actions>[data-action="${count===6?'assessment':'assessment-next'}"]`);
+  assert.equal(onward.disabled,false);
+  await ui.click(count===6?'assessment':'assessment-next');
+  if(count===6)assert.equal(ui.document.querySelectorAll('.assessment-state.done').length,7);
+  else assert.ok(ui.document.querySelector('h1').textContent.includes(GAMES[count+1].title));
+});
+
+test('interface: the seventh assessment updates its actions after save retry even when refreshing fails',async()=>{
+  const ui=await fixture({records:initialBaselines(6)}),fetcher=globalThis.fetch;let failSave=true,failRefresh=false;
+  globalThis.fetch=async(url,options)=>{
+    if(failSave&&String(url).endsWith('/complete'))throw new TypeError('Save unavailable');
+    if(failRefresh&&String(url).includes('/bootstrap'))throw new TypeError('Refresh unavailable');
+    return fetcher(url,options);
+  };
+  await ui.click('assessment');await ui.click('assessment-next');await ui.click('practice');await finishWeakPractice(ui,GAMES[6]);
+  assert.ok(ui.document.querySelector('[data-action="retry-save"]'));
+  assert.ok([...ui.document.querySelectorAll('.result-actions button')].every(button=>button.disabled));
+  assert.equal(JSON.parse(ui.values.get(CLIENTS_KEY)).records.length,6);
+  failSave=false;failRefresh=true;await ui.click('retry-save');await ui.advance(0);
+  assert.equal(JSON.parse(ui.values.get(CLIENTS_KEY)).records.length,7);
+  assert.match(ui.document.querySelector('.local-note').textContent,/نتیجهٔ شما ثبت شده/);
+  assert.equal(ui.document.querySelector('.result-actions [data-action="assessment-next"]'),null);
+  assert.match(ui.document.querySelector('.result-actions [data-action="assessment"]').textContent,/جمع‌بندی ارزیابی هفت بازی/);
+  assert.ok([...ui.document.querySelectorAll('.result-actions button')].every(button=>!button.disabled));
+});
+
 for(const game of GAMES) for(const level of Object.keys(LEVELS)) {
   test(`interface: ${game.id}/${level}, home → tutorial → main → result → replay`,async()=>{
     const ui=await fixture();
@@ -136,6 +214,9 @@ test('interface: variants teach and complete through the real controls',async()=
     const ui=await fixture();await ui.click('open',`[data-game="${id}"]`);await ui.click(action,selector);await ui.click('practice');
     if(id==='search')await finishSearch(ui,5);else await finishReaction(ui,true);
     assert.equal(JSON.parse(ui.values.get(CLIENTS_KEY)).records[0].result.variant,variant);
+    const saved=ui.values.get(CLIENTS_KEY),label=ui.document.querySelector('.variant-note').textContent;
+    await ui.click('repeat-practice');if(id==='search')await finishSearch(ui,5);else await finishReaction(ui,true);
+    assert.equal(ui.document.querySelector('.variant-note').textContent,label);assert.equal(ui.values.get(CLIENTS_KEY),saved);
     await ui.click('main-game');if(id==='search')await finishSearch(ui,10);else await finishReaction(ui,false);
     assert.equal(JSON.parse(ui.values.get(CLIENTS_KEY)).records[1].result.variant,variant);
   }
@@ -187,6 +268,8 @@ test('interface: the guided initial assessment completes all seven components an
     const records=JSON.parse(ui.values.get(CLIENTS_KEY)).records;assert.equal(records.length,index+1);assert.equal(records[index].kind,'baseline');assert.equal(records[index].result.gameId,game.id);assert.equal(records[index].result.level,'easy');
     if(index<6)await ui.click('assessment-next');
   }
+  assert.equal(ui.document.querySelector('.result-actions [data-action="assessment-next"]'),null);
+  assert.match(ui.document.querySelector('.result-actions [data-action="assessment"]').textContent,/جمع‌بندی ارزیابی هفت بازی/);
   await ui.click('assessment');assert.equal(ui.document.querySelectorAll('.assessment-state.done').length,7);assert.equal(ui.document.querySelector('[data-action="assessment-next"]'),null);
   await ui.click('assessment-reports');assert.equal(ui.document.querySelectorAll('.session-history tbody tr').length,7);assert.ok(ui.document.querySelector('.report-focus').textContent.includes('ارزیابی پایه'));
   await ui.click('home');await ui.click('assessment');await ui.click('assessment-train','[data-game="ark"]');assert.equal(ui.document.querySelector('.level-button.selected').dataset.level,'medium');assert.equal(ui.document.querySelector('.guided-banner'),null);assert.ok(ui.document.querySelector('[data-action="main-game"]'));

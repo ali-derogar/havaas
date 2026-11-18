@@ -1,3 +1,4 @@
+import {managedTransaction} from './management.js';
 import {randomUUID} from 'node:crypto';
 import {requireValue as check,token,digest,passwordHash,usernameOf,emailOf,uuid,textOf} from './security.js';
 import {validateProfile} from '../src/core/clients.js';
@@ -15,8 +16,8 @@ export function registerPublicRegistration(app,pool,{authLimit,accountTransactio
   const username=usernameOf(req.body.username),validation=validateProfile({...req.body.profile,concerns:''});check(!validation.error,validation.error);
   const name=`${validation.profile.firstName} ${validation.profile.lastName}`;check(name.length<=120,'مجموع نام و نام خانوادگی باید حداکثر ۱۲۰ نویسه باشد.');
   const email=req.body.email?emailOf(req.body.email):null,hash=await passwordHash(req.body.password);
-  const user=await accountTransaction(pool,async db=>{
-   const link=await inspect(db,req.body.token,true);await creatorActive(db,link.created_by);const id=randomUUID();
+  const user=await managedTransaction(pool,req,async db=>{
+   const link=await inspect(db,req.body.token,true);await creatorActive(db,link.created_by);const id=randomUUID();if(!req.user)await db.query("SELECT set_config('havaas.actor_id',$1,true)",[id]);
    const u=(await db.query("INSERT INTO users(id,username,email,name,role,password_hash,last_login_at) VALUES($1,$2,$3,$4,'user',$5,now()) RETURNING *",[id,username,email,name,hash])).rows[0];
    await db.query('INSERT INTO children(id,owner_user_id,profile) VALUES($1,$2,$3)',[randomUUID(),id,validation.profile]);
    await db.query('UPDATE registration_links SET used_at=now(),user_id=$1 WHERE id=$2',[id,link.id]);return u;
@@ -28,10 +29,10 @@ export function registerRegistrationAdmin(app,pool,{role,accountTransaction,crea
  app.post('/api/registration-links',async(req,res)=>{
   role(req,['admin']);const message='عنوان دعوت باید ۱ تا ۱۰۰ نویسه باشد.',label=textOf(req.body.label??'دعوت مراجعه‌کننده',message);check(label.length>=1&&label.length<=100,message);
   const raw=token(),id=randomUUID(),expiresAt=new Date(Date.now()+48*60*60*1000);
-  await accountTransaction(pool,async db=>{await creatorActive(db,req.user.id);await db.query('INSERT INTO registration_links(id,token_hash,label,created_by,expires_at) VALUES($1,$2,$3,$4,$5)',[id,digest(raw),label,req.user.id,expiresAt]);});
+  await managedTransaction(pool,req,async db=>{await creatorActive(db,req.user.id);await db.query('INSERT INTO registration_links(id,token_hash,label,created_by,expires_at) VALUES($1,$2,$3,$4,$5)',[id,digest(raw),label,req.user.id,expiresAt]);});
   res.status(201).json({id,expiresAt,url:`${appOrigin(req)}/#register/${raw}`});
  });
  app.delete('/api/registration-links/:id',async(req,res)=>{
-  role(req,['admin']);uuid(req.params.id);await accountTransaction(pool,async db=>{await creatorActive(db,req.user.id);check((await db.query('UPDATE registration_links SET revoked_at=COALESCE(revoked_at,now()) WHERE id=$1 AND used_at IS NULL',[req.params.id])).rowCount,'دعوت قابل لغو پیدا نشد.',404);});res.json({ok:true});
+  role(req,['admin']);uuid(req.params.id);await managedTransaction(pool,req,async db=>{await creatorActive(db,req.user.id);check((await db.query('UPDATE registration_links SET revoked_at=COALESCE(revoked_at,now()) WHERE id=$1 AND used_at IS NULL',[req.params.id])).rowCount,'دعوت قابل لغو پیدا نشد.',404);});res.json({ok:true});
  });
 }

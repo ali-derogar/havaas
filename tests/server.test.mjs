@@ -11,6 +11,7 @@ let db,server,base,seed,admin,user,otherUser;
 class Client{
  constructor(){this.cookie='';this.csrf=null;}
  async call(path,{method='GET',body,headers={}}={}){
+  if(method==='PATCH'&&body&&/^\/(users|children)\/[^/]+$/.test(path)&&body.expectedRevision===undefined){const current=await this.call(path);if(current.status===200){body={...body,expectedRevision:(current.data.user||current.data.profile).revision,...(body.profile?{expectedProfileRevision:current.data.profile?.revision??0}:{})};}}
   const response=await fetch(base+'/api'+path,{method,headers:{Cookie:this.cookie,...(method!=='GET'?{'X-CSRF-Token':this.csrf||''}:{}),...(body!==undefined?{'Content-Type':'application/json'}:{}),...headers},...(body!==undefined?{body:JSON.stringify(body)}:{})});
   const cookie=response.headers.getSetCookie()[0];if(cookie)this.cookie=cookie.split(';')[0];
   const text=await response.text();let data;try{data=JSON.parse(text);}catch{data=text;}
@@ -220,7 +221,7 @@ apiTest('server: version-two migration preserves legacy administrators, seven se
   await fresh.pool.query("INSERT INTO difficulty(child_id,game_id,variant,protocol,mode,level) VALUES($1,'hunt','standard',3,'fixed','hard')",[childId]);
   await fresh.pool.query("INSERT INTO auth_sessions(sid,sess,expire) VALUES('old-session','{}',now()+interval '1 hour')");
   await fresh.pool.query("INSERT INTO invitations(id,token_hash,email,role,purpose,created_by,expires_at) VALUES($1,'obsolete-token','old@legacy.test','parent','invite',$2,now()+interval '1 day')",[randomUUID(),ids.admin]);
-  const before=(await fresh.pool.query('SELECT * FROM game_sessions ORDER BY id')).rows;await migrate(fresh.pool);await migrate(fresh.pool);assert.deepEqual((await fresh.pool.query('SELECT * FROM game_sessions ORDER BY id')).rows,before);
+  const before=(await fresh.pool.query('SELECT * FROM game_sessions ORDER BY id')).rows;await migrate(fresh.pool);await migrate(fresh.pool);const migrated=(await fresh.pool.query('SELECT * FROM game_sessions ORDER BY id')).rows;assert.deepEqual(migrated.map(({report_ref,...row})=>row),before);assert.equal(new Set(migrated.map(row=>row.report_ref)).size,7);const refs=migrated.map(row=>row.report_ref);await migrate(fresh.pool);assert.deepEqual((await fresh.pool.query('SELECT report_ref FROM game_sessions ORDER BY id')).rows.map(row=>row.report_ref),refs);
   const users=(await fresh.pool.query('SELECT * FROM users')).rows;assert.equal(users.find(u=>u.id===ids.admin).password_hash,hash);assert.equal(users.find(u=>u.id===ids.therapist).active,true);assert.equal(users.find(u=>u.id===ids.parent).active,false);assert.equal(users.find(u=>u.id===ids.ambiguous).active,false);assert.ok(users.every(u=>['admin','user'].includes(u.role)&&u.username&&u.legacy_email_login));
   assert.equal((await fresh.pool.query('SELECT owner_user_id FROM children WHERE id=$1',[childId])).rows[0].owner_user_id,ids.therapist);assert.equal((await fresh.pool.query('SELECT count(*)::int n FROM children WHERE owner_user_id IS NULL')).rows[0].n,2);assert.equal((await fresh.pool.query('SELECT count(*)::int n FROM auth_sessions')).rows[0].n,0);assert.equal((await fresh.pool.query('SELECT count(*)::int n FROM invitations WHERE used_at IS NULL')).rows[0].n,0);
   assert.equal((await fresh.pool.query('SELECT level FROM difficulty WHERE child_id=$1',[childId])).rows[0].level,'hard');

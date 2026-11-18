@@ -18,8 +18,8 @@ test('after seven assessments the client is directed to the least practiced game
 test('public registration exposes only initial personal fields and a personal password',()=>{
  const document=dom(registrationView());for(const field of ['firstName','lastName','birthDate','grade','school','username','password','email'])assert.ok(document.querySelector(`[name=${field}]`));assert.equal(document.querySelector('[name=concerns]'),null);assert.equal(document.querySelector('[name=role]'),null);assert.equal(document.querySelector('[name=password]').getAttribute('minlength'),'12');
 });
-test('unified client details have one editable identity form and four explicit panels',()=>{
- const document=dom(userDetailsView(user,profile,{steps:[]},'details','<p>report</p>'));assert.equal(document.querySelectorAll('[role=tab]').length,4);assert.equal(document.querySelectorAll('#user-details form').length,1);for(const field of ['username','firstName','lastName','concerns'])assert.ok(document.querySelector(`#edit-user-form [name=${field}]`));assert.equal(document.querySelector('#user-details').hasAttribute('hidden'),false);assert.equal(document.querySelector('#user-sessions').hasAttribute('hidden'),true);
+test('unified client details have one editable identity form and five explicit panels',()=>{
+ const document=dom(userDetailsView(user,profile,{steps:[]},'details','<p>report</p>'));assert.equal(document.querySelectorAll('[role=tab]').length,5);assert.equal(document.querySelectorAll('#user-details form').length,1);for(const field of ['username','firstName','lastName','concerns'])assert.ok(document.querySelector(`#edit-user-form [name=${field}]`));assert.equal(document.querySelector('#user-details').hasAttribute('hidden'),false);assert.equal(document.querySelector('#user-sessions').hasAttribute('hidden'),true);
 });
 test('admin totals and list names are escaped and empty activity is explained without invented data',()=>{
  const data={days:7,totals:{users:0,activeUsers:0,sessions:0,incompleteAssessments:0,openInvitations:0},daily:Array.from({length:7},(_,i)=>({day:`2026-01-0${i+1}`,baseline:0,training:0})),games:GAMES.map(g=>({id:g.id,count:0})),recent:[]};

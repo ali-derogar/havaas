@@ -9,7 +9,7 @@ export class ApiClient {
     try{data=await response.json();}
     catch(cause){throw new ApiError(invalidResponse,response.status,'INVALID_RESPONSE',{cause});}
     if(!data||typeof data!=='object'||Array.isArray(data))throw new ApiError(invalidResponse,response.status,'INVALID_RESPONSE');
-    if(!response.ok)throw new ApiError(typeof data.error==='string'&&data.error?data.error:'ارتباط با سرور ناموفق بود.',response.status,typeof data.code==='string'&&data.code?data.code:'API_ERROR');
+    if(!response.ok){const error=new ApiError(typeof data.error==='string'&&data.error?data.error:'ارتباط با سرور ناموفق بود.',response.status,typeof data.code==='string'&&data.code?data.code:'API_ERROR');if(data.code==='EDIT_CONFLICT')error.details=data.details;throw error;}
     if(Object.hasOwn(data,'csrfToken')){
       if(typeof data.csrfToken!=='string'||!data.csrfToken)throw new ApiError(invalidResponse,response.status,'INVALID_RESPONSE');
       this.csrfToken=data.csrfToken;

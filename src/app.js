@@ -1,3 +1,7 @@
+import {createFormTracker} from './pwa-forms.js';
+import {createNavigationGuard,handleTabKey} from './navigation-guard.js';
+import {createHistoryNavigation} from './history-navigation.js';
+import {auditView} from './audit-ui.js';
 import { ApiClient,ApiError } from './api.js';
 import {setupPwa} from './pwa.js';
 import {syncBirthDate} from './birth-date.js';
@@ -34,7 +38,7 @@ import { STROOP_RULES } from './games/stroop.js';
 import { readProgress, writeProgress, resultKey } from './core/storage.js';
 import { activeProfile, readClients, profileRecords, latestBaseline, validateProfile, escapeHTML as esc, variantOf } from './core/clients.js';
 import { describeStimulus } from './stimuli.js';
-import { recommendLevel, comparableRecords } from './core/reports.js';
+import { recommendLevel, comparableRecords, needsMorePractice } from './core/reports.js';
 import { reportsView, assessmentView, variantLabel } from './client-ui.js';
 import { icon, logo, art, heroArt, symbol, equipment, trophyArt, huntBackground, missionOutcomeArt } from './visuals.js';
 
@@ -49,12 +53,18 @@ const guidance=new GuidancePlayer({onState:(state,key)=>{
 }});
 const clients = {version:1,activeId:null,profiles:[],records:[],difficulties:[]};
 const api=new ApiClient();
+const formTracker=createFormTracker();
+const navigationGuard=createNavigationGuard({document,tracker:formTracker,identity:()=>`${currentUser?.id||'guest'}:${clients.activeId||''}`});
 let currentUser=null,members=[],inviteToken=null,inviteInfo=null,remoteRun=null,pendingSave=null,starting=false,launchAttempt=null,previewImport=null,importAttempt=null;
 let inspectedUserId=null,publicReportData=null,viewVersion=0;
 let dashboardDays=30,userTab='overview',registrationToken=null,createContext={};
-let pendingAdminRefresh=null;
+let pendingAdminRefresh=null,pendingPanelRefresh=null;
+let inspectedRevision=1,unresolvedProfiles=[],unresolvedPage=1,unresolvedPages=1;
+const auditState={page:1,actorId:'',userId:'',actorSearch:'',targetSearch:'',action:'',from:'',to:''};
+let sessionBestScore=null,completedRecord=null;
 const adminState={search:'',status:'',role:'',sort:'newest',page:1};
 let pendingStart = null, sessionIsBaseline = false, editingProfile = null, guideState = null, sessionAssessment = false, lessonState = null, sessionRecordId = null;
+let sessionOptions = null, repeatingPractice = false;
 let keyboardPlay=false;
 const reportState = { tab: 'admin', game: '', level: '', variant: '', kind: 'training', recordId: null };
 const fa = value => new Intl.NumberFormat('fa-IR', { maximumFractionDigits: 0 }).format(value);
@@ -74,12 +84,13 @@ function cardDuration(game) {
 function header() {
  if(publicReportData||!currentUser||guestScreen())return `<header class="site-header"><div class="header-inner"><span class="brand">${logo()} حواس</span><span>${publicReportData?'گزارش خانواده':'همراه رشد و توجه'}</span></div></header>`;
  if(currentUser.passwordChangeRequired)return `<header class="site-header"><div class="header-inner"><span class="brand">${logo()} حواس</span><button class="text-button" data-action="logout">خروج</button></div></header>`;
- if(currentUser.role==='admin')return adminShell(currentUser,route==='admin'?'overview':route==='invitations'?'invitations':route==='account'?'settings':'users');
+ if(currentUser.role==='admin')return adminShell(currentUser,route==='admin'?'overview':route==='invitations'?'invitations':route==='account'?'settings':route==='audit'?'audit':'users');
  const nav=[['home','home','خانه'],['games','grid','بازی‌ها'],['dashboard','activity','پیشرفت من'],['account','user','حساب']];
  return `<header class="site-header client-header"><div class="header-inner"><a class="brand" href="#app" data-action="home">${logo()}<span>حواس<small>ماجراجویی‌های ذهنی</small></span></a><nav aria-label="منوی اصلی">${nav.map(([action,symbol,label])=>`<button class="nav-link ${route==='home'&&action==='home'||route==='reports'&&action==='dashboard'||route==='account'&&action==='account'?'active':''}" data-action="${action}">${icon(symbol)}${label}</button>`).join('')}</nav><div class="header-end"><button class="profile-button" data-action="account">${esc(currentUser.name)}</button><button class="icon-button sound-button" data-action="sound" aria-label="${progress.sound?'خاموش‌کردن صدا و راهنمای گویا':'روشن‌کردن صدا و راهنمای گویا'}" aria-pressed="${progress.sound}">${icon(progress.sound?'sound':'mute')}</button></div></div></header><nav class="client-bottom-nav" aria-label="منوی موبایل">${nav.map(([action,symbol,label])=>`<button data-action="${action}" class="${route==='home'&&action==='home'||route==='reports'&&action==='dashboard'||route==='account'&&action==='account'?'active':''}">${icon(symbol)}<span>${label}</span></button>`).join('')}</nav>`;
 }
 const footer = () => `<footer class="site-footer"><span>${logo()} حواس؛ جایی برای بازی و کشف</span><span>با سرعت خودت، به سبک خودت ${icon('spark')}</span></footer>`;
 function page(content, className = '') {
+  navigationGuard.stash();
   playMotion.reset();
   guidance.stop();lastSpokenContext='';
   viewVersion++;
@@ -90,6 +101,7 @@ function page(content, className = '') {
   document.body.classList.remove('admin-menu-open');
   app.innerHTML = `${header()}<main id="main" class="${className}" tabindex="-1">${content}</main>${footer()}`;
   syncSidebarAccess();
+  queueMicrotask(()=>navigationGuard.sync());
   window.scrollTo({ top: 0, behavior: 'instant' });
   document.querySelector('#main').focus({ preventScroll: true });
 }
@@ -115,7 +127,8 @@ async function request(path,options){
 function beginView(){if(launchAttempt){launchAttempt=null;starting=false;}return {version:++viewVersion,userId:currentUser?.id,role:currentUser?.role};}
 const currentView=view=>view.version===viewVersion&&view.userId===currentUser?.id&&view.role===currentUser?.role;
 async function viewRequest(view,path,options){try{const data=await request(path,options);return currentView(view)?data:null;}catch(error){if(currentView(view))throw error;return null;}}
-function setHash(hash) { if (location.hash !== hash) history.pushState({}, '', hash || location.pathname); }
+const historyNavigation=createHistoryNavigation({window,history,location,needsConfirmation:()=>Boolean(pendingSave)||navigationGuard.hasChanges(),confirm:()=>{if(pendingSave){notify('نتیجه هنوز در سرور ثبت نشده است.');return false;}return navigationGuard.allow(submitForm);},navigate:()=>navigate(),onError:showError});
+function setHash(hash) { historyNavigation.push(hash); }
 function home(updateHash = true) {
   if(!currentUser)return showLogin();
   if(currentUser.passwordChangeRequired)return forcedPassword();
@@ -129,7 +142,7 @@ function gameCards() {
   const shown = GAMES.filter(game => filter === 'all' || game.tags.includes(filter));
   return shown.map((game, index) => {
     const records = profileRecords(clients).filter(item => item.kind === 'training' && item.result.gameId === game.id);
-    return `<button class="game-card" data-action="open" data-game="${game.id}" style="--card-color:${game.color};--card-accent:${game.accent};--card-index:${index}"><div class="card-picture"><span class="card-number">${fa(GAMES.indexOf(game) + 1).padStart(2, '۰')}</span>${gameArtwork(game.id,{lazy:true})}${records.length ? `<span class="played-badge">${icon('check')} بازی کردی</span>` : ''}</div><div class="card-content"><span class="skill-label">${game.skill}</span><h3>${game.title}</h3><p>${game.subtitle}</p><div class="card-bottom"><span>${icon('clock')} ${cardDuration(game)}</span><span class="card-arrow" aria-hidden="true">${icon('arrow')}</span></div></div></button>`;
+    return `<button class="game-card" data-action="open" data-game="${game.id}" style="--card-color:${game.color};--card-accent:${game.accent};--card-index:${index}"><div class="card-picture"><span class="card-number">${fa(GAMES.indexOf(game) + 1).padStart(2, '۰')}</span>${gameArtwork(game.id,{lazy:true})}${(clients.panelSummary?.games.find(g=>g.id===game.id)?.count??records.length) ? `<span class="played-badge">${icon('check')} بازی کردی</span>` : ''}</div><div class="card-content"><span class="skill-label">${game.skill}</span><h3>${game.title}</h3><p>${game.subtitle}</p><div class="card-bottom"><span>${icon('clock')} ${cardDuration(game)}</span><span class="card-arrow" aria-hidden="true">${icon('arrow')}</span></div></div></button>`;
   }).join('') + (filter === 'all' ? `<div class="routine-card"><span class="routine-flower">✳</span><span class="section-kicker">یک یادآوری کوچولو</span><h3>هر روز،<br>چند دقیقه برای ذهنت.</h3><p>یک بازی رو انتخاب کن.<br>شاید امروز رکورد تازه‌ای بزنی!</p><button class="text-button" data-action="about">راهنمای شروع ${icon('arrow')}</button><span class="routine-dots">● ● ●</span></div>` : '');
 }
 
@@ -209,7 +222,7 @@ function currentVariant() {
 }
 function assessmentInfo() {
   const baseline = latestBaseline(clients, selectedGame, currentVariant());
-  const last = profileRecords(clients).filter(r=>r.result.gameId===selectedGame && (r.result.protocolVersion || 2)===GAME_PROTOCOLS[selectedGame] && variantOf(r.result)===currentVariant()).at(-1)?.result;
+  const last = clients.panelSummary?clients.panelSummary.latestResults.find(r=>r.result.gameId===selectedGame&&variantOf(r.result)===currentVariant())?.result:profileRecords(clients).filter(r=>r.result.gameId===selectedGame && (r.result.protocolVersion || 2)===GAME_PROTOCOLS[selectedGame] && variantOf(r.result)===currentVariant()).at(-1)?.result;
   return `<div class="assessment-info"><b>${baseline ? 'ارزیابی پایه انجام شده' : 'شروع با ۵ تمرین و ارزیابی پایه'}</b><p>${last ? `سطح پیشنهادی: ${LEVELS[recommendLevel(last).level].label}. ${recommendLevel(last).reason}` : 'اول قانون را یاد می‌گیری؛ سپس براساس دقت، سرعت، خطاها و پاسخ‌های متوالی، یک سطح قابل‌تغییر پیشنهاد می‌شود.'}</p>${baseline ? '<button class="text-button" data-action="baseline">تکرار ارزیابی پایه</button>' : ''}</div>`;
 }
 function gameCopy(game) {
@@ -250,22 +263,23 @@ function levelSummary(game) {
   return `<span><b>${fa(l.required)}</b> وسیلهٔ ضروری</span><span><b>${fa(l.seconds)}</b> ثانیه فرصت</span>`;
 }
 
-async function start(practice, forceBaseline = false) {
+async function start(practice, forceBaseline = false, repeatOptions = null) {
   if(starting)return;
   if(!currentUser)return showLogin();
   if (!activeProfile(clients)) { pendingStart = { practice, forceBaseline }; return profiles(); }
   // Starting takes precedence over an older, still-loading guide for this game.
   beginView();
-  sessionAssessment = Boolean(guideState && guideState.gameId===selectedGame && guideState.profileId===clients.activeId);
-  if (sessionAssessment) { practice=true;forceBaseline=true;selectedLevel='easy'; }
+  if(!repeatOptions)sessionAssessment = Boolean(guideState && guideState.gameId===selectedGame && guideState.profileId===clients.activeId);
+  if (sessionAssessment && !repeatOptions) { practice=true;forceBaseline=true;selectedLevel='easy'; }
   if (!practice && !latestBaseline(clients, selectedGame, currentVariant())) practice = true;
-  sessionIsBaseline = practice && (forceBaseline || !latestBaseline(clients, selectedGame, currentVariant()));
-  if(practice&&!sessionIsBaseline){
+  sessionIsBaseline = !repeatOptions && practice && (forceBaseline || !latestBaseline(clients, selectedGame, currentVariant()));
+  if(practice&&!sessionIsBaseline&&!repeatOptions){
     const policy=clients.difficulties.find(d=>d.gameId===selectedGame&&d.variant===currentVariant()&&d.protocolVersion===GAME_PROTOCOLS[selectedGame]);
     if(policy)selectedLevel=policy.level;
   }
-  const options=gameOptions();
-  const attempt={};launchAttempt=attempt;starting=true;notify('در حال آماده‌سازی بازی…');document.querySelectorAll('[data-action="practice"],[data-action="main-game"],[data-action="replay"]').forEach(button=>button.disabled=true);
+  const options={...(repeatOptions||gameOptions())};
+  if(repeatOptions){selectedGame=options.gameId;selectedLevel=options.level;}
+  const attempt={};launchAttempt=attempt;starting=true;notify('در حال آماده‌سازی بازی…');document.querySelectorAll('[data-action="practice"],[data-action="repeat-practice"],[data-action="main-game"],[data-action="replay"]').forEach(button=>button.disabled=true);
   try {
     const run=(!practice||sessionIsBaseline)?await request(`/children/${clients.activeId}/sessions`,{method:'POST',body:{...options,kind:sessionIsBaseline?'baseline':'training'}}):null;
     const world=await preloadWorld(run?.settings||options);
@@ -278,12 +292,14 @@ async function start(practice, forceBaseline = false) {
     if(route==='detail'&&error.status!==401&&error.code!=='PASSWORD_CHANGE_REQUIRED')renderDetail(selectedGame,false);
     throw error;
   }
-  finally {if(launchAttempt===attempt){launchAttempt=null;starting=false;document.querySelectorAll('[data-action="practice"],[data-action="main-game"],[data-action="replay"]').forEach(button=>button.disabled=false);}}
-  if(remoteRun){selectedLevel=remoteRun.settings.level;selectedGame=remoteRun.settings.gameId;}
+  finally {if(launchAttempt===attempt){launchAttempt=null;starting=false;document.querySelectorAll('[data-action="practice"],[data-action="repeat-practice"],[data-action="main-game"],[data-action="replay"]').forEach(button=>button.disabled=false);}}
+  if(remoteRun){selectedLevel=remoteRun.settings.level;selectedGame=remoteRun.settings.gameId;sessionBestScore=remoteRun.bestScore??null;}
   if (modal.open) modal.close();
-  sessionRecordId=null;
+  sessionRecordId=null;completedRecord=null;
   route = 'play'; playPhase='ready'; preparationClock=null;
   engine = FACTORIES[selectedGame]({ ...options,...remoteRun?.settings,...(remoteRun?{experienceVersion:remoteRun.settings.experienceVersion??1}:{}),level:selectedLevel,practice,reviewEnabled:remoteRun?remoteRun.settings.reviewEnabled:practice,random:remoteRun?seededRandom(remoteRun.settings.seed):Math.random }); engine.clock.pause(); arenaKey = '';
+  sessionOptions={...options,...remoteRun?.settings,level:engine.level,experienceVersion:engine.experienceVersion};
+  repeatingPractice=Boolean(repeatOptions);
   const game = GAME_MAP[selectedGame];
   page(`<div class="play-heading"><div><span class="section-kicker">${practice ? sessionIsBaseline ? '۵ تمرین برای آموزش و ارزیابی پایه' : 'وقت تمرینه؛ امتیازت ثبت نمی‌شه' : 'نوبت ماجراجویی توئه'}</span><h1>${game.title}<span class="level-pill">${LEVELS[selectedLevel].label}</span></h1></div><div class="play-heading-actions"><button class="icon-button sound-button" data-action="sound" aria-label="${progress.sound?'خاموش‌کردن صدا و راهنمای گویا':'روشن‌کردن صدا و راهنمای گویا'}" aria-pressed="${progress.sound}">${icon(progress.sound?'sound':'mute')}</button><button class="button subtle pause-button" data-action="pause">${icon('pause')} توقف</button></div></div><section class="play-panel ${game.kind}" data-game="${game.id}" data-interval-ms="${engine.intervalMs||1000}" data-visible-ms="${engine.visibleMs||0}" style="--game-color:${game.color};--game-accent:${game.accent}" aria-label="محیط بازی"><div class="play-hud"><div><span id="progress-label"></span><b id="position"></b></div><div class="hud-time">${icon('clock')}<div><span id="time-label"></span><b id="time"></b></div></div><div><span>پاسخ‌های هدف درست</span><b id="hits">۰</b></div></div><div class="progress-track"><span id="progress-fill"></span></div><div class="instruction-strip" id="instruction"></div><div id="arena" class="arena"></div><div class="play-controls" id="play-controls"></div><div class="visual-feedback" id="visual-feedback" aria-hidden="true"><span class="feedback-good">${icon('check')}</span><span class="feedback-wrong">${icon('repeat')}</span><span class="feedback-cleared">${icon('spark')}</span><strong class="feedback-label"></strong></div><div id="feedback" class="feedback" role="status">با آرامش و دقت شروع کن؛ تو می‌تونی!</div></section><p class="play-footnote">${icon('info')} ${practice ? sessionIsBaseline ? 'این پنج تمرین برای آموزش و پیشنهاد سطح اولیه ثبت می‌شوند.' : 'این بخش فقط برای یادگرفتن قانون بازیه.' : game.kind==='reaction' ? 'محرک کوتاه دیده می‌شه؛ تا شروع نوبت بعد فرصت پاسخ داری.' : 'عجله نکن؛ انتخاب درست، مهم‌تر از انتخاب سریعه.'}</p>`, 'play-main');
   updatePlay();
@@ -423,34 +439,52 @@ function renderArena(game) {
   }
 }
 
+function renderResultActions() {
+  const actions=document.querySelector('.result-actions');
+  if(route!=='result'||!engine||!actions)return;
+  const practice=engine.practice,morePractice=practice&&needsMorePractice(engine.result);
+  const button=(action,label,style='subtle')=>`<button class="button ${style}" data-action="${action}">${label}</button>`;
+  const repeat=button('repeat-practice','دوباره تمرین کنیم',morePractice?'primary':'subtle');
+  let content;
+  if(sessionAssessment){
+    const next=nextAssessmentGame(clients);
+    const onward=button(next?'assessment-next':'assessment',next?'ادامهٔ ارزیابی بازی بعد':'جمع‌بندی ارزیابی هفت بازی',morePractice?'subtle':'primary');
+    content=(morePractice?repeat+onward:onward+repeat)+button('assessment','مسیر ارزیابی و استراحت');
+  }else if(practice){
+    const main=button('main-game','بزن بریم بازی اصلی',morePractice?'subtle':'primary');
+    content=(morePractice?repeat+main:main+repeat)+button('detail','برگشت به راهنما');
+    if(sessionIsBaseline)content+='<button class="text-button" data-action="assessment">ارزیابی سایر بازی‌ها</button>';
+  }else content=button('replay',`دوباره بازی کن ${icon('repeat')}`,'primary')+button('home','انتخاب بازی دیگه');
+  actions.innerHTML=content+'<button class="text-button" data-action="dashboard">دیدن اطلاعات کاربر و گزارش‌ها</button>';
+  if(pendingSave)actions.querySelectorAll('button').forEach(button=>button.disabled=true);
+}
+
 function finish() {
   const session = engine, result = session.result, game = GAME_MAP[selectedGame]; route = 'result';
   if (modal.open) modal.close();
   const needsSave=!session.practice||sessionIsBaseline;
   if(needsSave)pendingSave={run:remoteRun,result,childId:clients.activeId,ownerId:currentUser.id};
   const recommendation = recommendLevel(result);
+  const morePractice=session.practice&&needsMorePractice(result);
   if (sessionIsBaseline) selectedLevel = recommendation.level;
   const ratio = result.maxScore ? result.score/result.maxScore : 0;
   const stars = !result.completed?0:ratio>=.85?3:ratio>=.5?2:ratio>0?1:0;
-  const title = session.practice ? sessionIsBaseline ? 'ارزیابی پایه کامل شد' : 'تمرین تموم شد، آماده‌ای؟' : !result.completed ? 'این سفر هنوز ادامه داره!' : ratio>=.85 ? 'چه تمرکز درخشانی!' : ratio>=.5 ? 'آفرین، خوب پیش رفتی!' : 'هر بار، یک قدم بهتر!';
-  const caption = session.practice ? sessionIsBaseline ? 'نتیجهٔ این پنج تمرین جدا از بازی اصلی در اطلاعات کاربر نگهداری می‌شود. پیشنهاد سطح اولیه است و می‌توانی آن را تغییر بدهی.' : 'قانون بازی رو یاد گرفتی. حالا می‌تونی ماجراجویی اصلی رو شروع کنی.' : !result.completed ? result.hits===result.maxScore?'همهٔ وسایل را پیدا کردی! دفعهٔ بعد، پیش از پایان زمان دکمهٔ حرکت را بزن.':'زمان تمام شد؛ در مرور پایین، نیازهای باقی‌ماندهٔ سفر را بشناس و دوباره امتحان کن.' : game.kind==='adventure' ? session.mission.success : 'مهم‌ترین بخشش رو انجام دادی: با دقت بازی کردی. آمادهٔ یک چالش دیگه‌ای؟';
-  page(`<section class="result-card">${game.id==='hunt'&&!session.practice?huntOutcomeArt(session):game.id==='stroop'&&!session.practice?stroopOutcomeArt(session):game.id==='nback'&&!session.practice?memoryOutcomeArt(session):game.id==='search'&&!session.practice?searchOutcomeArt(session):game.id==='traffic'&&!session.practice?trafficOutcome(trafficProgress(session)):game.kind==='adventure'&&!session.practice?missionOutcomeArt(game.id,result.completed):trophyArt()}<div class="eyebrow">${session.practice?'۵ تمرین آموزشی':'پایان بازی'} <span>·</span> ${game.title}</div><h1>${title}</h1><p class="result-caption">${caption}</p>${!session.practice?`<div class="result-stars" aria-label="${fa(stars)} ستاره از ۳">${[0,1,2].map(i=>`<span class="${i<stars?'earned':''}">${i<stars?'★':'☆'}</span>`).join('')}</div>`:''}<div class="result-main-score"><b>${fa(result.score)}</b><span>از ${fa(result.maxScore)} ${session.practice?'پاسخ هدف':'امتیاز'}</span></div><div class="result-stats"><div>${icon('check')}<b>${fa(result.hits)}</b><span>انتخاب هدف درست</span></div><div>${icon('target')}<b>${fa(result.falseSelections)}</b><span>انتخاب اشتباه</span></div><div>${icon('info')}<b>${fa(result.omissions)}</b><span>هدف بدون پاسخ</span></div><div>${icon('clock')}<b>${time(result.durationMs)}</b><span>زمان فعال بازی</span></div><div>${icon('check')}<b>${fa(result.longestStreak)}</b><span>تصمیم درست متوالی</span></div>${game.kind==='reaction'?`<div>${icon('pause')}<b>${fa(result.correctRejections)}</b><span>خودداری درست از پاسخ</span></div>`:''}${result.meanReactionMs!==null?`<div>${icon('spark')}<b>${fa(result.meanReactionMs)} <small>ms</small></b><span>${result.reactionMeasure==='decision-interval'?'میانگین زمان انتخاب درست':'میانگین واکنش درست'}</span></div>`:''}</div>${stroopScorecard(session)}${learningRecap(session)}${game.kind==='reaction'?'<p class="score-note">امتیاز = هدف‌های درست، منهای انتخاب‌های اشتباه؛ حداقل صفر.</p>':''}${!session.practice || sessionIsBaseline?`<p class="local-note">${icon('check')} در حال ثبت نتیجه در سرور مرکز…</p>`:''}<div class="result-actions"><button class="button primary" data-action="${session.practice?'main-game':'replay'}">${session.practice?'بزن بریم بازی اصلی':'دوباره بازی کن'} ${icon(session.practice?'arrow':'repeat')}</button><button class="button subtle" data-action="${session.practice?'detail':'home'}">${session.practice?'برگشت به راهنما':'انتخاب بازی دیگه'}</button></div></section>`, 'result-main');
+  const title = session.practice ? sessionIsBaseline ? 'ارزیابی پایه کامل شد' : morePractice ? 'یک فرصت تازه برای تمرین!' : 'تمرین تموم شد، آماده‌ای؟' : !result.completed ? 'این سفر هنوز ادامه داره!' : ratio>=.85 ? 'چه تمرکز درخشانی!' : ratio>=.5 ? 'آفرین، خوب پیش رفتی!' : 'هر بار، یک قدم بهتر!';
+  const caption = morePractice ? 'پنج تمرین رو انجام دادی. پیشنهاد می‌کنیم یک بار دیگه با هم تمرین کنیم؛ می‌تونی مسیرت رو هم ادامه بدی.' : session.practice ? sessionIsBaseline ? 'نتیجهٔ این پنج تمرین جدا از بازی اصلی در اطلاعات کاربر نگهداری می‌شود. پیشنهاد سطح اولیه براساس همین تمرین‌هاست.' : 'پنج تمرین رو انجام دادی. هر وقت آماده بودی، می‌تونی ماجراجویی اصلی رو شروع کنی.' : !result.completed ? result.hits===result.maxScore?'همهٔ وسایل را پیدا کردی! دفعهٔ بعد، پیش از پایان زمان دکمهٔ حرکت را بزن.':'زمان تمام شد؛ در مرور پایین، نیازهای باقی‌ماندهٔ سفر را بشناس و دوباره امتحان کن.' : game.kind==='adventure' ? session.mission.success : 'مهم‌ترین بخشش رو انجام دادی: با دقت بازی کردی. آمادهٔ یک چالش دیگه‌ای؟';
+  page(`<section class="result-card">${game.id==='hunt'&&!session.practice?huntOutcomeArt(session):game.id==='stroop'&&!session.practice?stroopOutcomeArt(session):game.id==='nback'&&!session.practice?memoryOutcomeArt(session):game.id==='search'&&!session.practice?searchOutcomeArt(session):game.id==='traffic'&&!session.practice?trafficOutcome(trafficProgress(session)):game.kind==='adventure'&&!session.practice?missionOutcomeArt(game.id,result.completed):trophyArt()}<div class="eyebrow">${session.practice?'۵ تمرین آموزشی':'پایان بازی'} <span>·</span> ${game.title}</div><h1>${title}</h1><p class="result-caption">${caption}</p>${!session.practice?`<div class="result-stars" aria-label="${fa(stars)} ستاره از ۳">${[0,1,2].map(i=>`<span class="${i<stars?'earned':''}">${i<stars?'★':'☆'}</span>`).join('')}</div>`:''}<div class="result-main-score"><b>${fa(result.score)}</b><span>از ${fa(result.maxScore)} ${session.practice?'پاسخ هدف':'امتیاز'}</span></div><div class="result-stats"><div>${icon('check')}<b>${fa(result.hits)}</b><span>انتخاب هدف درست</span></div><div>${icon('target')}<b>${fa(result.falseSelections)}</b><span>انتخاب اشتباه</span></div><div>${icon('info')}<b>${fa(result.omissions)}</b><span>هدف بدون پاسخ</span></div><div>${icon('clock')}<b>${time(result.durationMs)}</b><span>زمان فعال بازی</span></div><div>${icon('check')}<b>${fa(result.longestStreak)}</b><span>تصمیم درست متوالی</span></div>${game.kind==='reaction'?`<div>${icon('pause')}<b>${fa(result.correctRejections)}</b><span>خودداری درست از پاسخ</span></div>`:''}${result.meanReactionMs!==null?`<div>${icon('spark')}<b>${fa(result.meanReactionMs)} <small>ms</small></b><span>${result.reactionMeasure==='decision-interval'?'میانگین زمان انتخاب درست':'میانگین واکنش درست'}</span></div>`:''}</div>${stroopScorecard(session)}${learningRecap(session)}${game.kind==='reaction'?'<p class="score-note">امتیاز = هدف‌های درست، منهای انتخاب‌های اشتباه؛ حداقل صفر.</p>':''}${!session.practice || sessionIsBaseline?`<p class="local-note">${icon('check')} در حال ثبت نتیجه در سرور مرکز…</p>`:''}<div class="result-actions"></div></section>`, 'result-main');
   if (!session.practice || sessionIsBaseline) {
     const note = document.querySelector('.local-note');
     note.innerHTML=`${icon('clock')} در حال ثبت نتیجه در سرور مرکز…`;
-    const best = comparableRecords(profileRecords(clients),{kind:'training',result}).map(r=>r.result).sort((a,b)=>b.score-a.score || Number(b.completed)-Number(a.completed))[0];
+    const best = (clients.panelSummary&&sessionBestScore!==null?[{score:sessionBestScore,maxScore:result.maxScore}]:comparableRecords(profileRecords(clients),{kind:'training',result}).map(r=>r.result)).sort((a,b)=>b.score-a.score || Number(b.completed)-Number(a.completed))[0];
     if (Number.isFinite(best?.score)) document.querySelector('.result-main-score').insertAdjacentHTML('afterend', `<p class="best-score">${icon('trophy')} بهترین امتیاز تو در سطح ${LEVELS[result.level].label}: <b>${fa(best.score)} از ${fa(best.maxScore)}</b></p>`);
   }
   if(result.variant && result.variant!=='standard')document.querySelector('.result-caption').insertAdjacentHTML('afterend',`<span class="variant-note">${variantLabel(result.variant)}</span>`);
   document.querySelector('.result-actions').insertAdjacentHTML('beforebegin', `<div class="level-recommendation"><b>سطح پیشنهادی ${sessionIsBaseline?'برای شروع':'برای نوبت بعد'}: ${LEVELS[recommendation.level].label}</b><p>${recommendation.reason}</p><button class="text-button" data-action="recommended-level" data-level="${recommendation.level}">انتخاب سطح و دیدن راهنما ←</button></div>`);
-  document.querySelector('.result-actions').insertAdjacentHTML('beforeend','<button class="text-button" data-action="dashboard">دیدن اطلاعات کاربر و گزارش‌ها</button>');
-  if(sessionAssessment) {
-    const next=nextAssessmentGame(clients);
-    document.querySelector('.result-actions').innerHTML=`<button class="button primary" data-action="${next?'assessment-next':'assessment'}">${next?'ادامهٔ ارزیابی بازی بعد':'جمع‌بندی ارزیابی هفت بازی'} ${icon('arrow')}</button><button class="button subtle" data-action="assessment">مسیر ارزیابی و استراحت</button>`;
-  } else if(sessionIsBaseline) document.querySelector('.result-actions').insertAdjacentHTML('beforeend','<button class="text-button" data-action="assessment">ارزیابی سایر بازی‌ها</button>');
+  if(morePractice)document.querySelector('.result-learning')?.setAttribute('open','');
+  renderResultActions();
   if(currentUser.role!=='admin')document.querySelector('.level-recommendation button')?.remove();
   announcer.textContent = title;
-  if(needsSave){document.querySelectorAll('.result-actions button').forEach(button=>button.disabled=true);void persistPending();}
+  if(needsSave)void persistPending();
 }
 
 function openModal(content, kind) {
@@ -537,13 +571,17 @@ function continueAfterProfile() {
   return home();
 }
 async function dashboard() {
-  if(publicReportData)return renderPublicReport();
-  if(currentUser?.role==='admin'&&inspectedUserId)return inspectUser(inspectedUserId);
+  if(publicReportData)return refreshPublicReport();
+  if(currentUser?.role==='admin'&&inspectedUserId){
+    if(route!=='admin-user')return inspectUser(inspectedUserId);
+    activateUserTab('sessions');return loadUserTab();
+  }
   if(!currentUser)return showLogin();const view=beginView();if(!await refreshClients(view))return;
-  guideState = null; engine = null; route = 'reports'; if (modal.open) modal.close(); setHash('#reports');
-  document.title = 'گزارش تمرین‌ها — حواس';
-  page(reportsView(clients, reportState,currentUser), 'content-main reports-main');
+  if(!await loadReportData(view))return;
+  guideState=null;engine=null;route='reports';if(modal.open)modal.close();setHash('#reports');
+  document.title='گزارش تمرین‌ها — حواس';page(reportsView(clients,reportState,currentUser),'content-main reports-main');
 }
+
 function download(data, type, filename) {
   const url = URL.createObjectURL(new Blob([data], { type }));
   const a = document.createElement('a'); a.href = url; a.download = filename; a.click();
@@ -559,7 +597,7 @@ async function exportTrials() {
   if(currentUser.role!=='admin')return;
   const view={version:viewVersion,userId:currentUser.id,role:currentUser.role};
   const records=profileRecords(clients).filter(r=>(!reportState.game||r.result.gameId===reportState.game)&&(!reportState.level||r.result.level===reportState.level)&&(!reportState.variant||variantOf(r.result)===reportState.variant)&&(!reportState.kind||r.kind===reportState.kind));
-  const record=records.find(r=>r.id===reportState.recordId)||records.at(-1);if(!record)return;
+  const record=clients.reportPage?.selected||records.find(r=>r.id===reportState.recordId)||records.at(-1);if(!record)return;
   try{
     const response=await fetch(`/api/children/${clients.activeId}/sessions/${record.id}/export`,{credentials:'same-origin'});
     if(!currentView(view)){await response.body?.cancel();return;}
@@ -578,13 +616,106 @@ async function exportTrials() {
   }
 }
 app.addEventListener('submit',event=>{event.preventDefault();void submitForm(event.target).catch(showError);});
+function acknowledgeForm(form,data){
+ if(data?.user){form.dataset.revision=String(data.user.revision||1);const input=form.querySelector('[name=username]');if(input)input.value=data.user.username;}
+ if(data?.profile){form.dataset.profileRevision=String(data.profile.revision||1);if(form.id==='profile-form')form.dataset.revision=String(data.profile.revision||1);}
+ navigationGuard.acknowledge(form,form.submission||formTracker.capture(form));
+}
+function refreshFailure(error,retry=null){
+ if(error.code==='STALE_RESPONSE')return;
+ if(error.status===401||error.code==='PASSWORD_CHANGE_REQUIRED')return showError(error);
+ if(retry)pendingPanelRefresh={userId:currentUser?.id,retry};
+ notify('عملیات ثبت شد، ولی دریافت آخرین اطلاعات ممکن نشد.');
+ const node=document.querySelector('#account-status')||document.querySelector('#app-status');
+ if(node&&!node.querySelector('[data-action=refresh-panel]'))node.insertAdjacentHTML('beforeend',' <button class="button subtle" data-action="refresh-panel">تلاش دوباره برای دریافت اطلاعات</button>');
+}
+async function retryPanelRefresh(){
+ if(pendingPanelRefresh?.userId===currentUser?.id){const retry=pendingPanelRefresh.retry;pendingPanelRefresh=null;return retry();}
+ if(route==='report-links')return refreshReportLinks({version:viewVersion,userId:currentUser.id,role:currentUser.role},clients.activeId);
+ if(route==='admin-user')return inspectUser(inspectedUserId);
+ if(route==='admin-users')return adminUsers();if(route==='invitations')return adminInvitations();if(route==='admin')return adminPanel();
+ return refreshClients();
+}
+async function refreshReportLinks(view,childId){
+ const data=await viewRequest(view,`/children/${childId}/report-links`);if(!currentView(view)||route!=='report-links')return;
+ const holder=document.createElement('div');holder.innerHTML=reportLinksView(data.links,activeProfile(clients));
+ const sections=document.querySelectorAll('main>section.surface'),fresh=holder.querySelectorAll('section.surface');
+ if(sections.length>1&&fresh.length>1)sections[sections.length-1].innerHTML=fresh[fresh.length-1].innerHTML;
+}
+function reportQuery(view='panel'){
+ const params=new URLSearchParams({view,page:reportState.page||1,pageSize:20,game:reportState.game||'',level:reportState.level||'',variant:reportState.variant||'',kind:reportState.kind??'training'});
+ if(reportState.recordId)params.set('recordId',reportState.recordId);return params;
+}
+async function loadReportData(view){
+ if(!clients.panelSummary)return true;
+ const jobs=[viewRequest(view,`/children/${clients.activeId}/reports?${reportQuery()}`)];
+ if(currentUser.role==='admin')jobs.push(viewRequest(view,`/users?role=user&page=${clients.selectorPage||1}&pageSize=20&search=${encodeURIComponent(clients.selectorSearch||'')}`));
+ const [report,users]=await Promise.all(jobs);if(!currentView(view)||!report)return false;
+ clients.reportPage=report;
+ if(users){clients.selectorPages=users.pagination.pages;clients.selectorPage=users.pagination.page;clients.selectorProfiles=users.users.filter(u=>u.childId).map(u=>({id:u.childId,ownerUserId:u.id,firstName:u.name,lastName:''}));const active=activeProfile(clients);if(active&&!clients.selectorProfiles.some(p=>p.id===active.id))clients.selectorProfiles.unshift(active);}
+ return true;
+}
+function activateUserTab(tab){
+ userTab=tab;viewVersion++;
+ document.querySelectorAll('.user-tabs [role=tab]').forEach(node=>{const active=node.dataset.tab===tab;node.classList.toggle('selected',active);node.setAttribute('aria-selected',String(active));node.tabIndex=active?0:-1;});
+ document.querySelectorAll('[id^="user-"][role=tabpanel]').forEach(panel=>panel.hidden=panel.id!==`user-${tab}`);
+}
+async function loadUserTab(){
+ if(userTab==='audit')return showAudit(true);
+ if(userTab!=='sessions')return;
+ const panel=document.querySelector('#user-sessions');if(!panel)return;
+ const view=beginView();panel.setAttribute('aria-busy','true');
+ try{if(!await loadReportData(view)||!currentView(view))return;panel.innerHTML=reportsView(clients,reportState,currentUser);}
+ catch(error){if(currentView(view))showError(error);}
+ finally{if(currentView(view))panel.removeAttribute('aria-busy');}
+}
+async function showAudit(embedded=route==='admin-user'&&userTab==='audit'){
+ if(currentUser?.role!=='admin')return home();const view=beginView();
+ const query=new URLSearchParams({...auditState,pageSize:20,...(embedded?{userId:inspectedUserId}:{})});
+ const [data,actors,targets]=await Promise.all([viewRequest(view,`/admin/audit-events?${query}`),viewRequest(view,`/users?pageSize=20&search=${encodeURIComponent(auditState.actorSearch)}`),embedded?Promise.resolve(null):viewRequest(view,`/users?pageSize=20&search=${encodeURIComponent(auditState.targetSearch)}`)]);if(!currentView(view)||!data)return;auditState.page=data.pagination.page;data.actors=actors?.users||[];data.targets=targets?.users||[];
+ for(const [id,options] of [[auditState.actorId,data.actors],[embedded?null:auditState.userId,data.targets]])if(id&&!options.some(user=>user.id===id)){const selected=await viewRequest(view,`/users/${id}`);if(!currentView(view))return;if(selected?.user)options.push(selected.user);}
+ if(embedded){const panel=document.querySelector('#user-audit');if(panel)panel.innerHTML=auditView(data,auditState,true);return;}
+ route='audit';setHash('#admin/audit');page(auditView(data,auditState),'content-main admin-main');
+}
+async function refreshPublicReport(viewMode='panel'){
+ const token=location.hash.match(/^#report\/([a-f0-9]{64})$/)?.[1];if(!token)return renderPublicReport();
+ const view=beginView(),body={...Object.fromEntries(reportQuery(viewMode)),token};delete body.recordId;if(reportState.recordId)body.recordRef=reportState.recordId;
+ const data=await viewRequest(view,'/public/report',{method:'POST',body});if(!currentView(view))return;
+ publicReportData=data;return renderPublicReport();
+}
+async function loadSessionDetails(details){
+ if(currentUser?.role!=='admin'||!details||details.dataset.loaded==='true')return;
+ const view={version:viewVersion,userId:currentUser.id,role:currentUser.role},id=details.dataset.sessionDetail;
+ if(!id)return;details.setAttribute('aria-busy','true');
+ try{
+  const data=await viewRequest(view,`/children/${clients.activeId}/sessions/${id}`);if(!currentView(view)||!details.isConnected||!data)return;
+  if(clients.reportPage?.selected?.id!==id)return;
+  clients.reportPage.selected={...clients.reportPage.selected,result:data.record.result};
+  const holder=document.createElement('div');holder.innerHTML=reportsView(clients,reportState,currentUser);const fresh=holder.querySelector('.outcome-details');
+  if(fresh)details.innerHTML=fresh.innerHTML;details.dataset.loaded='true';
+ }catch(error){if(currentView(view)){if(error.status===401||error.status===403)return showError(error);details.innerHTML='<summary>جزئیات جلسه</summary><p role="alert">دریافت جزئیات ممکن نشد.</p><button class="button subtle" data-action="retry-details">تلاش دوباره</button>';}}
+ finally{if(details.isConnected)details.removeAttribute('aria-busy');}
+}
+async function printReport(){
+ if(!clients.reportPage&&!publicReportData?.pagination)return window.print();
+ const view={version:viewVersion,userId:currentUser?.id,role:currentUser?.role},publicView=!!publicReportData;
+ let data,state;
+ if(publicView){const token=location.hash.match(/^#report\/([a-f0-9]{64})$/)?.[1],body={...Object.fromEntries(reportQuery('print')),token};delete body.recordId;if(reportState.recordId)body.recordRef=reportState.recordId;data=await viewRequest(view,'/public/report',{method:'POST',body});if(!currentView(view))return;const id='shared-report',adapt=r=>r?{id:r.ref,profileId:id,kind:r.kind,result:r.result}:null;state={activeId:id,profiles:[{id,firstName:data.displayName,lastName:''}],records:[],reportPage:{...data,records:data.records.map(adapt),selected:adapt(data.selected),trend:data.trend.map(adapt)}};
+ }else{data=await viewRequest(view,`/children/${clients.activeId}/reports?${reportQuery('print')}`);if(!currentView(view))return;state={...clients,reportPage:data};}
+ const overlay=document.createElement('div');overlay.id='report-print-overlay';overlay.innerHTML=reportsView(state,reportState,publicView?{role:'public'}:currentUser);document.body.append(overlay);document.body.classList.add('printing-report');
+ try{window.print();}finally{overlay.remove();document.body.classList.remove('printing-report');}
+}
+app.addEventListener('toggle',event=>{if(event.target.matches?.('.outcome-details[open]'))void loadSessionDetails(event.target);},{capture:true});
+for(const type of ['input','change'])document.addEventListener(type,event=>{const form=event.target.closest?.('form');if(form){delete form.dataset.acknowledged;formTracker.changed(form);}},{capture:true});
+
 async function submitForm(form){
   if(form.dataset.waiting==='true')return;
-  const submission=pwa?.captureForm(form);
+  const submission=formTracker.capture(form);form.submission=submission;
+  if(form.dataset.acknowledged==='true')return;
   form.dataset.waiting='true';form.setAttribute('aria-busy','true');
   const controls=[...form.querySelectorAll('input,textarea,select,button')].map(control=>({control,disabled:control.disabled}));
   controls.forEach(({control})=>control.disabled=true);
-  try{const result=await processForm(form);if(result!==false)pwa?.formSaved(form,submission);return result;}finally{delete form.dataset.waiting;form.removeAttribute('aria-busy');controls.forEach(({control,disabled})=>control.disabled=disabled);pwa?.sync();}
+  try{const result=await processForm(form);if(result!==false)navigationGuard.acknowledge(form,submission);return result;}finally{delete form.dataset.waiting;form.removeAttribute('aria-busy');controls.forEach(({control,disabled})=>control.disabled=disabled);pwa?.sync();}
 }
 async function processForm(form){
   const values=Object.fromEntries([...form.querySelectorAll('[name]')].map(el=>[el.name||el.getAttribute('name'),el.value]));
@@ -605,26 +736,31 @@ async function processForm(form){
     const auth=await request('/public/registration/complete',{method:'POST',body:{token:registrationToken,username:values.username,password:values.password,email:values.email,profile:values}});history.replaceState?.({},'',location.pathname);return openSignedInHome(auth);
   }
   if(form.id==='registration-link-form'){
-    const view={version:viewVersion,userId:currentUser.id,role:currentUser.role},data=await viewRequest(view,'/registration-links',{method:'POST',body:values});if(!currentView(view))return;
-    if(form.isConnected&&modal.open)showInvitation(data);scheduleAdminRefresh(view);return;
+    const view={version:viewVersion,userId:currentUser.id,role:currentUser.role},data=await viewRequest(view,'/registration-links',{method:'POST',body:values});if(!currentView(view))return;acknowledgeForm(form);
+    if(form.isConnected&&modal.open){form.hidden=true;showInvitation(data);}scheduleAdminRefresh(view);return;
   }
+  if(form.id==='audit-filter-form'){Object.assign(auditState,values,{page:1});return showAudit();}
+  if(form.id==='import-target-filter'){return loadImportTargets(values.search,1);}
+  if(form.id==='report-client-filter'){clients.selectorSearch=values.search;clients.selectorPage=1;return dashboard();}
   if(form.id==='user-filter-form'){Object.assign(adminState,values,{page:1});return adminUsers();}
   if(form.id==='create-user-form'){
     const view={version:viewVersion,userId:currentUser.id,role:currentUser.role},preview=previewImport,data=await viewRequest(view,'/users',{method:'POST',body:{...values,profile:values}});
-    if(!currentView(view))return;if(!form.isConnected||!modal.open){scheduleAdminRefresh(view);return;}
-    if(form.dataset.importSource&&preview&&preview===previewImport){const source=form.dataset.importSource;const choices=new Map([...document.querySelectorAll('.import-mapping')].map(row=>[row.dataset.source,row.querySelector('[name=targetId]').value]));if(!await refreshClients(view)||preview!==previewImport)return;preview.profiles.forEach(p=>p.targetId=p.sourceId===source?data.profile.id:choices.get(p.sourceId)||p.targetId);if(modal.open)modal.close();const target=document.querySelector('#import-preview');if(target)target.innerHTML=importPreviewView(preview,clients.profiles);return notify('کاربر ساخته شد؛ انتقال سوابق را تأیید کنید.');}
-    if(modal.open)modal.close();await adminUsers();if(data.url){openModal('<h2 id="modal-title">دعوت ادمین</h2><div id="invitation-result"></div><button class="button subtle" data-action="close-modal">بستن</button>','invitation');showInvitation(data);}return notify('کاربر با موفقیت ساخته شد.');
+    if(!currentView(view))return;acknowledgeForm(form);if(!form.isConnected||!modal.open){scheduleAdminRefresh(view);return;}
+    if(form.dataset.importSource&&preview&&preview===previewImport){const source=form.dataset.importSource;const choices=new Map([...document.querySelectorAll('.import-mapping')].map(row=>[row.dataset.source,row.querySelector('[name=targetId]').value]));if(!await refreshClients(view)||preview!==previewImport)return;if(data.profile&&!clients.profiles.some(p=>p.id===data.profile.id))clients.profiles.push(data.profile);preview.profiles.forEach(p=>p.targetId=p.sourceId===source?data.profile.id:choices.get(p.sourceId)||p.targetId);if(modal.open)modal.close();const target=document.querySelector('#import-preview');if(target)target.innerHTML=importPreviewView(preview,clients.profiles);return notify('کاربر ساخته شد؛ انتقال سوابق را تأیید کنید.');}
+    if(data.url){openModal('<h2 id="modal-title">دعوت ادمین</h2><div id="invitation-result"></div><button class="button subtle" data-action="close-modal">بستن</button>','invitation');showInvitation(data);}else{if(modal.open)modal.close();}notify('کاربر با موفقیت ساخته شد.');void refreshCreatedUsers();return;
   }
-  if(form.id==='edit-user-form'){const view={version:viewVersion,userId:currentUser.id,role:currentUser.role},body={username:values.username,...(form.dataset.role==='user'?{profile:values}:{name:values.name})};const data=await request(`/users/${form.dataset.user}`,{method:'PATCH',body});if(data.user.id===currentUser.id)currentUser=data.user;if(!currentView(view)||!form.isConnected)return;await inspectUser(data.user.id);return notify('اطلاعات کاربر ذخیره شد.');}
-  if(form.id==='report-link-form'){const childId=clients.activeId,version=viewVersion;const data=await request(`/children/${childId}/report-links`,{method:'POST',body:values});if(version!==viewVersion||childId!==clients.activeId)return;await reportLinks();if(route==='report-links'&&childId===clients.activeId)return showInvitation(data);return;}
-  if(form.id==='admin-difficulty-form'){const view={version:viewVersion,userId:currentUser.id,role:currentUser.role},childId=clients.activeId;await viewRequest(view,`/children/${childId}/difficulty`,{method:'PATCH',body:{...policyOptions(values.gameId,values.variant),mode:values.mode,level:values.level}});if(!currentView(view)||!await refreshClients(view))return;syncPolicyControls(false);return notify('تنظیم سطح برای جلسهٔ بعد ذخیره شد.');}
+  if(form.id==='edit-user-form'){const view={version:viewVersion,userId:currentUser.id,role:currentUser.role},body={username:values.username,...(form.dataset.role==='user'?{profile:values}:{name:values.name})};body.expectedRevision=Number(form.dataset.revision);if(body.profile)body.expectedProfileRevision=Number(form.dataset.profileRevision);const data=await viewRequest(view,`/users/${form.dataset.user}`,{method:'PATCH',body});if(!currentView(view)||!data)return;acknowledgeForm(form,data);if(data.user.id===currentUser.id)currentUser=data.user;if(!currentView(view)||!form.isConnected)return;notify('اطلاعات کاربر ذخیره شد.');try{await inspectUser(data.user.id);notify('اطلاعات کاربر ذخیره شد.');}catch(error){if(currentUser?.id===view.userId)refreshFailure(error);}return;}
+  if(form.id==='report-link-form'){const childId=clients.activeId,version=viewVersion;const data=await request(`/children/${childId}/report-links`,{method:'POST',body:values});acknowledgeForm(form);if(version!==viewVersion||childId!==clients.activeId)return;showInvitation(data);form.hidden=true;document.querySelector('#invitation-result')?.insertAdjacentHTML('beforeend','<button class="button subtle" data-action="new-report-link">ساخت لینک جدید</button>');notify('لینک ساخته شد.');try{await refreshReportLinks({version:viewVersion,userId:currentUser.id,role:currentUser.role},childId);}catch(error){if(version===viewVersion)refreshFailure(error);}return;}
+  if(form.id==='admin-difficulty-form'){const view={version:viewVersion,userId:currentUser.id,role:currentUser.role},childId=clients.activeId;await viewRequest(view,`/children/${childId}/difficulty`,{method:'PATCH',body:{...policyOptions(values.gameId,values.variant),mode:values.mode,level:values.level}});if(!currentView(view))return;acknowledgeForm(form);notify('تنظیم سطح برای جلسهٔ بعد ذخیره شد.');try{if(!await refreshClients(view))return;syncPolicyControls(false);}catch(error){if(currentUser?.id===view.userId)refreshFailure(error);}return;}
   if(form.id==='invitation-form'){const data=await request('/invitations',{method:'POST',body:values});return showInvitation(data);}
   if(form.id!=='profile-form')return false;
   const validation=validateProfile(values);if(validation.error){document.querySelector('#profile-error').textContent=validation.error;return false;}
-  const data=await request(editingProfile?`/children/${editingProfile}`:'/children',{method:editingProfile?'PATCH':'POST',body:{...validation.profile,...(values.ownerUserId?{ownerUserId:values.ownerUserId}:{})}});
-  clients.activeId=data.profile.id;await refreshClients();
-  if(pendingStart)return continueAfterProfile();
-  if(inspectedUserId){await inspectUser(inspectedUserId);return notify('مشخصات اطلاعات کاربر ذخیره شد.');}return profiles(null,'مشخصات در سرور مرکز ذخیره شد.');
+  const data=await request(editingProfile?`/children/${editingProfile}`:'/children',{method:editingProfile?'PATCH':'POST',body:{...validation.profile,expectedRevision:Number(form.dataset.revision||1),...(values.ownerUserId?{ownerUserId:values.ownerUserId}:{})}});
+  acknowledgeForm(form,data);clients.activeId=data.profile.id;notify('مشخصات در سرور مرکز ذخیره شد.');
+  try{
+   await refreshClients();if(pendingStart)return continueAfterProfile();
+   if(inspectedUserId){await inspectUser(inspectedUserId);return notify('مشخصات اطلاعات کاربر ذخیره شد.');}return profiles(null,'مشخصات در سرور مرکز ذخیره شد.');
+  }catch(error){refreshFailure(error);}
 }
 app.addEventListener('change',event=>{void changeInput(event).catch(showError);});
 modal.addEventListener('change',event=>{void changeInput(event).catch(showError);});
@@ -648,18 +784,22 @@ async function changeInput(event){
   if(['policy-game','policy-variant'].includes(event.target.id))return syncPolicyControls(event.target.id==='policy-game');
   if(event.target.id==='import-file'){const file=event.target.files?.[0];if(file)return previewLegacy(async()=>JSON.parse(await file.text()));}
   if(event.target.id==='report-profile') {
-    const profile=clients.profiles.find(p=>p.id===event.target.value);if(!profile)return;
+    if(!await navigationGuard.allow(submitForm)){event.target.value=clients.activeId;return;}
+    const profile=(clients.selectorProfiles||clients.profiles).find(p=>p.id===event.target.value);if(!profile)return;
     clients.activeId=profile.id;reportState.recordId=null;
     if(currentUser.role==='admin'&&inspectedUserId){inspectedUserId=profile.ownerUserId||null;if(inspectedUserId)return inspectUser(inspectedUserId);}
     await dashboard();
   }
   const filter=event.target.dataset.reportFilter;
-  if(['game','level','variant','kind'].includes(filter)) {reportState[filter]=event.target.value;reportState.recordId=null;await refreshFilteredReport();}
+  if(['game','level','variant','kind'].includes(filter)) {reportState[filter]=event.target.value;reportState.recordId=null;reportState.page=1;await refreshFilteredReport();}
 }
 async function handleAction(event) {
   const fromReactionPointer=event.type==='click'&&event.detail>0&&reactionPointerInput;if(event.type==='click')reactionPointerInput=false;
   const button = event.target.closest('[data-action]'); if(!button||button.disabled) return;
   const action=button.dataset.action;
+  if(button.tagName==='A')event.preventDefault();
+  const leaving=['home','admin','admin-users','admin-invitations','admin-audit','account','profiles','assessment','assessment-next','assess-game','assessment-train','open','inspect-user','review-profile','select-profile','logout','new-user','new-registration','create-mode','close-modal','games','refresh-panel','dashboard','report-links','edit-profile'];
+  if(leaving.includes(action)&&!await navigationGuard.allow(submitForm)){if(button.tagName==='A')event.preventDefault();return;}
   if(action==='toggle-password'){const input=button.closest('.input-shell')?.querySelector('input');if(input){const show=input.type==='password';input.type=show?'text':'password';button.setAttribute('aria-pressed',String(show));button.setAttribute('aria-label',show?'پنهان‌کردن رمز':'نمایش رمز');button.innerHTML=icon(show?'eye-off':'eye');}return;}
   if(action==='listen-guide'){if(route==='play'&&playPhase==='playing'&&!engine?.paused)return;if(guidance.key===button.dataset.guide&&guidance.audio)return guidance.stop();progress.sound=true;writeProgress(progress);syncSoundControls();return guidance.play(button.dataset.guide);}
   if(['lesson-memory-next','lesson-memory-help','lesson-memory-replay'].includes(action))return changeMemoryLesson(action);
@@ -667,14 +807,24 @@ async function handleAction(event) {
   if(action==='admin-menu')return toggleAdminMenu();
   if(action==='admin-users')return adminUsers();
   if(action==='admin-invitations')return adminInvitations();
+  if(action==='admin-audit')return showAudit(false);
+  if(action==='audit-page'){auditState.page=Number(button.dataset.page);return showAudit();}
+  if(action==='report-page'){reportState.page=Number(button.dataset.page);return dashboard();}
+  if(action==='selector-page'){clients.selectorPage=Number(button.dataset.page);return dashboard();}
+  if(action==='import-target-page')return loadImportTargets(previewImport?.targetSearch||'',Number(button.dataset.page));
+  if(action==='unresolved-page'){unresolvedPage=Number(button.dataset.page);return account();}
+  if(action==='refresh-panel')return retryPanelRefresh();
+  if(action==='new-report-link'){const form=document.querySelector('#report-link-form');form.hidden=false;delete form.dataset.acknowledged;form.reset?.();formTracker.saved(form,formTracker.capture(form));document.querySelector('#invitation-result').innerHTML='';return;}
+  if(action==='reload-conflict'){if(await navigationGuard.allow(submitForm))return inspectUser(inspectedUserId);return;}
+  if(action==='retry-details')return loadSessionDetails(button.closest('.outcome-details'));
   if(action==='dashboard-range'){dashboardDays=Number(button.dataset.days);return adminPanel();}
   if(action==='users-page'){adminState.page=Number(button.dataset.page);return adminUsers();}
   if(action==='new-user'||action==='new-registration'){createContext={};return openCreate(action==='new-registration'?'link':'direct');}
   if(action==='create-mode')return openCreate(button.dataset.mode);
   if(action==='import-create-user'){const source=previewImport?.profiles.find(p=>p.sourceId===button.dataset.source);if(source){const legacy=clients.profiles.find(p=>p.id===source.targetId&&!p.ownerUserId);createContext={profile:source.profile,source:source.sourceId,childId:legacy?.id||''};return openCreate('direct');}return;}
-  if(action==='resolve-user'){const legacy=clients.profiles.find(p=>p.id===button.dataset.id&&!p.ownerUserId);if(legacy){createContext={profile:legacy,childId:legacy.id};return openCreate('direct');}return;}
+  if(action==='resolve-user'){const legacy=unresolvedProfiles.find(p=>p.id===button.dataset.id&&!p.ownerUserId);if(legacy){createContext={profile:legacy,childId:legacy.id};return openCreate('direct');}return;}
   if(action==='revoke-registration'){const view={version:viewVersion,userId:currentUser.id,role:currentUser.role};await viewRequest(view,`/registration-links/${button.dataset.id}`,{method:'DELETE'});if(currentView(view))return adminInvitations();return;}
-  if(action==='user-tab'){userTab=button.dataset.tab;viewVersion++;document.querySelectorAll('.user-tabs [role=tab]').forEach(tab=>{const active=tab.dataset.tab===userTab;tab.classList.toggle('selected',active);tab.setAttribute('aria-selected',String(active));});document.querySelectorAll('[id^="user-"][role=tabpanel]').forEach(panel=>panel.hidden=panel.id!==`user-${userTab}`);return;}
+  if(action==='user-tab'){activateUserTab(button.dataset.tab);return loadUserTab();}
   if(fromReactionPointer&&['respond','stimulus-response'].includes(action)){event.preventDefault();return;}
   if(starting&&!['sound','about'].includes(action))return;
   if(route==='play'&&['account','profiles','dashboard','home','assessment','open'].includes(action))engine?.clock.pause();
@@ -701,7 +851,7 @@ async function handleAction(event) {
     return;
   }
   if(action==='reset-link'){const version=viewVersion,data=await request('/invitations',{method:'POST',body:{userId:button.dataset.user,purpose:button.dataset.purpose||'reset'}});if(version===viewVersion)return showInvitation(data);return;}
-  if(action==='toggle-user'){const view={version:viewVersion,userId:currentUser.id,role:currentUser.role};await viewRequest(view,`/users/${button.dataset.user}`,{method:'PATCH',body:{active:button.dataset.active==='true'}});if(!currentView(view))return;if(button.dataset.user===currentUser.id&&button.dataset.active==='false')return prepareLogin('حساب شما غیرفعال شد.');return inspectUser(button.dataset.user);}
+  if(action==='toggle-user'){const view={version:viewVersion,userId:currentUser.id,role:currentUser.role};await viewRequest(view,`/users/${button.dataset.user}`,{method:'PATCH',body:{active:button.dataset.active==='true',expectedRevision:Number(button.dataset.revision||inspectedRevision)}});if(!currentView(view))return;if(button.dataset.user===currentUser.id&&button.dataset.active==='false')return prepareLogin('حساب شما غیرفعال شد.');return inspectUser(button.dataset.user);}
   if(action==='import-browser')return previewLegacy(()=>readClients());
   if(action==='commit-import')return commitLegacy();
   if(action==='adaptive-level'){await request(`/children/${clients.activeId}/difficulty`,{method:'PATCH',body:{...gameOptions(),mode:'adaptive',level:selectedLevel}});await refreshClients();return detail(selectedGame,false);}
@@ -718,8 +868,8 @@ async function handleAction(event) {
   if(action==='assessment-reports'){Object.assign(reportState,{kind:'baseline',game:'',level:'',variant:'standard',recordId:null});return dashboard();}
   if(action==='dashboard') {
     if(route==='result' && sessionRecordId) {
-      const record=profileRecords(clients).find(record=>record.id===sessionRecordId);
-      if(record)Object.assign(reportState,{kind:record.kind,game:record.result.gameId,level:record.result.level,variant:variantOf(record.result),recordId:record.id});
+      const record=completedRecord?.id===sessionRecordId?completedRecord:profileRecords(clients).find(record=>record.id===sessionRecordId);
+      if(record)Object.assign(reportState,{kind:record.kind,game:record.result.gameId,level:record.result.level,variant:variantOf(record.result),recordId:record.id,page:1});
     }
     return dashboard();
   }
@@ -727,7 +877,7 @@ async function handleAction(event) {
   if(action==='edit-profile') return profiles(button.dataset.id);
   if(action==='report-tab') { reportState.tab=button.dataset.tab; return dashboard(); }
   if(action==='select-record') { reportState.recordId=button.dataset.id; return dashboard(); }
-  if(action==='print-report') return window.print();
+  if(action==='print-report') return printReport();
   if(action==='export-profile') return exportProfile();
   if(action==='export-trials') return exportTrials();
   if(action==='recommended-level') { if(currentUser.role!=='admin')return;guideState=null;selectedLevel=button.dataset.level;await request(`/children/${clients.activeId}/difficulty`,{method:'PATCH',body:{...gameOptions(),mode:'fixed',level:selectedLevel}});return detail(selectedGame); }
@@ -747,9 +897,10 @@ async function handleAction(event) {
   if(action==='search-mode'&&['single','dual'].includes(button.dataset.mode)){ selectedSearchMode=button.dataset.mode;return detail(selectedGame,false); }
   if(action==='search-layout'&&['grid','scattered'].includes(button.dataset.layout)) { selectedLayout=button.dataset.layout;document.querySelectorAll('.layout-button').forEach(node=>{const selected=node.dataset.layout===selectedLayout;node.classList.toggle('selected',selected);node.setAttribute('aria-pressed',String(selected));});return detail(selectedGame,false); }
   if(action==='practice') return start(true);
+  if(action==='repeat-practice'&&route==='result'&&engine?.practice)return start(true,false,sessionOptions);
   if(action==='main-game'||action==='replay') return start(false);
   if(action==='pause') return pause();
-  if(action==='restart') return start(engine?.practice ?? false);
+  if(action==='restart') return start(engine?.practice ?? false,false,repeatingPractice?sessionOptions:null);
   if(route!=='play'||!engine||modal.open) return;
   if(action==='begin-game')return beginGame();
   if(playPhase!=='playing')return;
@@ -772,13 +923,14 @@ app.addEventListener('pointerdown',event=>{
 });
 modal.addEventListener('click',event=>{void handleAction(event).catch(showError);});
 modal.addEventListener('submit',event=>{event.preventDefault();void submitForm(event.target).catch(showError);});
-modal.addEventListener('cancel', event=>{ event.preventDefault(); closeModal(); });
+modal.addEventListener('cancel',event=>{event.preventDefault();void navigationGuard.allow(submitForm).then(allowed=>{if(allowed)closeModal();}).catch(showError);});
 document.addEventListener('keydown', event=>{
+  if(handleTabKey(event))return;
   // Native Enter activation repeats on a held key, even after focus moves to
   // the next trial or its review. Require a fresh press for each activation.
   if(route==='play'&&event.key==='Enter'&&event.repeat&&event.target.closest?.('button[data-action]')){event.preventDefault();return;}
   if(route==='play'&&!modal.open){keyboardPlay=true;if(playPhase==='playing'&&moveFieldFocus(event.target,event.key)){event.preventDefault();return;}}
-  if(event.key==='Escape'&&document.body.classList.contains('admin-menu-open')){event.preventDefault();return toggleAdminMenu(false);}
+  if(event.key==='Escape'&&document.body.classList.contains('admin-menu-open')&&!document.querySelector('.navigation-confirm[open]')){event.preventDefault();return toggleAdminMenu(false);}
   if(event.key==='Tab'&&document.body.classList.contains('admin-menu-open')){const controls=[...document.querySelectorAll('.admin-sidebar a,.admin-sidebar button')],first=controls[0],last=controls.at(-1);if(event.shiftKey&&document.activeElement===first){event.preventDefault();last?.focus();}else if(!event.shiftKey&&document.activeElement===last){event.preventDefault();first?.focus();}}
   if(event.key==='Escape'&&route==='play'&&!modal.open) { event.preventDefault(); pause(); }
   if(event.code==='Space'&&route==='play'&&!modal.open) {
@@ -797,23 +949,23 @@ document.addEventListener('keydown', event=>{
 });
 document.addEventListener('visibilitychange', ()=>{ if(document.hidden&&route==='play'&&engine&&(!engine.paused||engine.transitionClock||playPhase==='countdown')) { if(modal.open) { engine.pause();preparationClock?.pause(); } else pause(); } });
 window.addEventListener('orientationchange',()=>{if(route==='play'&&engine&&(!engine.paused||engine.transitionClock||playPhase==='countdown')&&!modal.open)pause();});
-window.addEventListener('popstate',()=>{if(pendingSave){setHash(`#${pendingSave.result.gameId}`);notify('نتیجه هنوز در سرور ثبت نشده است.');return;}void navigate().catch(showError);});
-function gameOptions(){return {gameId:selectedGame,clientExperienceVersion:EXPERIENCE_VERSION,level:selectedLevel,theme:selectedTheme,material:selectedMaterial,layout:selectedLayout,trafficMode:selectedTrafficMode,targetCount:selectedGame==='search'?(selectedSearchMode==='dual'?2:1):(selectedHuntMode==='divided'?2:1)};}
+function gameOptions(){return {gameId:selectedGame,clientExperienceVersion:EXPERIENCE_VERSION,view:'panel',level:selectedLevel,theme:selectedTheme,material:selectedMaterial,layout:selectedLayout,trafficMode:selectedTrafficMode,targetCount:selectedGame==='search'?(selectedSearchMode==='dual'?2:1):(selectedHuntMode==='divided'?2:1)};}
 async function refreshClients(view=null){
  const viewerId=currentUser?.id,viewerRole=currentUser?.role;
  const valid=()=>currentUser?.id===viewerId&&currentUser?.role===viewerRole&&(!view||currentView(view));let data;
- try{data=await request(`/bootstrap${clients.activeId?'?childId='+encodeURIComponent(clients.activeId):''}`);}catch(error){if(!valid())return false;throw error;}
+ try{data=await request(`/bootstrap?view=panel${clients.activeId?'&childId='+encodeURIComponent(clients.activeId):''}`);}catch(error){if(!valid())return false;throw error;}
  if(!valid())return false;
  if(data.user.id!==viewerId||data.user.role!==viewerRole)throw new ApiError('حساب این مرورگر تغییر کرده است؛ دوباره وارد شوید.',401,'ACCOUNT_CHANGED');
- currentUser=data.user;Object.assign(clients,data);return true;
+ currentUser=data.user;Object.assign(clients,data);delete clients.reportPage;return true;
 }
 function showLogin(invite=null){
   route=invite?'invitation':'auth';engine=null;cancelAnimationFrame(frame);if(modal.open)modal.close();
   page(loginView({invite}), 'auth-main');
 }
 function clearPrivateData(){
- members=[];inspectedUserId=null;publicReportData=null;previewImport=null;importAttempt=null;remoteRun=null;pendingAdminRefresh=null;
- pendingStart=null;guideState=null;lessonState=null;editingProfile=null;sessionRecordId=null;engine=null;launchAttempt=null;starting=false;userTab='overview';
+ navigationGuard.clear();completedRecord=null;delete clients.panelSummary;delete clients.reportPage;delete clients.selectorProfiles;unresolvedProfiles=[];
+ members=[];inspectedUserId=null;publicReportData=null;previewImport=null;importAttempt=null;remoteRun=null;pendingAdminRefresh=null;pendingPanelRefresh=null;
+ pendingStart=null;guideState=null;lessonState=null;editingProfile=null;sessionRecordId=null;sessionOptions=null;repeatingPractice=false;engine=null;launchAttempt=null;starting=false;userTab='overview';
  Object.assign(clients,{activeId:null,profiles:[],records:[],difficulties:[]});Object.assign(reportState,{tab:'admin',game:'',level:'',variant:'',kind:'training',recordId:null});
 }
 function connectionError(error){
@@ -847,11 +999,11 @@ async function navigate(){
  if(id.startsWith('report/')){
   publicReportMessage('در حال دریافت گزارش','لطفاً کمی صبر کنید.');
   if(!shared)throw Error('لینک گزارش معتبر نیست؛ لینک کامل را از فرستنده دریافت کنید.');
-  const view=beginView();Object.assign(reportState,{tab:'parents',game:'',level:'',variant:'',kind:'',recordId:null});const data=await viewRequest(view,'/public/report',{method:'POST',body:{token:shared[1]}});if(!currentView(view))return;publicReportData=data;return renderPublicReport();
+  const view=beginView();Object.assign(reportState,{tab:'parents',game:'',level:'',variant:'',kind:'',recordId:null});const data=await viewRequest(view,'/public/report',{method:'POST',body:{token:shared[1],view:'panel',kind:''}});if(!currentView(view))return;publicReportData=data;return renderPublicReport();
  }
  publicReportData=null;
  if(!currentUser)return showLogin();if(currentUser.passwordChangeRequired)return forcedPassword();
- if(currentUser.role==='admin'){const member=id.match(/^admin\/users?\/([a-f0-9-]{36})$/);if(member)return inspectUser(member[1]);if(['profiles','admin/users'].includes(id))return adminUsers();if(id==='admin/invitations')return adminInvitations();if(['account','admin/settings'].includes(id))return account();if(id==='report-links')return reportLinks();if(id==='reports')return dashboard();return adminPanel();}
+ if(currentUser.role==='admin'){const member=id.match(/^admin\/users?\/([a-f0-9-]{36})$/);if(member)return inspectUser(member[1]);if(['profiles','admin/users'].includes(id))return adminUsers();if(id==='admin/invitations')return adminInvitations();if(['account','admin/settings'].includes(id))return account();if(id==='report-links')return reportLinks();if(id==='reports')return dashboard();if(id==='admin/audit')return showAudit(false);return adminPanel();}
  if(!clients.activeId){const view=beginView();if(!await refreshClients(view))return;}
  inspectedUserId=null;
  if(id==='assessment')return assessment();if(id==='reports')return dashboard();if(id==='account')return account();if(id==='report-links')return reportLinks();if(Object.hasOwn(GAME_MAP,id))return detail(id,false);return home();
@@ -870,6 +1022,12 @@ function notify(message){
 }
 function showError(error){
   if(error.code==='STALE_RESPONSE')return;
+  if(error.code==='EDIT_CONFLICT'){
+    const form=document.querySelector('#edit-user-form')||document.querySelector('form#profile-form');
+    let node=form&&!form.closest('[hidden]')?form.querySelector('#profile-error,#account-error'):null;
+    if(node)node.textContent=error.message;else{notify(error.message);node=document.querySelector('#account-status')||document.querySelector('#app-status');}
+    node?.insertAdjacentHTML('beforeend','<button type="button" class="button subtle" data-action="reload-conflict">بارگیری نسخهٔ تازه</button>');return;
+  }
   if(location.hash.startsWith('#report/'))return publicReportMessage('گزارش در دسترس نیست',error.message,true);
   if(error.code==='PASSWORD_CHANGE_REQUIRED'&&currentUser){currentUser.passwordChangeRequired=true;return forcedPassword();}
   if(error.status===401&&!pendingSave&&currentUser){void prepareLogin(error.message).catch(showError);return;}
@@ -882,18 +1040,18 @@ async function persistPending(){
   const pending=pendingSave;if(!pending||pending.saving)return;
   pending.saving=true;let data;
   try {
-    data=await request(`/children/${pending.childId}/sessions/${pending.run.id}/complete`,{method:'POST',body:{result:pending.result}});
+    data=await request(`/children/${pending.childId}/sessions/${pending.run.id}/complete`,{method:'POST',body:{result:pending.result,view:'panel'}});
   }catch(error){
     pending.saving=false;const note=document.querySelector('.local-note');if(note)note.innerHTML=`<span>${icon('info')} نتیجه هنوز ثبت نشده: ${esc(error.message)} نتیجه تا بستن صفحه در حافظه می‌ماند.</span><button class="button subtle" data-action="retry-save">تلاش دوباره برای ثبت</button><button class="text-button" data-action="reauth">ورود دوباره با حساب اجراکننده</button>`;
     return;
   }
   // The completion acknowledgement is authoritative even if the following refresh fails.
-  sessionRecordId=data.record.id;pendingSave=null;
+  sessionRecordId=data.record.id;completedRecord=data.record;pendingSave=null;if(data.panelSummary)clients.panelSummary=data.panelSummary;
   const index=clients.records.findIndex(record=>record.id===data.record.id);if(index<0)clients.records.push(data.record);else clients.records[index]=data.record;
   const note=document.querySelector('.local-note');if(note)note.innerHTML=`${icon('check')} نتیجه در سرور مرکز ذخیره شد.`;
-  document.querySelectorAll('.result-actions button').forEach(button=>button.disabled=false);
+  renderResultActions();
   if(data.record.kind==='training'){
-    const content=`بهترین امتیاز این سطح: <b>${fa(Math.max(...comparableRecords(profileRecords(clients),data.record).map(r=>r.result.score)))} از ${fa(data.record.result.maxScore)}</b>`,best=document.querySelector('.best-score');
+    const content=`بهترین امتیاز این سطح: <b>${fa(data.bestScore??Math.max(...comparableRecords(profileRecords(clients),data.record).map(r=>r.result.score)))} از ${fa(data.record.result.maxScore)}</b>`,best=document.querySelector('.best-score');
     if(best)best.innerHTML=content;else document.querySelector('.result-main-score')?.insertAdjacentHTML('afterend',`<p class="best-score">${content}</p>`);
   }
   const view={version:viewVersion,userId:currentUser?.id,role:currentUser?.role};
@@ -905,12 +1063,19 @@ async function persistPending(){
 }
 async function account(){
  if(!currentUser)return showLogin();if(currentUser.passwordChangeRequired)return forcedPassword();const view=beginView();if(!await refreshClients(view))return;
- if(currentUser.role==='admin'){const data=await viewRequest(view,'/users');if(!currentView(view))return;members=data.users;}
- guideState=null;engine=null;route='account';setHash(currentUser.role==='admin'?'#admin/settings':'#account');if(modal.open)modal.close();page(accountView(currentUser,clients.profiles.filter(p=>!p.ownerUserId)),'content-main account-main');
+ if(currentUser.role==='admin'){const data=await viewRequest(view,`/children?view=panel&owner=unassigned&page=${unresolvedPage}`);if(!currentView(view))return;unresolvedProfiles=data.profiles;unresolvedPage=data.pagination.page;unresolvedPages=data.pagination.pages;}
+ guideState=null;engine=null;route='account';setHash(currentUser.role==='admin'?'#admin/settings':'#account');if(modal.open)modal.close();page(accountView(currentUser,unresolvedProfiles),'content-main account-main');if(unresolvedPages>1)document.querySelector('.import-section')?.insertAdjacentHTML('beforeend',`<div class="pagination"><button class="button subtle" data-action="unresolved-page" data-page="${unresolvedPage-1}" ${unresolvedPage<=1?'disabled':''}>قبلی</button><button class="button subtle" data-action="unresolved-page" data-page="${unresolvedPage+1}" ${unresolvedPage>=unresolvedPages?'disabled':''}>بعدی</button></div>`);
 }
 async function adminUsers(){
  if(currentUser?.role!=='admin')return home();const view=beginView(),query=new URLSearchParams({...adminState,pageSize:20});const data=await viewRequest(view,`/users?${query}`);if(!currentView(view))return;
  members=data.users;adminState.page=data.pagination.page;inspectedUserId=null;engine=null;route='admin-users';if(modal.open)modal.close();setHash('#admin/users');document.title='کاربران — حواس';page(adminUsersView(data.users,adminState,data.pagination),'content-main admin-main');
+}
+async function refreshCreatedUsers(){
+ if(currentUser?.role!=='admin')return;const view=beginView();
+ try{
+  const query=new URLSearchParams({...adminState,pageSize:20}),data=await viewRequest(view,`/users?${query}`);if(!currentView(view))return;
+  pendingPanelRefresh=null;members=data.users;adminState.page=data.pagination.page;inspectedUserId=null;engine=null;route='admin-users';setHash('#admin/users');document.title='کاربران — حواس';page(adminUsersView(data.users,adminState,data.pagination),'content-main admin-main');notify('کاربر با موفقیت ساخته شد.');
+ }catch(error){if(currentView(view))refreshFailure(error,refreshCreatedUsers);}
 }
 async function adminInvitations(){
  if(currentUser?.role!=='admin')return home();const view=beginView(),data=await viewRequest(view,'/registration-links');if(!currentView(view))return;
@@ -923,7 +1088,7 @@ function scheduleAdminRefresh(view){
 function refreshAdminAfterDialog(){
  const pending=pendingAdminRefresh;pendingAdminRefresh=null;
  if(!pending||!currentView(pending.view)||route!==pending.route||currentUser?.role!=='admin')return;
- const refresh=route==='invitations'?adminInvitations():route==='admin-users'?adminUsers():adminPanel();void refresh.catch(showError);
+ const refresh=route==='invitations'?adminInvitations():route==='admin-users'?adminUsers():adminPanel();void refresh.catch(refreshFailure);
 }
 function openCreate(mode='direct'){
  if(currentUser?.role!=='admin')return;openModal(createUserView({...createContext,mode}),'create-user');syncCreateControls();
@@ -955,20 +1120,26 @@ async function adminPanel(){
 }
 async function inspectUser(id){
  if(currentUser?.role!=='admin')return home();const view=beginView(),data=await viewRequest(view,`/users/${id}`);if(!currentView(view))return;
- if(inspectedUserId!==id)userTab='overview';
- inspectedUserId=id;clients.activeId=data.profile?.id||null;if(!await refreshClients(view))return;let evaluation=null;
- if(data.profile){evaluation=await viewRequest(view,`/children/${data.profile.id}/assessment`);if(!currentView(view))return;}
+ if(inspectedUserId!==id){userTab='overview';reportState.recordId=null;reportState.page=1;clients.selectorSearch='';clients.selectorPage=1;}
+ inspectedUserId=id;inspectedRevision=data.user.revision||1;clients.activeId=data.profile?.id||null;
+ if(data.profile){if(!await refreshClients(view))return;}else{delete clients.panelSummary;delete clients.reportPage;clients.profiles=[];clients.records=[];clients.difficulties=[];}
+ const evaluation=clients.panelSummary?{steps:clients.panelSummary.assessmentSteps}:data.profile?await viewRequest(view,`/children/${data.profile.id}/assessment`):null;if(!currentView(view))return;
  route='admin-user';engine=null;editingProfile=data.profile?.id||null;if(modal.open)modal.close();setHash(`#admin/user/${id}`);document.title=`بررسی ${data.user.name} — حواس`;
- page(userDetailsView(data.user,data.profile,evaluation,userTab,data.profile?reportsView(clients,reportState,currentUser):''),'content-main admin-main');syncPolicyControls();
+ page(userDetailsView(data.user,data.profile,evaluation,userTab,''),'content-main admin-main');syncPolicyControls();navigationGuard.sync();
+ return loadUserTab();
 }
+
 async function reportLinks(){
  if(!currentUser)return showLogin();const view=beginView();if(!await refreshClients(view))return;const profile=activeProfile(clients);if(!profile)return home();const data=await viewRequest(view,`/children/${profile.id}/report-links`);if(!currentView(view))return;
  route='report-links';engine=null;if(modal.open)modal.close();setHash('#report-links');page(reportLinksView(data.links,profile),'content-main account-main');
 }
 function renderPublicReport(){
- route='public-report';engine=null;const id='shared-report',data={activeId:id,profiles:[{id,firstName:publicReportData.displayName,lastName:''}],records:publicReportData.sessions.map(r=>({id:String(r.number),profileId:id,kind:r.kind,result:r.result}))};
+ route='public-report';engine=null;const id='shared-report',adapt=r=>r?{id:r.ref,profileId:id,kind:r.kind,result:r.result}:null;
+ const data={activeId:id,profiles:[{id,firstName:publicReportData.displayName,lastName:''}],records:publicReportData.pagination?[]:publicReportData.sessions.map(r=>({id:String(r.number),profileId:id,kind:r.kind,result:r.result}))};
+ if(publicReportData.pagination)data.reportPage={...publicReportData,records:publicReportData.records.map(adapt),selected:adapt(publicReportData.selected),trend:publicReportData.trend.map(adapt)};
  page(reportsView(data,reportState,{role:'public'}),'content-main reports-main public-report');document.title='گزارش خانواده — حواس';
 }
+
 function syncCreateControls(){
  const form=document.querySelector('#create-user-form');if(!form)return;const user=form.elements.role.value==='user',direct=form.elements.method.value==='direct',existing=Boolean(form.elements.childId.value);
  form.elements.childId.disabled=!user;if(user)form.elements.method.value='direct';
@@ -991,20 +1162,31 @@ async function previewLegacy(readDocument){
   try{
     const documentData=await readDocument();if(!valid())return;
     const preview=await request('/imports/preview',{method:'POST',body:{document:documentData}});if(!valid())return;
-    previewImport=preview;container.innerHTML=importPreviewView(preview,clients.profiles,members,currentUser);
+    previewImport=preview;if(preview.id)await loadImportTargets('',1,view);else container.innerHTML=importPreviewView(preview,clients.profiles,members,currentUser);
   }catch(error){
     if(!valid())return;
     if(error.status===401||error.code==='PASSWORD_CHANGE_REQUIRED')return showError(error);
     container.innerHTML=`<div class="form-error" role="alert">${esc(error instanceof SyntaxError?'ساختار فایل JSON معتبر نیست.':error.message||'خواندن فایل ممکن نشد؛ دوباره تلاش کنید.')}</div>`;
   }finally{if(importAttempt===attempt)importAttempt=null;}
 }
+async function loadImportTargets(search='',pageNumber=1,existingView=null){
+ const preview=previewImport;if(!preview?.id)return;const view=existingView||{version:viewVersion,userId:currentUser.id,role:currentUser.role};
+ for(const row of document.querySelectorAll('.import-mapping')){const profile=preview.profiles.find(p=>p.sourceId===row.dataset.source);if(profile)profile.targetId=row.querySelector('[name=targetId]').value||null;}
+ const data=await viewRequest(view,`/users?role=user&page=${pageNumber}&pageSize=20&search=${encodeURIComponent(search)}`);if(!currentView(view)||preview!==previewImport||!data)return;
+ const choices=data.users.filter(u=>u.childId).map(u=>({id:u.childId,ownerUserId:u.id,firstName:u.name,lastName:''}));
+ for(const profile of preview.profiles.filter(p=>p.targetId&&!choices.some(c=>c.id===p.targetId))){const known=clients.profiles.find(p=>p.id===profile.targetId);if(known)choices.push(known);else{const found=await viewRequest(view,`/children/${profile.targetId}`);if(!currentView(view)||preview!==previewImport)return;if(found?.profile)choices.push(found.profile);}}
+ clients.profiles=[...clients.profiles.filter(p=>p.id===clients.activeId),...choices.filter(p=>p.id!==clients.activeId)];preview.targetSearch=search;
+ const filter=`<form id="import-target-filter" class="admin-filters"><label>جستجوی کاربر مقصد<input name="search" value="${esc(search)}"></label><button class="button subtle">جستجو</button><button type="button" class="button subtle" data-action="import-target-page" data-page="${data.pagination.page-1}" ${data.pagination.page<=1?'disabled':''}>قبلی</button><button type="button" class="button subtle" data-action="import-target-page" data-page="${data.pagination.page+1}" ${data.pagination.page>=data.pagination.pages?'disabled':''}>بعدی</button></form>`;
+ const container=document.querySelector('#import-preview');if(container)container.innerHTML=filter+importPreviewView(preview,clients.profiles);
+}
+
 async function commitLegacy(){
   if(!previewImport?.id)return;
   const view={version:viewVersion,userId:currentUser.id,role:currentUser.role},preview=previewImport;
   const mapping=[...document.querySelectorAll('.import-mapping')].map(row=>({sourceId:row.dataset.source,targetId:row.querySelector('[name="targetId"]').value||null,ownerUserId:null}));
   if(mapping.some(m=>!m.targetId)){notify('کاربر مقصد را انتخاب کنید یا با همین مشخصات کاربر جدید بسازید.');return;}
-  const data=await viewRequest(view,'/imports/commit',{method:'POST',body:{previewId:preview.id,mapping,requireUser:true}});if(!currentView(view)||preview!==previewImport)return;previewImport=null;if(!await refreshClients(view))return;await account();if(route==='account')notify(`${fa(data.importedRecords)} نتیجه منتقل شد.`);
+  const data=await viewRequest(view,'/imports/commit',{method:'POST',body:{previewId:preview.id,mapping,requireUser:true}});if(!currentView(view)||preview!==previewImport)return;previewImport=null;document.querySelector('#import-preview').innerHTML=`<p class="status-message">${fa(data.importedRecords)} نتیجه منتقل شد.</p>`;try{if(!await refreshClients(view))return;await account();if(route==='account')notify(`${fa(data.importedRecords)} نتیجه منتقل شد.`);}catch(error){refreshFailure(error);}
 }
-window.addEventListener('beforeunload',event=>{if(pendingSave){event.preventDefault();event.returnValue='';}});
-const pwa=setupPwa({canUpdate:()=>route!=='play'&&!pendingSave&&!starting});
+window.addEventListener('beforeunload',event=>{if(pendingSave||navigationGuard.hasChanges()){event.preventDefault();event.returnValue='';}});
+const pwa=setupPwa({formTracker,canUpdate:()=>route!=='play'&&!pendingSave&&!starting&&!navigationGuard.hasChanges()});
 await initialize();

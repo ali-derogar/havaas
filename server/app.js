@@ -1,3 +1,5 @@
+import {panelSummary,panelReport,bestScoreFor} from './panel.js';
+import {guardRevision,managedTransaction,registerAudit,pagination} from './management.js';
 import express from 'express';
 import session from 'express-session';
 import connectPg from 'connect-pg-simple';
@@ -26,7 +28,7 @@ export async function childAccess(db,user,id,write=false){
   const child=(await db.query("SELECT * FROM children WHERE id=$1 AND ($2='admin' OR owner_user_id=$3)",[id,user.role,user.id])).rows[0];
   check(child,'اطلاعات کاربر یافت نشد یا دسترسی ندارید.',404,'NOT_FOUND');return child;
 }
-export function profileDTO(child,user){const profile=user.role==='admin'?{...child.profile}:Object.fromEntries(['firstName','lastName','birthDate','grade','school'].map(key=>[key,child.profile[key]]));return {...profile,id:child.id,ownerUserId:child.owner_user_id,createdAt:child.created_at};}
+export function profileDTO(child,user){const profile=user.role==='admin'?{...child.profile}:Object.fromEntries(['firstName','lastName','birthDate','grade','school'].map(key=>[key,child.profile[key]]));return {...profile,revision:child.revision,id:child.id,ownerUserId:child.owner_user_id,createdAt:child.created_at};}
 export function recordDTO(row,user){return {id:row.id,profileId:row.child_id,kind:row.kind,result:user.role==='admin'?row.result:reportResult(row.result),...(user.role==='admin'?{actorId:row.actor_id,legacyId:row.legacy_id}:{}),startedAt:row.started_at};}
 async function listChildren(db,user){return (await db.query("SELECT * FROM children WHERE $1='admin' OR owner_user_id=$2 ORDER BY created_at,id",[user.role,user.id])).rows;}
 export function createApp({pool,secret=process.env.SESSION_SECRET,production=process.env.NODE_ENV==='production',trustProxy=process.env.TRUST_PROXY==='1',staticRoot=resolve('dist'),loginLimit=15}={}){
@@ -51,21 +53,41 @@ export function createApp({pool,secret=process.env.SESSION_SECRET,production=pro
   registerPublicReport(app,pool,rateLimit({windowMs:60*1000,limit:120,standardHeaders:true,legacyHeaders:false,message:{error:'کمی بعد دوباره تلاش کنید.'}}));
   registerAccounts(app,pool,{authLimit,role,profileDTO});
   registerReportLinks(app,pool,childAccess);
-  app.get('/api/children',async(req,res)=>res.json({profiles:(await listChildren(pool,req.user)).map(c=>profileDTO(c,req.user))}));
+  registerAudit(app,pool,role);
+  app.get('/api/children',async(req,res)=>{
+    if(req.query.view==='panel'){
+      role(req,['admin']);const {page,pageSize}=pagination(req.query),unassigned=req.query.owner==='unassigned';
+      const total=Number((await pool.query('SELECT count(*) FROM children'+(unassigned?' WHERE owner_user_id IS NULL':''))).rows[0].count),pages=Math.max(1,Math.ceil(total/pageSize)),effective=Math.min(page,pages);
+      const rows=(await pool.query('SELECT * FROM children'+(unassigned?' WHERE owner_user_id IS NULL':'')+' ORDER BY created_at,id LIMIT $1 OFFSET $2',[pageSize,(effective-1)*pageSize])).rows;
+      return res.json({profiles:rows.map(c=>profileDTO(c,req.user)),pagination:{page:effective,pageSize,total,pages}});
+    }res.json({profiles:(await listChildren(pool,req.user)).map(c=>profileDTO(c,req.user))});
+  });
   app.post('/api/children',async(req,res)=>{
     role(req,['admin']);const validation=validateProfile(req.body);check(!validation.error,validation.error);
     const ownerId=req.body.ownerUserId?uuid(req.body.ownerUserId):null;
     if(ownerId)check((await pool.query("SELECT 1 FROM users WHERE id=$1 AND role='user'",[ownerId])).rowCount,'کاربر معتبر انتخاب کنید.');
-    const child=(await pool.query('INSERT INTO children(id,owner_user_id,profile) VALUES($1,$2,$3) RETURNING *',[randomUUID(),ownerId,validation.profile])).rows[0];res.status(201).json({profile:profileDTO(child,req.user)});
+    const child=await managedTransaction(pool,req,async db=>(await db.query('INSERT INTO children(id,owner_user_id,profile) VALUES($1,$2,$3) RETURNING *',[randomUUID(),ownerId,validation.profile])).rows[0]);res.status(201).json({profile:profileDTO(child,req.user)});
   });
   app.get('/api/children/:id',async(req,res)=>res.json({profile:profileDTO(await childAccess(pool,req.user,req.params.id),req.user)}));
   app.patch('/api/children/:id',async(req,res)=>{
-    const child=await childAccess(pool,req.user,req.params.id,true),validation=validateProfile({...child.profile,...req.body});check(!validation.error,validation.error);
-    check(!Object.hasOwn(req.body,'ownerUserId')||req.body.ownerUserId===child.owner_user_id,'اتصال اطلاعات کاربر از مسیر ایجاد حساب انجام می‌شود.');
-    const updated=(await pool.query('UPDATE children SET profile=$1 WHERE id=$2 RETURNING *',[validation.profile,child.id])).rows[0];res.json({profile:profileDTO(updated,req.user)});
+    await childAccess(pool,req.user,req.params.id,true);
+    const updated=await managedTransaction(pool,req,async db=>{
+      const child=(await db.query('SELECT * FROM children WHERE id=$1 FOR UPDATE',[req.params.id])).rows[0];
+      guardRevision(req.body.expectedRevision,child.revision,{profile:profileDTO(child,req.user)});
+      const validation=validateProfile({...child.profile,...req.body});check(!validation.error,validation.error);
+      check(!Object.hasOwn(req.body,'ownerUserId')||req.body.ownerUserId===child.owner_user_id,'اتصال اطلاعات کاربر از مسیر ایجاد حساب انجام می‌شود.');
+      const result=(await db.query('UPDATE children SET profile=$1 WHERE id=$2 RETURNING *',[validation.profile,child.id])).rows[0];
+      if(child.owner_user_id){const name=`${validation.profile.firstName} ${validation.profile.lastName}`;check(name.length>=2&&name.length<=120,'مجموع نام و نام خانوادگی باید ۲ تا ۱۲۰ نویسه باشد.');await db.query('UPDATE users SET name=$1 WHERE id=$2',[name,child.owner_user_id]);}
+      return result;
+    });res.json({profile:profileDTO(updated,req.user)});
   });
   app.delete('/api/children/:id',async(req,res)=>{await childAccess(pool,req.user,req.params.id,true);throw new HttpError(409,'برای حفظ سوابق، حساب کاربر را غیرفعال کنید.','ARCHIVE_REQUIRED');});
   app.get('/api/bootstrap',async(req,res)=>{
+    if(req.query.view==='panel'){
+      const child=req.query.childId?await childAccess(pool,req.user,req.query.childId):(await pool.query("SELECT * FROM children WHERE $1='admin' OR owner_user_id=$2 ORDER BY created_at,id LIMIT 1",[req.user.role,req.user.id])).rows[0];
+      const activeId=child?.id||null,difficulties=activeId?(await pool.query('SELECT game_id AS "gameId",variant,protocol AS "protocolVersion",mode,level,revision FROM difficulty WHERE child_id=$1',[activeId])).rows:[];
+      return res.json({user:publicUser(req.user),version:1,activeId,profiles:child?[profileDTO(child,req.user)]:[],records:[],difficulties,panelSummary:await panelSummary(pool,activeId)});
+    }
     const children=await listChildren(pool,req.user),activeId=children.some(c=>c.id===req.query.childId)?req.query.childId:children[0]?.id||null;
     const rows=activeId?(await pool.query('SELECT * FROM game_sessions WHERE child_id=$1 AND result IS NOT NULL ORDER BY finished_at,id',[activeId])).rows:[];
     const difficulties=activeId?(await pool.query('SELECT game_id AS "gameId",variant,protocol AS "protocolVersion",mode,level,revision FROM difficulty WHERE child_id=$1',[activeId])).rows:[];
@@ -73,12 +95,16 @@ export function createApp({pool,secret=process.env.SESSION_SECRET,production=pro
   });
   const recordsFor=async(req)=>{await childAccess(pool,req.user,req.params.id);return (await pool.query('SELECT * FROM game_sessions WHERE child_id=$1 AND result IS NOT NULL ORDER BY finished_at,id',[req.params.id])).rows;};
   app.get('/api/children/:id/sessions',async(req,res)=>res.json({records:(await recordsFor(req)).map(r=>recordDTO(r,req.user))}));
-  app.get('/api/children/:id/reports',async(req,res)=>res.json({profile:profileDTO(await childAccess(pool,req.user,req.params.id),req.user),records:(await recordsFor(req)).map(r=>recordDTO(r,req.user))}));
-  app.get('/api/children/:id/assessment',async(req,res)=>{const rows=await recordsFor(req);res.json({steps:assessmentSteps({activeId:req.params.id,records:rows.map(r=>recordDTO(r,req.user))}).map(s=>({gameId:s.game.id,baseline:s.baseline,recommendation:s.recommendation}))});});
+  app.get('/api/children/:id/reports',async(req,res)=>{
+    const child=await childAccess(pool,req.user,req.params.id);
+    if(['panel','print'].includes(req.query.view))return res.json({profile:profileDTO(child,req.user),...await panelReport(pool,child,req.user,req.query)});
+    res.json({profile:profileDTO(child,req.user),records:(await recordsFor(req)).map(r=>recordDTO(r,req.user))});
+  });
+  app.get('/api/children/:id/assessment',async(req,res)=>{await childAccess(pool,req.user,req.params.id);res.json({steps:(await panelSummary(pool,req.params.id)).assessmentSteps});});
   app.get('/api/children/:id/difficulty',async(req,res)=>{await childAccess(pool,req.user,req.params.id);res.json({settings:(await pool.query('SELECT game_id AS "gameId",variant,protocol AS "protocolVersion",mode,level,revision FROM difficulty WHERE child_id=$1',[req.params.id])).rows});});
   app.patch('/api/children/:id/difficulty',async(req,res)=>{
     await childAccess(pool,req.user,req.params.id,true);const s=normalizeSettings(req.body);check(['fixed','adaptive'].includes(req.body.mode)&&['easy','medium','hard'].includes(req.body.level),'سطح و روش معتبر انتخاب کنید.');
-    const row=(await pool.query(`INSERT INTO difficulty(child_id,game_id,variant,protocol,mode,level,updated_by) VALUES($1,$2,$3,$4,$5,$6,$7) ON CONFLICT(child_id,game_id,variant,protocol) DO UPDATE SET mode=EXCLUDED.mode,level=EXCLUDED.level,revision=difficulty.revision+1,updated_by=EXCLUDED.updated_by,updated_at=now() RETURNING *`,[req.params.id,s.gameId,s.variant,s.protocolVersion,req.body.mode,req.body.level,req.user.id])).rows[0];res.json({setting:row});
+    const row=await managedTransaction(pool,req,async db=>(await db.query(`INSERT INTO difficulty(child_id,game_id,variant,protocol,mode,level,updated_by) VALUES($1,$2,$3,$4,$5,$6,$7) ON CONFLICT(child_id,game_id,variant,protocol) DO UPDATE SET mode=EXCLUDED.mode,level=EXCLUDED.level,revision=difficulty.revision+1,updated_by=EXCLUDED.updated_by,updated_at=now() WHERE difficulty.mode IS DISTINCT FROM EXCLUDED.mode OR difficulty.level IS DISTINCT FROM EXCLUDED.level RETURNING *`,[req.params.id,s.gameId,s.variant,s.protocolVersion,req.body.mode,req.body.level,req.user.id])).rows[0]||(await db.query('SELECT * FROM difficulty WHERE child_id=$1 AND game_id=$2 AND variant=$3 AND protocol=$4',[req.params.id,s.gameId,s.variant,s.protocolVersion])).rows[0]);res.json({setting:row});
   });
   app.post('/api/children/:id/sessions',async(req,res)=>{
     await childAccess(pool,req.user,req.params.id);
@@ -92,7 +118,7 @@ export function createApp({pool,secret=process.env.SESSION_SECRET,production=pro
       const difficulty=(await db.query('SELECT * FROM difficulty WHERE child_id=$1 AND game_id=$2 AND variant=$3 AND protocol=$4 FOR UPDATE',[req.params.id,s.gameId,s.variant,s.protocolVersion])).rows[0];
       const settings={...s,level:kind==='baseline'?'easy':difficulty.level,seed:randomBytes(4).readUInt32BE(),practice:kind==='baseline',reviewEnabled:kind==='baseline'};
       return (await db.query('INSERT INTO game_sessions(id,child_id,actor_id,kind,settings,difficulty_revision) VALUES($1,$2,$3,$4,$5,$6) RETURNING *',[randomUUID(),req.params.id,req.user.id,kind,settings,difficulty.revision])).rows[0];
-    });res.status(201).json({id:run.id,settings:run.settings,kind:run.kind});
+    });const reference={...run.settings,feedbackMode:kind==='baseline'?'guided':'continuous',stimulusFamily:run.settings.theme};res.status(201).json({id:run.id,settings:run.settings,kind:run.kind,...(req.body.view==='panel'?{bestScore:await bestScoreFor(pool,req.params.id,reference,kind)}:{})});
   });
   app.get('/api/children/:id/sessions/:sessionId',async(req,res)=>{await childAccess(pool,req.user,req.params.id);uuid(req.params.sessionId);const row=(await pool.query('SELECT * FROM game_sessions WHERE id=$1 AND child_id=$2',[req.params.sessionId,req.params.id])).rows[0];check(row,'جلسه پیدا نشد.',404);res.json({record:recordDTO(row,req.user)});});
   app.post('/api/children/:id/sessions/:sessionId/complete',async(req,res)=>{
@@ -103,7 +129,7 @@ export function createApp({pool,secret=process.env.SESSION_SECRET,production=pro
       const result=canonicalResult(run,req.body.result),s=run.settings;
       await db.query(`UPDATE difficulty SET level=$1,revision=revision+1,updated_at=now() WHERE child_id=$2 AND game_id=$3 AND variant=$4 AND protocol=$5 AND mode='adaptive' AND revision=$6`,[recommendLevel(result).level,run.child_id,s.gameId,s.variant,s.protocolVersion,run.difficulty_revision]);
       return (await db.query('UPDATE game_sessions SET result=$1,finished_at=now() WHERE id=$2 RETURNING *',[result,run.id])).rows[0];
-    });res.json({record:recordDTO(row,req.user)});
+    });res.json({record:recordDTO(row,req.user),...(req.body.view==='panel'?{panelSummary:await panelSummary(pool,req.params.id),bestScore:await bestScoreFor(pool,req.params.id,row.result,row.kind)}:{})});
   });
   app.get('/api/children/:id/export',async(req,res)=>{const child=await childAccess(pool,req.user,req.params.id,true),records=(await recordsFor(req)).map(r=>recordDTO(r,req.user));res.attachment('havaas-profile.json').json({version:1,exportedAt:new Date().toISOString(),profile:profileDTO(child,req.user),records});});
   app.get('/api/children/:id/sessions/:sessionId/export',async(req,res)=>{
@@ -115,6 +141,6 @@ export function createApp({pool,secret=process.env.SESSION_SECRET,production=pro
   registerImports(app,pool,{role,childAccess,profileDTO});
   app.use('/api',(_req,res)=>res.status(404).json({error:'مسیر پیدا نشد.',code:'NOT_FOUND'}));
   app.use('/assets',express.static(resolve(staticRoot,'assets')));app.use('/src',express.static(resolve(staticRoot,'src')));app.get(['/', '/index.html'],(_req,res)=>res.sendFile(resolve(staticRoot,'index.html')));
-  app.use((error,_req,res,_next)=>{const status=error.status||(error.code==='23505'?409:(error.type==='entity.too.large')?413:500);if(status>=500)console.error('Request failed:',error.code||error.name);res.status(status).json({error:status>=500?'خطای سرور؛ دوباره تلاش کنید.':error.code==='23505'?'نام کاربری، ایمیل یا اتصال اطلاعات کاربر تکراری است.':error.message,code:error.code||'SERVER_ERROR'});});
+  app.use((error,_req,res,_next)=>{const status=error.status||(error.code==='23505'?409:(error.type==='entity.too.large')?413:500);if(status>=500)console.error('Request failed:',error.code||error.name);res.status(status).json({error:status>=500?'خطای سرور؛ دوباره تلاش کنید.':error.code==='23505'?'نام کاربری، ایمیل یا اتصال اطلاعات کاربر تکراری است.':error.message,code:error.code||'SERVER_ERROR',...(error.details&&status<500?{details:error.details}:{})});});
   return app;
 }

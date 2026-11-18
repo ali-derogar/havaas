@@ -9,13 +9,14 @@ function formState(form){
  }));
 }
 export function createFormTracker(){
- const records=new WeakMap();
+ let records=new WeakMap();
  function remember(form){
   if(!records.has(form))records.set(form,{saved:formState(form),revision:0});
   return records.get(form);
  }
  return {
   remember,
+  clear(){records=new WeakMap();},
   changed(form){remember(form).revision++;},
   capture(form){return {state:formState(form),revision:remember(form).revision};},
   saved(form,submission){

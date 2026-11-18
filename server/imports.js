@@ -59,7 +59,7 @@ export function registerImports(app,pool,{role,childAccess}){
   app.post('/api/imports/commit',async(req,res)=>{
     role(req,['admin']);uuid(req.body.previewId);check(Array.isArray(req.body.mapping)&&req.body.mapping.every(m=>m&&typeof m==='object'&&!Array.isArray(m)&&typeof m.sourceId==='string'&&(m.targetId===undefined||m.targetId===null||typeof m.targetId==='string')),'نگاشت کاربران باید شامل شناسهٔ منبع و مقصد معتبر باشد.');
     const response=await transaction(pool,async db=>{
-      await db.query('SELECT pg_advisory_xact_lock(82004175)');
+      await db.query('SELECT pg_advisory_xact_lock(82004175)');await db.query("SELECT set_config('havaas.actor_id',$1,true)",[req.user.id]);
       const preview=(await db.query('SELECT * FROM import_previews WHERE id=$1 AND user_id=$2 FOR UPDATE',[req.body.previewId,req.user.id])).rows[0];check(preview&&new Date(preview.expires_at)>new Date(),'پیش‌نمایش منقضی یا نامعتبر است.');if(preview.committed_at)return preview.response;
       const document=preview.document,targets=new Map();let createdProfiles=0,importedRecords=0;
       check(req.body.mapping.length===document.profiles.length,'برای هر اطلاعات کاربر یک مقصد مشخص کنید.');
@@ -82,6 +82,7 @@ export function registerImports(app,pool,{role,childAccess}){
         const baselines=(await db.query("SELECT DISTINCT ON (result->>'gameId',COALESCE(result->>'variant','standard'),result->>'protocolVersion') result FROM game_sessions WHERE child_id=$1 AND kind='baseline' AND result IS NOT NULL ORDER BY result->>'gameId',COALESCE(result->>'variant','standard'),result->>'protocolVersion',finished_at DESC,id DESC",[id])).rows;
         for(const {result} of baselines)if(result.protocolVersion===GAME_PROTOCOLS[result.gameId])await db.query('INSERT INTO difficulty(child_id,game_id,variant,protocol,level) VALUES($1,$2,$3,$4,$5) ON CONFLICT DO NOTHING',[id,result.gameId,result.variant||'standard',result.protocolVersion,recommendLevel(result).level]);
       }
+      await db.query("INSERT INTO audit_events(actor_id,action,changed_fields,metadata) VALUES($1,'imports.completed','[]',$2)",[req.user.id,{createdProfiles,importedRecords}]);
       const response={createdProfiles,importedRecords,childIds:[...targets.values()]};await db.query('UPDATE import_previews SET committed_at=now(),response=$1 WHERE id=$2',[response,preview.id]);return response;
     });res.json(response);
   });

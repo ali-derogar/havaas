@@ -84,6 +84,9 @@ test('copy link uses the browser clipboard fallback when Clipboard API is unavai
   await page.evaluate(()=>Object.defineProperty(navigator,'clipboard',{configurable:true,value:undefined}));
   await page.locator('[data-action=copy-invitation]').click();
   await expect(page.locator('[data-copy-status]')).toContainText('با موفقیت کپی شد');
+  await page.locator('#modal [data-action=close-modal]').click();
+  await page.locator('[data-action=new-user]').first().click();
+  await page.locator('[data-action=create-mode][data-mode=link]').click();
   const destination=page.locator('#registration-link-form [name=label]');
   await destination.fill('');await destination.press('Control+V');
   await expect(destination).toHaveValue(url);
