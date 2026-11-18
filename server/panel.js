@@ -7,7 +7,7 @@ import {pagination} from './management.js';
 import {requireValue as check,uuid} from './security.js';
 
 // Never transfer outcomes or arbitrary imported metadata from PostgreSQL to a panel.
-const keys=['version','experienceVersion','timing','timingKey','stimulusVersion','protocolVersion','gameId','level','variant','feedbackMode','roundFlow','reactionMeasure','stimulusFamily','score','maxScore','hits','correctResponses','correctRejections','omissions','falseSelections','meanReactionMs','longestStreak','durationMs','completed','finishedAt','targetsPerRound','rounds','obstaclesCleared','departed'];
+const keys=['version','experienceVersion','trainingProfile','timing','timingKey','stimulusVersion','protocolVersion','gameId','level','variant','feedbackMode','roundFlow','reactionMeasure','stimulusFamily','score','maxScore','hits','correctResponses','correctRejections','omissions','falseSelections','meanReactionMs','longestStreak','durationMs','completed','finishedAt','targetsPerRound','rounds','obstaclesCleared','departed'];
 const projection=`jsonb_build_object(${keys.map(key=>`'${key}',result->'${key}'`).join(',')},'settingsSnapshot',jsonb_build_object('theme',result->'settingsSnapshot'->'theme'))`;
 export async function summaryRows(pool,childId){
  return (await pool.query(`SELECT id,child_id,report_ref,kind,${projection} AS result FROM game_sessions WHERE child_id=$1 AND result IS NOT NULL ORDER BY finished_at,id`,[childId])).rows.map(row=>({...row,result:reportResult(row.result)}));

@@ -13,9 +13,10 @@ const variantLabels = { standard: 'معمولی', divided: 'دو هدف', signs:
 export const variantLabel = variant => typeof variant==='string'&&Object.hasOwn(variantLabels,variant)?variantLabels[variant]:'معمولی';
 const stimulusFamilyLabel=result=>{const family=stimulusFamilyOf(result);return Object.hasOwn(THEMES,family)?THEMES[family]:'';};
 function timingSummary(result){
- if(!result.timing)return '';
+ const profile=typeof result.trainingProfile?.name==='string'?`<p class="report-profile-name">پروفایل تمرین: ${esc(result.trainingProfile.name)} · بازبینی ${fa(result.trainingProfile.revision)}</p>`:'';
+ if(!result.timing)return profile;
  const values=timingFields(result.gameId).filter(key=>Number.isFinite(result.timing[key])).map(key=>`${TIMING_FIELDS[key].label}: ${(result.timing[key]/1000).toLocaleString('fa-IR')} ثانیه`);
- return values.length?`<p class="report-timing">${values.join(' · ')}</p>`:'';
+ return profile+(values.length?`<p class="report-timing">${values.join(' · ')}</p>`:'');
 }
 function chart(records, selected, remote) {
   const series = remote?.trend||comparableRecords(records,selected).slice(-20);

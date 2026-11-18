@@ -1,6 +1,7 @@
 import {createFormTracker} from './pwa-forms.js';
-import {timingIdentity,defaultTiming,TIMING_VARIANTS,timingFields,validateTiming} from './game-timing.js';
-import {timingPath,timingVariantOptions,timingLevelView} from './game-timing-ui.js';
+import {profileFamilies,profileEntry,validateProfileSettings} from './training-profiles.js';
+import {trainingProfilesList,trainingProfileEditor,profileAssignmentOptions,profileAssignmentSummary} from './training-profile-ui.js';
+import {timingIdentity,defaultTiming,TIMING_VARIANTS,timingFields,timingPath} from './game-timing.js';
 import {createNavigationGuard,handleTabKey} from './navigation-guard.js';
 import {createHistoryNavigation} from './history-navigation.js';
 import {auditView} from './audit-ui.js';
@@ -259,7 +260,7 @@ function renderDetail(id, updateHash = true) {
   if(!guideState&&policy)selectedLevel=policy.level;
   lessonState = {steps:createLesson(id,{level:selectedLevel,material:selectedMaterial,theme:selectedTheme,trafficMode:selectedTrafficMode,targetCount:id==='search'?(selectedSearchMode==='dual'?2:1):(selectedHuntMode==='divided'?2:1)}),index:0,answered:false};
   const game = gameCopy(GAME_MAP[id]); document.title = `${game.title} — حواس`;
-  page(`<div class="breadcrumb"><button data-action="home">بازی‌ها</button>${icon('chevron')}<span>${game.title}</span></div>${guideState?`<div class="guided-banner"><b>ارزیابی اولیه · ${fa(GAMES.findIndex(game=>game.id===id)+1)} از ۷</b><span>این بخش شامل پنج تمرین در سطح آسان است.</span><button class="text-button" data-action="assessment">دیدن مسیر ارزیابی ←</button></div>`:""}<section class="intro-layout"><div class="intro-copy"><div class="eyebrow">${icon('spark')} ${game.skill}</div><h1>${game.title}</h1><details class="companion-guide intro-companion"><summary>راهنمای همراه</summary><p class="intro-description">${game.description}</p><ol class="rules">${game.rules.map((rule,i) => `<li><span>${fa(i+1)}</span><p>${rule}</p></li>`).join('')}</ol></details>${lessonState.steps.length?`<section class="lesson-box" id="lesson-box" aria-label="نمونهٔ آموزشی تعاملی">${lessonContent()}</section>`:""}<fieldset class="level-selector"><legend>سطح تمرین تعیین‌شده</legend><div class="levels">${Object.entries(LEVELS).map(([id,level],i) => `<button class="level-button ${selectedLevel === id ? 'selected' : ''}" data-action="level" data-level="${id}" aria-pressed="${selectedLevel === id}" ${guideState||currentUser?.role!=='admin'?"disabled":""}><span class="level-bars" aria-hidden="true">${[0,1,2].map(j=>`<i class="${j<=i?'lit':''}"></i>`).join('')}</span><b>${level.label}</b><small>${level.caption}</small></button>`).join('')}</div></fieldset>${id === 'hunt' ? `<fieldset class="theme-selector"><legend>با چی بازی کنیم؟</legend><div class="theme-options">${Object.entries(THEMES).map(([key,label]) => `<button class="theme-button ${key===selectedTheme?'selected':''}" data-action="theme" data-theme="${key}" aria-pressed="${key===selectedTheme}">${label}</button>`).join('')}</div></fieldset>` : ''}${taskOptions(game)}${assessmentInfo()}${currentUser?.role==='admin'&&activeProfile(clients)?`<div class="difficulty-policy"><span>روش سطح: ${policy?.mode==='fixed'?'ثابت؛ انتخاب سطح، تنظیم ادمین را ثابت می‌کند.':'تطبیقی؛ سطح جلسهٔ بعد از عملکرد تعیین می‌شود.'}</span><button class="text-button" data-action="adaptive-level">فعال‌کردن سطح تطبیقی</button></div>`:''}<div class="start-row"><button class="button primary" data-action="practice">بریم تمرین کنیم ${icon('arrow')}</button>${!guideState && latestBaseline(clients,id,currentVariant()) ? '<button class="button primary" data-action="main-game">بازی اصلی ←</button>' : '<span>۵ تمرین؛ ارزیابی جدا از امتیاز اصلی</span>'}</div></div><aside class="intro-art" style="--card-color:${game.color}"><div class="intro-art-bubble">${gameArtwork(id,{theme:selectedTheme})}</div><div class="intro-art-note">${icon('target')} <span>یک قانون ساده، یک چالش جذاب</span></div><div class="session-summary" id="session-summary">${levelSummary(game)}</div></aside></section>`, 'content-main');
+  page(`<div class="breadcrumb"><button data-action="home">بازی‌ها</button>${icon('chevron')}<span>${game.title}</span></div>${guideState?`<div class="guided-banner"><b>ارزیابی اولیه · ${fa(GAMES.findIndex(game=>game.id===id)+1)} از ۷</b><span>این بخش شامل پنج تمرین در سطح آسان است.</span><button class="text-button" data-action="assessment">دیدن مسیر ارزیابی ←</button></div>`:""}<section class="intro-layout"><div class="intro-copy"><div class="eyebrow">${icon('spark')} ${game.skill}</div><h1>${game.title}</h1><details class="companion-guide intro-companion"><summary>راهنمای همراه</summary><p class="intro-description">${game.description}</p><ol class="rules">${game.rules.map((rule,i) => `<li><span>${fa(i+1)}</span><p>${rule}</p></li>`).join('')}</ol></details>${lessonState.steps.length?`<section class="lesson-box" id="lesson-box" aria-label="نمونهٔ آموزشی تعاملی">${lessonContent()}</section>`:""}<fieldset class="level-selector"><legend>سطح تمرین تعیین‌شده${policy?.trainingProfile?` · ${esc(policy.trainingProfile.name)}`:''}</legend><div class="levels">${Object.entries(LEVELS).map(([id,level],i) => `<button class="level-button ${selectedLevel === id ? 'selected' : ''}" data-action="level" data-level="${id}" aria-pressed="${selectedLevel === id}" ${guideState||currentUser?.role!=='admin'?"disabled":""}><span class="level-bars" aria-hidden="true">${[0,1,2].map(j=>`<i class="${j<=i?'lit':''}"></i>`).join('')}</span><b>${level.label}</b><small>${level.caption}</small></button>`).join('')}</div></fieldset>${id === 'hunt' ? `<fieldset class="theme-selector"><legend>با چی بازی کنیم؟</legend><div class="theme-options">${Object.entries(THEMES).map(([key,label]) => `<button class="theme-button ${key===selectedTheme?'selected':''}" data-action="theme" data-theme="${key}" aria-pressed="${key===selectedTheme}">${label}</button>`).join('')}</div></fieldset>` : ''}${taskOptions(game)}${assessmentInfo()}${currentUser?.role==='admin'&&activeProfile(clients)?`<div class="difficulty-policy"><span>روش سطح: ${policy?.mode==='fixed'?'ثابت؛ انتخاب سطح، تنظیم ادمین را ثابت می‌کند.':'تطبیقی؛ سطح جلسهٔ بعد از عملکرد تعیین می‌شود.'}</span><button class="text-button" data-action="adaptive-level">فعال‌کردن سطح تطبیقی</button></div>`:''}<div class="start-row"><button class="button primary" data-action="practice">بریم تمرین کنیم ${icon('arrow')}</button>${!guideState && latestBaseline(clients,id,currentVariant()) ? '<button class="button primary" data-action="main-game">بازی اصلی ←</button>' : '<span>۵ تمرین؛ ارزیابی جدا از امتیاز اصلی</span>'}</div></div><aside class="intro-art" style="--card-color:${game.color}"><div class="intro-art-bubble">${gameArtwork(id,{theme:selectedTheme})}</div><div class="intro-art-note">${icon('target')} <span>یک قانون ساده، یک چالش جذاب</span></div><div class="session-summary" id="session-summary">${levelSummary(game)}</div></aside></section>`, 'content-main');
   if(guideState)document.querySelectorAll('[data-action="theme"],[data-action="hunt-mode"],[data-action="material"],[data-action="traffic-mode"],[data-action="search-mode"],[data-action="search-layout"]').forEach(button=>button.disabled=true);
   if(lessonState.steps.length)narrateEntry(lessonGuidanceKey(selectedGame,lessonState.steps[lessonState.index],gameOptions()));
 }
@@ -292,7 +293,8 @@ async function start(practice, forceBaseline = false, repeatOptions = null) {
     const run=(!practice||sessionIsBaseline)?await request(`/children/${clients.activeId}/sessions`,{method:'POST',body:{...options,kind:sessionIsBaseline?'baseline':'training'}}):null;
     if(!run&&!repeatOptions){
       const key=timingIdentity({...options,variant:currentVariant()}),data=await request(`${timingPath(clients.activeId)}?${new URLSearchParams(key)}`);
-      options.timing={...data.levels.find(row=>row.level===selectedLevel).timing};
+      if(data.effectiveLevel)options.level=selectedLevel=data.effectiveLevel;
+      options.timing={...data.levels.find(row=>row.level===selectedLevel).timing};if(data.trainingProfile)options.trainingProfile=data.trainingProfile;else delete options.trainingProfile;
     }
     const world=await preloadWorld(run?.settings||options);
     if(launchAttempt!==attempt)return;
@@ -309,8 +311,8 @@ async function start(practice, forceBaseline = false, repeatOptions = null) {
   if (modal.open) modal.close();
   sessionRecordId=null;completedRecord=null;
   route = 'play'; playPhase='ready'; preparationClock=null;
-  engine = FACTORIES[selectedGame]({ ...options,...remoteRun?.settings,...(remoteRun?{experienceVersion:remoteRun.settings.experienceVersion??1}:{}),level:selectedLevel,practice,reviewEnabled:remoteRun?remoteRun.settings.reviewEnabled:practice,random:remoteRun?seededRandom(remoteRun.settings.seed):Math.random }); engine.clock.pause(); arenaKey = '';
-  sessionOptions={...options,...remoteRun?.settings,level:engine.level,experienceVersion:engine.experienceVersion,...(engine.experienceVersion>=3?{timing:{...engine.timing}}:{})};
+  engine = FACTORIES[selectedGame]({ ...options,...remoteRun?.settings,...(remoteRun?{experienceVersion:remoteRun.settings.experienceVersion??1,trainingProfile:remoteRun.settings.trainingProfile||null}:{}),level:selectedLevel,practice,reviewEnabled:remoteRun?remoteRun.settings.reviewEnabled:practice,random:remoteRun?seededRandom(remoteRun.settings.seed):Math.random }); engine.clock.pause(); arenaKey = '';
+  sessionOptions={...options,...remoteRun?.settings,level:engine.level,experienceVersion:engine.experienceVersion,trainingProfile:engine.trainingProfile?{...engine.trainingProfile}:null,...(engine.experienceVersion>=3?{timing:{...engine.timing}}:{})};
   repeatingPractice=Boolean(repeatOptions);
   const game = GAME_MAP[selectedGame];
   page(`<div class="play-heading"><div><span class="section-kicker">${practice ? sessionIsBaseline ? '۵ تمرین برای آموزش و ارزیابی پایه' : 'وقت تمرینه؛ امتیازت ثبت نمی‌شه' : 'نوبت ماجراجویی توئه'}</span><h1>${game.title}<span class="level-pill">${LEVELS[selectedLevel].label}</span></h1></div><div class="play-heading-actions">${guideControl('current','راهنما')}<button class="icon-button sound-button" data-action="sound" aria-label="${progress.sound?'خاموش‌کردن صدا و راهنمای گویا':'روشن‌کردن صدا و راهنمای گویا'}" aria-pressed="${progress.sound}">${icon(progress.sound?'sound':'mute')}</button><button class="button subtle pause-button" data-action="pause">${icon('pause')} توقف</button></div></div><section class="play-panel ${game.kind}" data-game="${game.id}" data-interval-ms="${engine.intervalMs||1000}" data-visible-ms="${engine.visibleMs||0}" style="--game-color:${game.color};--game-accent:${game.accent}" aria-label="محیط بازی"><div class="play-hud"><div><span id="progress-label"></span><b id="position"></b></div><div class="hud-time">${icon('clock')}<div><span id="time-label"></span><b id="time"></b></div></div><div><span>پاسخ‌های هدف درست</span><b id="hits">۰</b></div></div><div class="progress-track"><span id="progress-fill"></span></div><div class="instruction-strip" id="instruction"></div><div id="arena" class="arena"></div><div class="play-controls" id="play-controls"></div><div class="visual-feedback" id="visual-feedback" aria-hidden="true"><span class="feedback-good">${icon('check')}</span><span class="feedback-wrong">${icon('repeat')}</span><span class="feedback-cleared">${icon('spark')}</span><strong class="feedback-label"></strong></div><div id="feedback" class="feedback" role="status">با آرامش و دقت شروع کن؛ تو می‌تونی!</div></section><p class="play-footnote">${icon('info')} ${practice ? sessionIsBaseline ? 'این پنج تمرین برای آموزش و پیشنهاد سطح اولیه ثبت می‌شوند.' : 'این بخش فقط برای یادگرفتن قانون بازیه.' : game.kind==='reaction' ? 'محرک کوتاه دیده می‌شه؛ تا شروع نوبت بعد فرصت پاسخ داری.' : 'عجله نکن؛ انتخاب درست، مهم‌تر از انتخاب سریعه.'}</p>`, 'play-main');
@@ -677,7 +679,7 @@ function activateUserTab(tab){
 }
 async function loadUserTab(){
  if(userTab==='audit')return showAudit(true);
-  if(userTab==='difficulty')return loadGameTiming();
+  if(userTab==='difficulty')return loadProfileAssignmentSummary();
  if(userTab!=='sessions')return;
  const panel=document.querySelector('#user-sessions');if(!panel)return;
  const view=beginView();panel.setAttribute('aria-busy','true');
@@ -735,7 +737,7 @@ async function submitForm(form){
 }
 async function processForm(form){
   const values=Object.fromEntries([...form.querySelectorAll('[name]')].map(el=>[el.name||el.getAttribute('name'),el.value]));
-  if(form.hasAttribute('data-timing-level'))return saveGameTiming(form,values);
+  if(form.id==='training-profile-form')return saveTrainingProfile(form,values);
   if(form.id==='login-form'){
     if(!api.csrfToken)await request('/auth/session');
     const auth=await request('/auth/login',{method:'POST',body:values});
@@ -768,7 +770,15 @@ async function processForm(form){
   }
   if(form.id==='edit-user-form'){const view={version:viewVersion,userId:currentUser.id,role:currentUser.role},body={username:values.username,...(form.dataset.role==='user'?{profile:values}:{name:values.name})};body.expectedRevision=Number(form.dataset.revision);if(body.profile)body.expectedProfileRevision=Number(form.dataset.profileRevision);const data=await request(`/users/${form.dataset.user}`,{method:'PATCH',body});acknowledgeForm(form,data);if(data.user.id===currentUser.id)currentUser=data.user;if(!currentView(view)||!form.isConnected)return false;notify('اطلاعات کاربر ذخیره شد.');try{await inspectUser(data.user.id);notify('اطلاعات کاربر ذخیره شد.');}catch(error){if(currentUser?.id===view.userId)refreshFailure(error);}return;}
   if(form.id==='report-link-form'){const childId=clients.activeId,version=viewVersion;const data=await request(`/children/${childId}/report-links`,{method:'POST',body:values});acknowledgeForm(form);if(version!==viewVersion||childId!==clients.activeId)return;showInvitation(data);form.hidden=true;document.querySelector('#invitation-result')?.insertAdjacentHTML('beforeend','<button class="button subtle" data-action="new-report-link">ساخت لینک جدید</button>');notify('لینک ساخته شد.');try{await refreshReportLinks({version:viewVersion,userId:currentUser.id,role:currentUser.role},childId);}catch(error){if(version===viewVersion)refreshFailure(error);}return;}
-  if(form.id==='admin-difficulty-form'){const view={version:viewVersion,userId:currentUser.id,role:currentUser.role},childId=clients.activeId;const data=await request(`/children/${childId}/difficulty`,{method:'PATCH',body:{...policyOptions(values.gameId,values.variant),mode:values.mode,level:values.level}});if(data.setting){const row=data.setting,setting={gameId:row.game_id??row.gameId,variant:row.variant,protocolVersion:row.protocol??row.protocolVersion,mode:row.mode,level:row.level,revision:row.revision};clients.difficulties=clients.difficulties.filter(d=>d.gameId!==setting.gameId||d.variant!==setting.variant||d.protocolVersion!==setting.protocolVersion);clients.difficulties.push(setting);}acknowledgeForm(form);if(!currentView(view))return false;notify('تنظیم سطح برای جلسهٔ بعد ذخیره شد.');try{if(!await refreshClients(view))return;syncPolicyControls(false);}catch(error){if(currentUser?.id===view.userId)refreshFailure(error);}return;}
+  if(form.id==='admin-difficulty-form'){
+    const view={version:viewVersion,userId:currentUser.id,role:currentUser.role},childId=clients.activeId,custom=values.level.startsWith('profile:');
+    try{
+      const data=await request(`/children/${childId}/difficulty`,{method:'PATCH',body:{...policyOptions(values.gameId,values.variant),mode:custom?'fixed':values.mode,level:custom?undefined:values.level,trainingProfileId:custom?values.level.slice(8):null,expectedRevision:Number(form.dataset.revision||0)}});
+      if(data.setting){const row=data.setting,setting={gameId:row.game_id??row.gameId,variant:row.variant,protocolVersion:row.protocol??row.protocolVersion,mode:row.mode,level:row.level,revision:row.revision,trainingProfileId:row.trainingProfileId,trainingProfile:row.trainingProfile};clients.difficulties=clients.difficulties.filter(d=>d.gameId!==setting.gameId||d.variant!==setting.variant||d.protocolVersion!==setting.protocolVersion);clients.difficulties.push(setting);form.dataset.revision=String(setting.revision);}
+      acknowledgeForm(form);if(!currentView(view))return false;notify('تنظیم سطح برای جلسهٔ بعد ذخیره شد.');
+      try{if(!await refreshClients(view))return;syncPolicyControls(false);await loadProfileAssignmentSummary();}catch(error){if(currentUser?.id===view.userId)refreshFailure(error);}
+    }catch(error){if(form.isConnected&&currentView(view))document.querySelector('#policy-profile-error').textContent=error.message;throw error;}return;
+  }
   if(form.id==='invitation-form'){const data=await request('/invitations',{method:'POST',body:values});return showInvitation(data);}
   if(form.id!=='profile-form')return false;
   const validation=validateProfile(values);if(validation.error){document.querySelector('#profile-error').textContent=validation.error;return false;}
@@ -796,10 +806,10 @@ async function refreshFilteredReport(){
  }
 }
 async function changeInput(event){
-  if(event.target.matches('[data-timing-select]'))return changeGameTimingSelection(event.target);
+  if(event.target.id==='policy-level'){syncProfileChoice(true);return;}
   if(event.target.matches('[data-birth-part]'))return syncBirthDate(event.target.closest('[data-birth-date]'));
   if(['new-user-role','new-user-method','new-user-child'].includes(event.target.id))return syncCreateControls();
-  if(['policy-game','policy-variant'].includes(event.target.id))return syncPolicyControls(event.target.id==='policy-game');
+  if(['policy-game','policy-variant'].includes(event.target.id))return changePolicySelection(event.target);
   if(event.target.id==='import-file'){const file=event.target.files?.[0];if(file)return previewLegacy(async()=>JSON.parse(await file.text()));}
   if(event.target.id==='report-profile') {
     if(!await navigationGuard.allow(submitForm)){event.target.value=clients.activeId;return;}
@@ -824,13 +834,13 @@ async function handleAction(event) {
     if(route==='play'&&!modal.open&&(playPhase==='countdown'||playPhase==='playing'&&(!engine?.paused||engine?.transitionClock&&!engine.transitionClock.paused))){pause();if(engine?.done)return;}
     progress.sound=true;writeProgress(progress);syncSoundControls();return guidance.play(key);
   }
-  if(action==='reset-game-timing'){
-    const form=button.closest('[data-timing-level]');if(form.dataset.waiting==='true')return;
-    form.timingReset=true;delete form.dataset.acknowledged;
-    try{return await submitForm(form);}finally{delete form.timingReset;}
-  }
-  if(action==='reload-game-timing'){
-    const holder=button.closest('#game-timing-settings');if(await navigationGuard.allow(submitForm)&&holder.isConnected)return loadGameTiming(holder.timingSelection);return;
+  if(['new-training-profile','edit-training-profile','copy-training-profile','archive-training-profile','close-training-profile','reload-training-profiles'].includes(action)){
+    if(!await navigationGuard.allow(submitForm))return;
+    if(action==='close-training-profile'){document.querySelector('#training-profile-editor')?.replaceChildren();return;}
+    if(action==='reload-training-profiles')return loadTrainingProfiles();
+    if(action==='archive-training-profile')return archiveTrainingProfile(button);
+    const id=action==='new-training-profile'?document.querySelector('#training-profile-template').value:button.dataset.id;
+    return openTrainingProfile(id,action!=='edit-training-profile');
   }
   if(['lesson-memory-next','lesson-memory-help','lesson-memory-replay'].includes(action))return changeMemoryLesson(action);
   if(button.tagName==='A')event.preventDefault();
@@ -982,7 +992,7 @@ window.addEventListener('orientationchange',()=>{if(route==='play'&&engine&&(!en
 function gameOptions(){
  const options={gameId:selectedGame,clientExperienceVersion:EXPERIENCE_VERSION,view:'panel',level:selectedLevel,theme:selectedTheme,material:selectedMaterial,layout:selectedLayout,trafficMode:selectedTrafficMode,targetCount:selectedGame==='search'?(selectedSearchMode==='dual'?2:1):(selectedHuntMode==='divided'?2:1)};
  const key=timingIdentity({...options,variant:currentVariant()}),cached=clients.gameTimings;
- if(cached?.childId===clients.activeId&&['gameId','variant','timingFamily'].every(field=>cached.identity[field]===key[field]))options.timing={...cached.levels.find(row=>row.level===selectedLevel).timing};
+ if(cached?.childId===clients.activeId&&['gameId','variant','timingFamily'].every(field=>cached.identity[field]===key[field])){options.timing={...cached.levels.find(row=>row.level===selectedLevel).timing};if(cached.trainingProfile)options.trainingProfile={...cached.trainingProfile};}
  return options;
 }
 async function refreshClients(view=null){
@@ -999,7 +1009,7 @@ function showLogin(invite=null){
 }
 function clearPrivateData(){
  if(modal.open)modal.close();modal.replaceChildren();modalKind='';
- navigationGuard.clear();completedRecord=null;delete clients.panelSummary;delete clients.reportPage;delete clients.selectorProfiles;unresolvedProfiles=[];
+ navigationGuard.clear();completedRecord=null;delete clients.panelSummary;delete clients.reportPage;delete clients.selectorProfiles;delete clients.trainingProfiles;delete clients.gameTimings;unresolvedProfiles=[];
  members=[];inspectedUserId=null;publicReportData=null;previewImport=null;importAttempt=null;remoteRun=null;pendingAdminRefresh=null;pendingPanelRefresh=null;
  pendingStart=null;guideState=null;lessonState=null;editingProfile=null;sessionRecordId=null;sessionOptions=null;repeatingPractice=false;engine=null;launchAttempt=null;starting=false;userTab='overview';
  Object.assign(clients,{activeId:null,profiles:[],records:[],difficulties:[]});Object.assign(reportState,{tab:'admin',game:'',level:'',variant:'',kind:'training',recordId:null});
@@ -1101,7 +1111,7 @@ async function account(){
  if(!currentUser)return showLogin();if(currentUser.passwordChangeRequired)return forcedPassword();const view=beginView();if(!await refreshClients(view))return;
  if(currentUser.role==='admin'){const data=await viewRequest(view,`/children?view=panel&owner=unassigned&page=${unresolvedPage}`);if(!currentView(view))return;unresolvedProfiles=data.profiles;unresolvedPage=data.pagination.page;unresolvedPages=data.pagination.pages;}
  guideState=null;engine=null;route='account';setHash(currentUser.role==='admin'?'#admin/settings':'#account');if(modal.open)modal.close();page(accountView(currentUser,unresolvedProfiles),'content-main account-main');if(unresolvedPages>1)document.querySelector('.import-section')?.insertAdjacentHTML('beforeend',`<div class="pagination"><button class="button subtle" data-action="unresolved-page" data-page="${unresolvedPage-1}" ${unresolvedPage<=1?'disabled':''}>قبلی</button><button class="button subtle" data-action="unresolved-page" data-page="${unresolvedPage+1}" ${unresolvedPage>=unresolvedPages?'disabled':''}>بعدی</button></div>`);
- if(currentUser.role==='admin')await loadGameTiming();
+ if(currentUser.role==='admin')await loadTrainingProfiles();
 }
 async function adminUsers(){
  if(currentUser?.role!=='admin')return home();const view=beginView(),query=new URLSearchParams({...adminState,pageSize:20});const data=await viewRequest(view,`/users?${query}`);if(!currentView(view))return;
@@ -1161,6 +1171,7 @@ async function inspectUser(id){
  inspectedUserId=id;inspectedRevision=data.user.revision||1;clients.activeId=data.profile?.id||null;
  if(data.profile){if(!await refreshClients(view))return;}else{delete clients.panelSummary;delete clients.reportPage;clients.profiles=[];clients.records=[];clients.difficulties=[];}
  const evaluation=clients.panelSummary?{steps:clients.panelSummary.assessmentSteps}:data.profile?await viewRequest(view,`/children/${data.profile.id}/assessment`):null;if(!currentView(view))return;
+ const catalog=await viewRequest(view,'/admin/training-profiles');if(!currentView(view))return;clients.trainingProfiles=catalog.profiles;
  route='admin-user';engine=null;editingProfile=data.profile?.id||null;if(modal.open)modal.close();setHash(`#admin/user/${id}`);document.title=`بررسی ${data.user.name} — حواس`;
  page(userDetailsView(data.user,data.profile,evaluation,userTab,''),'content-main admin-main');syncPolicyControls();navigationGuard.sync();
  return loadUserTab();
@@ -1184,55 +1195,79 @@ function syncCreateControls(){
  const fields=document.querySelector('#new-profile-fields');fields.hidden=!user||existing;fields.disabled=!user||existing;
  const needsPassword=user||direct,label=document.querySelector('#temporary-password-label');label.hidden=!needsPassword;form.elements.password.disabled=!needsPassword;form.elements.password.required=needsPassword;
 }
-async function loadGameTiming(selection=null){
- const holder=document.querySelector('#game-timing-settings');if(!holder||currentUser?.role!=='admin')return;
- if(!selection&&holder.timingData)return;
- const key=selection||holder.timingSelection||{gameId:'hunt',variant:'standard',timingFamily:'static'};
- holder.timingData=null;holder.timingSelection=key;holder.querySelector('#timing-levels').innerHTML='<p>در حال دریافت زمان‌بندی…</p>';
- const view={version:viewVersion,userId:currentUser.id,role:currentUser.role},attempt={};holder.timingAttempt=attempt;
- holder.setAttribute('aria-busy','true');holder.querySelector('#timing-error').textContent='';
- try{
-  const data=await viewRequest(view,`${timingPath(holder.dataset.child)}?${new URLSearchParams(key)}`);
-  if(!currentView(view)||!holder.isConnected||holder.timingAttempt!==attempt||!data)return;
-  holder.timingData=data;holder.timingSelection=data.identity;
-  holder.querySelector('#timing-levels').innerHTML=data.levels.map(row=>timingLevelView(data,row,holder.dataset.child)).join('');
-  navigationGuard.sync();
- }catch(error){if(currentView(view)&&holder.isConnected&&holder.timingAttempt===attempt){holder.querySelector('#timing-error').textContent=error.message;throw error;}}
- finally{if(holder.timingAttempt===attempt)holder.removeAttribute('aria-busy');}
-}
-async function changeGameTimingSelection(select){
- const holder=select.closest('#game-timing-settings'),previous=holder.timingSelection||{gameId:'hunt',variant:'standard',timingFamily:'static'};
- const next={...previous,[select.dataset.timingSelect]:select.value};
- if(select.dataset.timingSelect==='gameId'){next.variant='standard';next.timingFamily=next.gameId==='hunt'?'static':'standard';}
- next.protocolVersion=GAME_PROTOCOLS[next.gameId];
- const restore=key=>{
-  holder.querySelector('[data-timing-select=gameId]').value=key.gameId;
-  holder.querySelector('[data-timing-select=variant]').innerHTML=timingVariantOptions(key.gameId);holder.querySelector('[data-timing-select=variant]').value=key.variant;
-  holder.querySelector('[data-timing-family-label]').hidden=key.gameId!=='hunt';holder.querySelector('[data-timing-select=timingFamily]').value=key.timingFamily==='moving'?'moving':'static';
- };
- restore(previous);
- if(!await navigationGuard.allow(submitForm)||!holder.isConnected)return;
- restore(next);return loadGameTiming(next);
-}
-async function saveGameTiming(form,values){
- const holder=form.closest('#game-timing-settings'),view={version:viewVersion,userId:currentUser.id,role:currentUser.role};
- const key={gameId:form.dataset.game,variant:form.dataset.variant,timingFamily:form.dataset.family,protocolVersion:Number(form.dataset.protocol),level:form.dataset.timingLevel};
- const errorNode=form.querySelector('[data-timing-form-error]');errorNode.textContent='';
- try{
-  const timing=form.timingReset?null:validateTiming(key.gameId,Object.fromEntries(timingFields(key.gameId).map(field=>[field,Math.round(Number(values[field])*1000)])));
-  const data=await request(timingPath(form.dataset.child),{method:'PATCH',body:{...key,timing,expectedRevision:Number(form.dataset.revision)}});
-  acknowledgeForm(form);
-  if(currentUser?.id!==view.userId||currentUser?.role!==view.role||!form.isConnected||!holder.isConnected)return;
-  holder.timingData=data;form.outerHTML=timingLevelView(data,data.levels.find(row=>row.level===key.level),holder.dataset.child);navigationGuard.sync();if(currentView(view))notify('زمان‌بندی برای جلسهٔ بعد ذخیره شد.');
- }catch(error){if(form.isConnected&&currentView(view))errorNode.textContent=error.message;throw error;}
-}
 const policyVariants=TIMING_VARIANTS;
 function policyOptions(gameId,variant){return {gameId,targetCount:variant.includes('dual')||variant==='divided'?2:1,material:variant.includes('letters')?'letters':['numbers','toys'].includes(variant)?variant:'shapes',layout:variant.includes('scattered')?'scattered':'grid',trafficMode:variant==='signs'?'signs':'circles'};}
 function syncPolicyControls(reset=true){
  const form=document.querySelector('#admin-difficulty-form');if(!form)return;const game=form.elements.gameId.value;
  if(reset)form.elements.variant.innerHTML=(policyVariants[game]||['standard']).map(v=>`<option value="${v}">${variantLabel(v)}</option>`).join('');
- const setting=clients.difficulties.find(d=>d.gameId===game&&d.variant===form.elements.variant.value&&d.protocolVersion===GAME_PROTOCOLS[game]);form.elements.mode.value=setting?.mode||'adaptive';form.elements.level.value=setting?.level||'easy';
+ const setting=clients.difficulties.find(d=>d.gameId===game&&d.variant===form.elements.variant.value&&d.protocolVersion===GAME_PROTOCOLS[game]);
+ form.elements.level.innerHTML=profileAssignmentOptions(clients.trainingProfiles||[],setting?.trainingProfile);
+ form.elements.mode.value=setting?.mode||'adaptive';form.elements.level.value=setting?.trainingProfileId?`profile:${setting.trainingProfileId}`:setting?.level||'easy';form.dataset.revision=String(setting?.revision||0);
+ form.policySelection={gameId:game,variant:form.elements.variant.value};form.policyValues={level:form.elements.level.value,mode:form.elements.mode.value};
+ syncProfileChoice();void loadProfileAssignmentSummary().catch(showError);
 }
+function syncProfileChoice(preview=false){
+ const form=document.querySelector('#admin-difficulty-form');if(!form)return;const custom=form.elements.level.value.startsWith('profile:');
+ form.elements.mode.disabled=custom;if(custom)form.elements.mode.value='fixed';
+ if(preview)void previewProfileChoice(form).catch(showError);
+ const summary=document.querySelector('#policy-profile-summary');if(!custom&&preview)summary.textContent=`سطح پیش‌فرض ${LEVELS[form.elements.level.value].label}؛ با زمان‌بندی عمومی همین سطح اجرا می‌شود.`;if(custom){const profile=(clients.trainingProfiles||[]).find(profile=>profile.id===form.elements.level.value.slice(8));summary.textContent=`پروفایل ${profile?.name||'انتخاب‌شده'} به‌صورت ثابت اجرا می‌شود. تغییر پروفایل در تنظیمات کلی از جلسهٔ بعد اعمال خواهد شد.`;}
+}
+async function changePolicySelection(select){
+ const form=select.form,previous=form.policySelection;if(!previous)return syncPolicyControls(select.id==='policy-game');
+ const desired=select.value,gameChanged=select.id==='policy-game';select.value=gameChanged?previous.gameId:previous.variant;
+ const changed=form.policyValues&&(form.elements.level.value!==form.policyValues.level||form.elements.mode.value!==form.policyValues.mode);
+ if(changed&&!await navigationGuard.allow(submitForm)||!form.isConnected)return;
+ select.value=desired;syncPolicyControls(gameChanged);
+}
+async function previewProfileChoice(form){
+ const value=form.elements.level.value;if(!value.startsWith('profile:'))return;
+ const id=value.slice(8),key={gameId:form.elements.gameId.value,variant:form.elements.variant.value},viewer=currentUser.id,attempt={};form.previewAttempt=attempt;
+ const data=await request(`/admin/training-profiles/${encodeURIComponent(id)}`);
+ if(currentUser?.id!==viewer||!form.isConnected||form.previewAttempt!==attempt||form.elements.level.value!==value||form.elements.gameId.value!==key.gameId||form.elements.variant.value!==key.variant)return;
+ const entry=profileEntry(data.profile.settings,key.gameId,key.variant);
+ document.querySelector('#policy-profile-summary').innerHTML=`پروفایل «${esc(data.profile.name)}» · سطح پایهٔ ${LEVELS[entry.level].label} · ثابت<br>`+profileFamilies(key.gameId).map(family=>`${family==='moving'?'متحرک: ':family==='static'?'ثابت: ':''}${timingFields(key.gameId).map(field=>`${field==='visibleMs'?'نمایش':field==='intervalMs'?'هر نوبت':field==='previewMs'?'حفظ نمونه':field==='searchMs'?'جست‌وجو':'مهلت مأموریت'}: ${(entry.timings[family][field]/1000).toLocaleString('fa-IR')} ثانیه`).join(' · ')}`).join('<br>');
+}
+async function loadProfileAssignmentSummary(){
+ const form=document.querySelector('#admin-difficulty-form');if(!form||currentUser?.role!=='admin')return;
+ const attempt={};form.summaryAttempt=attempt;
+ const key={gameId:form.elements.gameId.value,variant:form.elements.variant.value},childId=clients.activeId,viewer=currentUser.id;
+ const data=await request(`${timingPath(childId)}?${new URLSearchParams(key)}`);
+ if(!form.isConnected||form.summaryAttempt!==attempt||currentUser?.id!==viewer||clients.activeId!==childId)return;
+ const setting=clients.difficulties.find(setting=>setting.gameId===key.gameId&&setting.variant===key.variant&&setting.protocolVersion===GAME_PROTOCOLS[key.gameId]);
+ if(form.elements.level.value===(setting?.trainingProfileId?`profile:${setting.trainingProfileId}`:setting?.level||'easy'))document.querySelector('#policy-profile-summary').innerHTML=profileAssignmentSummary(setting,data);
+}
+async function loadTrainingProfiles(){
+ const holder=document.querySelector('#training-profiles');if(!holder||currentUser?.role!=='admin')return;
+ const view={version:viewVersion,userId:currentUser.id,role:currentUser.role},attempt={};holder.listAttempt=attempt;
+ try{const data=await viewRequest(view,'/admin/training-profiles');if(!currentView(view)||!holder.isConnected||holder.listAttempt!==attempt||!data)return;clients.trainingProfiles=data.profiles;holder.querySelector('#training-profile-list').innerHTML=trainingProfilesList(data.profiles);holder.querySelector('#training-profile-list-error').textContent='';}
+ catch(error){if(holder.isConnected&&currentView(view))holder.querySelector('#training-profile-list-error').textContent=error.message;throw error;}
+}
+async function openTrainingProfile(id,creating=false){
+ const holder=document.querySelector('#training-profiles');if(!holder)return;const view={version:viewVersion,userId:currentUser.id,role:currentUser.role},attempt={};holder.editorAttempt=attempt;
+ const data=await viewRequest(view,`/admin/training-profiles/${encodeURIComponent(id)}`);if(!currentView(view)||!holder.isConnected||holder.editorAttempt!==attempt||!data)return;
+ holder.querySelector('#training-profile-editor').innerHTML=trainingProfileEditor(data.profile,{creating});navigationGuard.sync();holder.querySelector('#training-profile-editor').scrollIntoView({block:'start',behavior:'instant'});
+}
+async function saveTrainingProfile(form,values){
+ const holder=form.closest('#training-profiles'),viewer=currentUser.id,view={version:viewVersion,userId:currentUser.id,role:currentUser.role};
+ try{
+  const settings=validateProfileSettings([...form.querySelectorAll('[data-profile-entry]')].map(node=>{
+   const key=node.dataset.profileEntry;return {gameId:node.dataset.game,variant:node.dataset.variant,protocolVersion:Number(node.dataset.protocol),level:values[`${key}:level`],timings:Object.fromEntries(profileFamilies(node.dataset.game).map(family=>[family,Object.fromEntries(timingFields(node.dataset.game).map(field=>[field,Math.round(Number(values[`${key}:${family}:${field}`])*1000)]))]))};
+  }));
+  const id=form.dataset.profile,data=await request(`/admin/training-profiles${id?'/'+encodeURIComponent(id):''}`,{method:id?'PATCH':'POST',body:{name:values.name,description:values.description,settings,...(id?{expectedRevision:Number(form.dataset.revision)}:{})}});
+  form.dataset.profile=data.profile.id;form.dataset.revision=String(data.profile.revision);acknowledgeForm(form);
+  if(currentUser?.id!==viewer||!form.isConnected||!holder.isConnected)return;
+  const {settings:ignored,...metadata}=data.profile;clients.trainingProfiles=(clients.trainingProfiles||[]).filter(profile=>profile.id!==metadata.id);clients.trainingProfiles.push(metadata);
+  holder.querySelector('#training-profile-list').innerHTML=trainingProfilesList(clients.trainingProfiles);form.outerHTML=trainingProfileEditor(data.profile);navigationGuard.sync();if(currentView(view))notify('پروفایل تمرین ذخیره شد.');
+ }catch(error){if(form.isConnected&&currentUser?.id===viewer)form.querySelector('#training-profile-error').textContent=error.message;throw error;}
+}
+async function archiveTrainingProfile(button){
+ const holder=button.closest('#training-profiles'),view={version:viewVersion,userId:currentUser.id,role:currentUser.role};
+ const data=await viewRequest(view,`/admin/training-profiles/${encodeURIComponent(button.dataset.id)}`,{method:'PATCH',body:{archived:button.dataset.archived==='true',expectedRevision:Number(button.dataset.revision)}});
+ if(!currentView(view)||!holder.isConnected||!data)return;
+ const editor=holder.querySelector('#training-profile-form');if(editor?.dataset.profile===data.profile.id)editor.outerHTML=trainingProfileEditor(data.profile);
+ await loadTrainingProfiles();navigationGuard.sync();notify(data.profile.archived?'پروفایل بایگانی شد؛ کاربران قبلی همچنان می‌توانند از آن استفاده کنند.':'پروفایل دوباره قابل انتخاب است.');
+}
+
 async function previewLegacy(readDocument){
   const container=document.querySelector('#import-preview');if(currentUser?.role!=='admin'||!container)return;
   const attempt={},view={version:viewVersion,userId:currentUser.id,role:currentUser.role};importAttempt=attempt;previewImport=null;

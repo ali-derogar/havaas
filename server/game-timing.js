@@ -2,6 +2,7 @@ import {LEVELS} from '../src/config.js';
 import {timingIdentity,defaultTiming,validateTiming,timingKey,TIMING_FIELDS,TIMING_VARIANTS} from '../src/game-timing.js';
 import {managedTransaction,guardRevision} from './management.js';
 import {requireValue as check} from './security.js';
+import {assignedTrainingProfile} from './training-profiles.js';
 
 function identity(input){try{return timingIdentity(input);}catch(error){check(false,error.message);}}
 export async function readGameTimings(db,childId,input){
@@ -9,13 +10,19 @@ export async function readGameTimings(db,childId,input){
  // One statement gives session creation a consistent view of both policy layers.
  const rows=(await db.query(`SELECT level,timing,revision,'global' AS scope FROM game_timing_defaults WHERE game_id=$1 AND variant=$2 AND timing_family=$3 AND protocol=$4
  UNION ALL SELECT level,timing,revision,'child' AS scope FROM child_game_timing_overrides WHERE game_id=$1 AND variant=$2 AND timing_family=$3 AND protocol=$4 AND child_id=$5`,params)).rows;
- return {identity:key,fields:TIMING_FIELDS,variants:TIMING_VARIANTS[key.gameId]||['standard'],levels:Object.keys(LEVELS).map(level=>{
+ const assigned=childId?await assignedTrainingProfile(db,childId,key):null;
+ return {identity:key,...(assigned?{trainingProfile:assigned.profile,effectiveLevel:assigned.entry.level}:{}),fields:TIMING_FIELDS,variants:TIMING_VARIANTS[key.gameId]||['standard'],levels:Object.keys(LEVELS).map(level=>{
   const defaults=defaultTiming({...key,level,theme:key.timingFamily==='moving'?'fish':'star',experienceVersion:3}),global=rows.find(row=>row.level===level&&row.scope==='global'),child=rows.find(row=>row.level===level&&row.scope==='child');
-  return {level,defaults,global:global?.timing||null,override:child?.timing||null,timing:child?.timing||global?.timing||defaults,source:child?.timing?'child':global?.timing?'global':'default',revision:(childId?child:global)?.revision||0};
+  const profileTiming=assigned&&assigned.entry.level===level?assigned.entry.timings[key.timingFamily]:null;
+  return {level,defaults,global:global?.timing||null,override:child?.timing||null,timing:profileTiming||child?.timing||global?.timing||defaults,source:profileTiming?'profile':child?.timing?'child':global?.timing?'global':'default',revision:(childId?child:global)?.revision||0};
  })};
 }
 export async function sessionTiming(db,childId,settings,kind){
  const key=identity(settings);
+ if(kind!=='baseline'){
+  const assigned=await assignedTrainingProfile(db,childId,key);
+  if(assigned){const timing=validateTiming(settings.gameId,assigned.entry.timings[key.timingFamily]);return {level:assigned.entry.level,timing,timingKey:timingKey(timing),trainingProfile:assigned.profile};}
+ }
  const timing=kind==='baseline'?defaultTiming(settings):(await readGameTimings(db,childId,key)).levels.find(row=>row.level===settings.level).timing;
  return {timing:validateTiming(settings.gameId,timing),timingKey:timingKey(timing)};
 }
@@ -25,7 +32,7 @@ export function registerGameTimings(app,pool,{role,childAccess}){
   const access=async(req,write=false)=>scoped?childAccess(pool,req.user,req.params.id,write):role(req,['admin']);
   app.get(path,async(req,res)=>{
    await access(req);const data=await readGameTimings(pool,scoped?req.params.id:null,{...req.query,...(req.query.protocolVersion?{protocolVersion:Number(req.query.protocolVersion)}:{})});
-   if(scoped&&req.user.role!=='admin')return res.json({identity:data.identity,levels:data.levels.map(({level,timing})=>({level,timing}))});
+   if(scoped&&req.user.role!=='admin')return res.json({identity:data.identity,...(data.trainingProfile?{trainingProfile:data.trainingProfile,effectiveLevel:data.effectiveLevel}:{}),levels:data.levels.map(({level,timing})=>({level,timing}))});
    res.json(data);
   });
   app.patch(path,async(req,res)=>{

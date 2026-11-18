@@ -1,3 +1,4 @@
+import {registerTrainingProfiles,difficultySettings,prepareProfileAssignment} from './training-profiles.js';
 import {panelSummary,panelReport,bestScoreFor} from './panel.js';
 import {guardRevision,managedTransaction,registerAudit,pagination} from './management.js';
 import express from 'express';
@@ -56,6 +57,7 @@ export function createApp({pool,secret=process.env.SESSION_SECRET,production=pro
   registerReportLinks(app,pool,childAccess);
   registerAudit(app,pool,role);
   registerGameTimings(app,pool,{role,childAccess});
+  registerTrainingProfiles(app,pool,{role});
   app.get('/api/children',async(req,res)=>{
     if(req.query.view==='panel'){
       role(req,['admin']);const {page,pageSize}=pagination(req.query),unassigned=req.query.owner==='unassigned';
@@ -93,12 +95,12 @@ export function createApp({pool,secret=process.env.SESSION_SECRET,production=pro
   app.get('/api/bootstrap',async(req,res)=>{
     if(req.query.view==='panel'){
       const child=req.query.childId?await childAccess(pool,req.user,req.query.childId):(await pool.query("SELECT * FROM children WHERE $1='admin' OR owner_user_id=$2 ORDER BY created_at,id LIMIT 1",[req.user.role,req.user.id])).rows[0];
-      const activeId=child?.id||null,difficulties=activeId?(await pool.query('SELECT game_id AS "gameId",variant,protocol AS "protocolVersion",mode,level,revision FROM difficulty WHERE child_id=$1',[activeId])).rows:[];
+      const activeId=child?.id||null,difficulties=activeId?await difficultySettings(pool,activeId):[];
       return res.json({user:publicUser(req.user),version:1,activeId,profiles:child?[profileDTO(child,req.user)]:[],records:[],difficulties,panelSummary:await panelSummary(pool,activeId)});
     }
     const children=await listChildren(pool,req.user),activeId=children.some(c=>c.id===req.query.childId)?req.query.childId:children[0]?.id||null;
     const rows=activeId?(await pool.query('SELECT * FROM game_sessions WHERE child_id=$1 AND result IS NOT NULL ORDER BY finished_at,id',[activeId])).rows:[];
-    const difficulties=activeId?(await pool.query('SELECT game_id AS "gameId",variant,protocol AS "protocolVersion",mode,level,revision FROM difficulty WHERE child_id=$1',[activeId])).rows:[];
+    const difficulties=activeId?await difficultySettings(pool,activeId):[];
     res.json({user:publicUser(req.user),version:1,activeId,profiles:children.map(c=>profileDTO(c,req.user)),records:rows.map(row=>recordDTO(row,req.user)),difficulties});
   });
   const recordsFor=async(req)=>{await childAccess(pool,req.user,req.params.id);return (await pool.query('SELECT * FROM game_sessions WHERE child_id=$1 AND result IS NOT NULL ORDER BY finished_at,id',[req.params.id])).rows;};
@@ -109,10 +111,17 @@ export function createApp({pool,secret=process.env.SESSION_SECRET,production=pro
     res.json({profile:profileDTO(child,req.user),records:(await recordsFor(req)).map(r=>recordDTO(r,req.user))});
   });
   app.get('/api/children/:id/assessment',async(req,res)=>{await childAccess(pool,req.user,req.params.id);res.json({steps:(await panelSummary(pool,req.params.id)).assessmentSteps});});
-  app.get('/api/children/:id/difficulty',async(req,res)=>{await childAccess(pool,req.user,req.params.id);res.json({settings:(await pool.query('SELECT game_id AS "gameId",variant,protocol AS "protocolVersion",mode,level,revision FROM difficulty WHERE child_id=$1',[req.params.id])).rows});});
+  app.get('/api/children/:id/difficulty',async(req,res)=>{await childAccess(pool,req.user,req.params.id);res.json({settings:await difficultySettings(pool,req.params.id)});});
   app.patch('/api/children/:id/difficulty',async(req,res)=>{
-    await childAccess(pool,req.user,req.params.id,true);const s=normalizeSettings(req.body);check(['fixed','adaptive'].includes(req.body.mode)&&['easy','medium','hard'].includes(req.body.level),'سطح و روش معتبر انتخاب کنید.');
-    const row=await managedTransaction(pool,req,async db=>(await db.query(`INSERT INTO difficulty(child_id,game_id,variant,protocol,mode,level,updated_by) VALUES($1,$2,$3,$4,$5,$6,$7) ON CONFLICT(child_id,game_id,variant,protocol) DO UPDATE SET mode=EXCLUDED.mode,level=EXCLUDED.level,revision=difficulty.revision+1,updated_by=EXCLUDED.updated_by,updated_at=now() WHERE difficulty.mode IS DISTINCT FROM EXCLUDED.mode OR difficulty.level IS DISTINCT FROM EXCLUDED.level RETURNING *`,[req.params.id,s.gameId,s.variant,s.protocolVersion,req.body.mode,req.body.level,req.user.id])).rows[0]||(await db.query('SELECT * FROM difficulty WHERE child_id=$1 AND game_id=$2 AND variant=$3 AND protocol=$4',[req.params.id,s.gameId,s.variant,s.protocolVersion])).rows[0]);res.json({setting:row});
+    await childAccess(pool,req.user,req.params.id,true);const s=normalizeSettings(req.body);
+    const row=await managedTransaction(pool,req,async db=>{
+      const current=(await db.query('SELECT * FROM difficulty WHERE child_id=$1 AND game_id=$2 AND variant=$3 AND protocol=$4 FOR UPDATE',[req.params.id,s.gameId,s.variant,s.protocolVersion])).rows[0];
+      const selection=await prepareProfileAssignment(db,req,s,current);
+      check(['fixed','adaptive'].includes(selection.mode)&&['easy','medium','hard'].includes(selection.level),'سطح و روش معتبر انتخاب کنید.');
+      return (await db.query(`INSERT INTO difficulty(child_id,game_id,variant,protocol,mode,level,updated_by,training_profile_id) VALUES($1,$2,$3,$4,$5,$6,$7,$8)
+        ON CONFLICT(child_id,game_id,variant,protocol) DO UPDATE SET mode=EXCLUDED.mode,level=EXCLUDED.level,training_profile_id=EXCLUDED.training_profile_id,revision=difficulty.revision+1,updated_by=EXCLUDED.updated_by,updated_at=now()
+        WHERE difficulty.mode IS DISTINCT FROM EXCLUDED.mode OR difficulty.level IS DISTINCT FROM EXCLUDED.level OR difficulty.training_profile_id IS DISTINCT FROM EXCLUDED.training_profile_id OR $9::boolean RETURNING *`,[req.params.id,s.gameId,s.variant,s.protocolVersion,selection.mode,selection.level,req.user.id,selection.id,Boolean(selection.cleared)])).rows[0]||current;
+    });const setting=(await difficultySettings(pool,req.params.id)).find(setting=>setting.gameId===s.gameId&&setting.variant===s.variant&&setting.protocolVersion===s.protocolVersion);res.json({setting:{...row,...setting}});
   });
   app.post('/api/children/:id/sessions',async(req,res)=>{
     await childAccess(pool,req.user,req.params.id);
@@ -124,6 +133,7 @@ export function createApp({pool,secret=process.env.SESSION_SECRET,production=pro
       if(kind==='training')check((await db.query("SELECT 1 FROM game_sessions WHERE child_id=$1 AND kind='baseline' AND result->>'gameId'=$2 AND COALESCE(result->>'variant','standard')=$3 AND (result->>'protocolVersion')::int=$4 AND result IS NOT NULL",[req.params.id,s.gameId,s.variant,s.protocolVersion])).rowCount,'اول ارزیابی پایه را انجام دهید.',409,'BASELINE_REQUIRED');
       await db.query('INSERT INTO difficulty(child_id,game_id,variant,protocol) VALUES($1,$2,$3,$4) ON CONFLICT DO NOTHING',[req.params.id,s.gameId,s.variant,s.protocolVersion]);
       const difficulty=(await db.query('SELECT * FROM difficulty WHERE child_id=$1 AND game_id=$2 AND variant=$3 AND protocol=$4 FOR UPDATE',[req.params.id,s.gameId,s.variant,s.protocolVersion])).rows[0];
+      check(kind==='baseline'||clientVersion>=3||!difficulty.training_profile_id,'برای اجرای پروفایل تمرین، برنامه را به‌روزرسانی کنید.',409,'CLIENT_UPDATE_REQUIRED');
       const settings={...s,level:kind==='baseline'?'easy':difficulty.level,seed:randomBytes(4).readUInt32BE(),practice:kind==='baseline',reviewEnabled:kind==='baseline'};
       if(clientVersion>=3)Object.assign(settings,await sessionTiming(db,req.params.id,settings,kind));
       return (await db.query('INSERT INTO game_sessions(id,child_id,actor_id,kind,settings,difficulty_revision) VALUES($1,$2,$3,$4,$5,$6) RETURNING *',[randomUUID(),req.params.id,req.user.id,kind,settings,difficulty.revision])).rows[0];

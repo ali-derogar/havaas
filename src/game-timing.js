@@ -31,3 +31,5 @@ export function resolveTiming(options={}){
  return (options.experienceVersion??EXPERIENCE_VERSION)>=3&&options.timing?validateTiming(options.gameId,options.timing):defaultTiming(options);
 }
 export const timingKey=timing=>JSON.stringify(Object.fromEntries(Object.keys(timing).sort().map(key=>[key,timing[key]])));
+
+export const timingPath=childId=>childId?`/children/${childId}/game-timings`:'/admin/game-timings';
