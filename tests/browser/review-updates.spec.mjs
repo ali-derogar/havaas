@@ -36,7 +36,7 @@ test('review: Persian audio really plays, stops before countdown, and traffic re
  await page.evaluate(()=>{const play=HTMLMediaElement.prototype.play;window.playedGuides=[];HTMLMediaElement.prototype.play=function(){window.playedGuides.push(this);return play.call(this);};});
  await start(page,'traffic');
  const clip=page.waitForResponse(r=>r.url().includes('/assets/audio/traffic.mp3')&&r.ok());await click(page,'listen-guide');await clip;
- await expect(page.locator('.guide-audio-button')).toHaveAttribute('aria-pressed','true');
+ await expect(page.locator('.game-preparation .guide-audio-button')).toHaveAttribute('aria-pressed','true');
  await expect.poll(()=>page.evaluate(()=>window.playedGuides[0]?.duration)).toBeGreaterThan(1);
  await page.screenshot({path:'.local/verification/review-spoken-guide.png',fullPage:true});
  await click(page,'begin-game');expect(await page.evaluate(()=>window.playedGuides.every(audio=>audio.paused))).toBe(true);await advance(page,3000);
@@ -92,7 +92,7 @@ test('review: second pass keeps spoken Stroop instructions aligned with all four
   const phase=Math.floor(index/2),box=page.locator('#lesson-box');
   await expect(box.locator('.stroop-rule-picture')).toHaveAttribute('data-rule-phase',String(phase));
   await expect(box.locator('[data-action=listen-guide]')).toHaveAttribute('data-guide',`stroop-${phase}`);
-  if(index===0)await box.locator('[data-action=listen-guide]').click();
+  await box.locator('[data-action=listen-guide]').click();
   await expect.poll(()=>page.evaluate(()=>window.guideStarts.at(-1))).toBe(`stroop-${phase}.mp3`);
   if(index===6){await page.setViewportSize({width:360,height:900});await box.screenshot({path:'.local/verification/review-second-stroop.png'});}
   await box.locator(`[data-action=lesson-answer][data-response="${index%2===0}"]`).click();
@@ -114,7 +114,7 @@ test('review: second pass teaches N-back sequentially without revealing the refe
  await expect(page.locator('.memory-token.reference,.lesson-token')).toHaveCount(0);await expect(page.locator('.stimulus-shell .symbol')).toHaveCount(1);
 });
 
-test('review: second pass presents spoken pictorial needs and automatically explains frozen practice reviews',async({page})=>{
+test('review: second pass presents spoken pictorial needs and offers on-demand explanations in frozen practice reviews',async({page})=>{
  await clock(page);await page.addInitScript(()=>{window.guideStarts=[];window.guideMedia=[];const play=HTMLMediaElement.prototype.play;HTMLMediaElement.prototype.play=function(){window.guideStarts.push(this.src.split('/').at(-1));window.guideMedia.push(this);return play.call(this);};});
  await login(page);await start(page,'ark');
  const needs=page.locator('.game-preparation .need-audio');await expect(needs).toHaveCount(3);await expect(needs.locator('.need-art')).toHaveCount(3);

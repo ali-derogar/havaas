@@ -50,8 +50,8 @@ export class SearchSession extends Session {
     this.current = generateSearch(this.level, this.random, this.layout, this.material, this.targetCount, this.stimulusVersion);
     this.roundTargets[this.index]=this.current.targets.map(target=>({...target}));
     this.rejected = new Set(); this.found = new Set();this.feedback='نمونهٔ تازه را به خاطر بسپار.';this.feedbackKind='';
-    this.revealAt = this.clock.elapsed + PROTOCOL.previewMs;
-    this.deadline = this.revealAt + LEVELS[this.level].searchSeconds * 1000;
+    this.revealAt = this.clock.elapsed + this.timing.previewMs;
+    this.deadline = this.revealAt + this.timing.searchMs;
     if(!paused)this.clock.resume();
   }
   next() {

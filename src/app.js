@@ -1,4 +1,6 @@
 import {createFormTracker} from './pwa-forms.js';
+import {timingIdentity,defaultTiming,TIMING_VARIANTS,timingFields,validateTiming} from './game-timing.js';
+import {timingPath,timingVariantOptions,timingLevelView} from './game-timing-ui.js';
 import {createNavigationGuard,handleTabKey} from './navigation-guard.js';
 import {createHistoryNavigation} from './history-navigation.js';
 import {auditView} from './audit-ui.js';
@@ -35,7 +37,7 @@ import { searchVariant } from './games/search.js';
 import { assessmentSteps, nextAssessmentGame } from './core/assessment.js';
 import { createLesson } from './lessons.js';
 import { STROOP_RULES } from './games/stroop.js';
-import { readProgress, writeProgress, resultKey } from './core/storage.js';
+import { readProgress, writeProgress } from './core/storage.js';
 import { activeProfile, readClients, profileRecords, latestBaseline, validateProfile, escapeHTML as esc, variantOf } from './core/clients.js';
 import { describeStimulus } from './stimuli.js';
 import { recommendLevel, comparableRecords, needsMorePractice } from './core/reports.js';
@@ -48,7 +50,7 @@ const announcer = document.querySelector('#announcer');
 const playMotion=new PlayMotion({document});
 const progress = readProgress();
 const guidance=new GuidancePlayer({onState:(state,key)=>{
-  document.querySelectorAll('[data-action=listen-guide]').forEach(button=>{const active=state==='playing'&&button.dataset.guide===key;button.setAttribute('aria-pressed',String(active));button.classList.toggle('listening',active);});
+  document.querySelectorAll('[data-action=listen-guide]').forEach(button=>{const active=state==='playing'&&(button.dataset.guide===key||button.dataset.guide==='current');button.setAttribute('aria-pressed',String(active));button.classList.toggle('listening',active);});
   document.querySelectorAll('.audio-guide-status').forEach(node=>{node.textContent=state==='unavailable'?'صدا پخش نشد؛ دوباره دکمهٔ بشنو را بزن.':state==='playing'?'در حال پخش راهنمای فارسی':'';});
 }});
 const clients = {version:1,activeId:null,profiles:[],records:[],difficulties:[]};
@@ -72,7 +74,7 @@ const time = ms => { const seconds = Math.max(0, Math.ceil(ms / 1000)); return `
 const describe = describeStimulus;
 let route = 'home', selectedGame = 'hunt', selectedLevel = 'easy', selectedTheme = 'star', selectedHuntMode = 'standard', selectedLayout = 'grid', selectedSearchMode = 'single', selectedTrafficMode = 'circles', selectedMaterial = 'shapes', filter = 'all';
 let engine = null, frame = 0, arenaKey = '', modalKind = '', audioContext;
-let playPhase='ready', preparationClock=null, reactionPointerInput=false, loadedWorld=null,lastSpokenContext='';
+let playPhase='ready', preparationClock=null, reactionPointerInput=false, loadedWorld=null,guidanceVisit=null;
 const guestScreen=()=>['registration','invitation','connecting','connection-error'].includes(route);
 
 function cardDuration(game) {
@@ -93,14 +95,15 @@ function page(content, className = '') {
   navigationGuard.stash();
   if(!modal.open)modal.replaceChildren();
   playMotion.reset();
-  guidance.stop();lastSpokenContext='';
+  guidance.stop();
+  if(!['detail','play','result'].includes(route))guidanceVisit=null;
   viewVersion++;
   if(launchAttempt){launchAttempt=null;starting=false;}
   cancelAnimationFrame(frame);
   document.body.dataset.screen=route;reactionPointerInput=false;
   document.body.dataset.panel=currentUser?.role==='admin'&&!publicReportData&&!guestScreen()&&!currentUser.passwordChangeRequired?'admin':currentUser&&!publicReportData&&!guestScreen()?'client':'guest';
   document.body.classList.remove('admin-menu-open');
-  app.innerHTML = `${header()}<main id="main" class="${className}" tabindex="-1">${content}</main>${footer()}`;
+  app.innerHTML = `${header()}<main id="main" class="${className}" tabindex="-1">${route==='result'?guideControl(guidanceKey(sessionOptions||gameOptions())):''}${content}</main>${footer()}`;
   syncSidebarAccess();
   queueMicrotask(()=>navigationGuard.sync());
   window.scrollTo({ top: 0, behavior: 'instant' });
@@ -167,7 +170,6 @@ function answerLessonChoice(index) {
   (correct?lessonState.searchFound:lessonState.searchRejected).push(index);lessonState.lastCorrect=correct;
   lessonState.answered=lessonState.searchFound.length===step.samples.length;tone(correct);
   document.querySelector('#lesson-box').innerHTML=lessonContent();
-  narrateFrozen(correct?'correct':'retry',`search-lesson:${viewVersion}:${index}:${lessonState.searchFound.length}:${lessonState.searchRejected.length}`);
   const next=document.querySelector('#lesson-box [data-action="lesson-next"]')||[...document.querySelectorAll('#lesson-box .lesson-choice:not(:disabled)')].find(button=>Number(button.dataset.index)>index)||document.querySelector('#lesson-box .lesson-choice:not(:disabled)');next?.focus({preventScroll:true});
 }
 function answerLesson(response) {
@@ -175,7 +177,6 @@ function answerLesson(response) {
   const step=lessonState.steps[lessonState.index];if(step.kind==='memory'&&!memoryLessonState(step,lessonState).ready)return;
   lessonState.answered=true;lessonState.correct=response===lessonState.steps[lessonState.index].expected;
   tone(lessonState.correct);document.querySelector('#lesson-box').innerHTML=lessonContent();
-  narrateFrozen(lessonState.correct?'correct':'retry',`lesson-answer:${viewVersion}:${lessonState.index}:${lessonState.correct}`);
   document.querySelector('#lesson-box [data-action="lesson-next"]')?.focus({preventScroll:true});
 }
 function nextLesson() {
@@ -184,7 +185,6 @@ function nextLesson() {
   lessonState.index=(lessonState.index+1)%lessonState.steps.length;lessonState.answered=false;lessonState.searchFound=[];lessonState.searchRejected=[];lessonState.lastCorrect=undefined;lessonState.memoryHidden=false;lessonState.memoryIndex=0;lessonState.memoryHelp=false;
   document.querySelector('#lesson-box').innerHTML=lessonContent();
   document.querySelector('#lesson-box [data-action="lesson-memory-next"],#lesson-box [data-action="lesson-answer"],#lesson-box [data-action="lesson-choice"],#lesson-box [data-action="lesson-hide"]')?.focus({preventScroll:true});
-  narrateFrozen(lessonGuidanceKey(selectedGame,lessonState.steps[lessonState.index],gameOptions()),`lesson:${viewVersion}:${lessonState.index}`);
 }
 async function assessment() {
   if(!currentUser)return showLogin();if(currentUser.role==='admin')return adminPanel();
@@ -234,13 +234,20 @@ function gameCopy(game) {
   }
   if(game.id==='search') {
     const dual=selectedSearchMode==='dual',noun=selectedMaterial==='letters'?'حرف':'شکل';
-    return {...game,description:dual?`دو ${noun} را به خاطر بسپار و بعد، هر دو را در یک صفحهٔ شلوغ پیدا کن. جزئیات نمونه‌ها مهم‌اند.`:`${noun} نمونه را به خاطر بسپار و بعد آن را میان گزینه‌های مشابه پیدا کن.`,rules:[dual?'دو ثانیه به هر دو نمونه نگاه کن و جزئیاتشان را حفظ کن.':`دو ثانیه به ${noun} نمونه نگاه کن و جزئیاتش را حفظ کن.`,dual?'پس از پنهان‌شدن نمونه‌ها، هر دو هدف را پیدا کن؛ با پیدا‌کردن یکی، دور تمام نمی‌شود.':'پس از پنهان‌شدن نمونه، همان نمونه را بین گزینه‌ها پیدا کن.','هر کشف درست یک امتیاز دارد. برای هر دور زمان محدودی داری.']};
+    return {...game,description:dual?`دو ${noun} را به خاطر بسپار و بعد، هر دو را در یک صفحهٔ شلوغ پیدا کن. جزئیات نمونه‌ها مهم‌اند.`:`${noun} نمونه را به خاطر بسپار و بعد آن را میان گزینه‌های مشابه پیدا کن.`,rules:[dual?`${((gameOptions().timing?.previewMs||2000)/1000).toLocaleString('fa-IR')} ثانیه به هر دو نمونه نگاه کن و جزئیاتشان را حفظ کن.`:`${((gameOptions().timing?.previewMs||2000)/1000).toLocaleString('fa-IR')} ثانیه به ${noun} نمونه نگاه کن و جزئیاتش را حفظ کن.`,dual?'پس از پنهان‌شدن نمونه‌ها، هر دو هدف را پیدا کن؛ با پیدا‌کردن یکی، دور تمام نمی‌شود.':'پس از پنهان‌شدن نمونه، همان نمونه را بین گزینه‌ها پیدا کن.','هر کشف درست یک امتیاز دارد. برای هر دور زمان محدودی داری.']};
   }
   return game;
 }
 async function detail(id, updateHash = true) {
   if(!currentUser)return showLogin();if(currentUser.role==='admin')return adminPanel();
   const view=beginView();if(!await refreshClients(view))return;
+  if(!Object.hasOwn(GAME_MAP,id))return home();
+  if(selectedGame!==id)selectedMaterial='shapes';selectedGame=id;
+  const key=timingIdentity({...gameOptions(),variant:currentVariant()});
+  if(clients.activeId){
+    const data=await viewRequest(view,`${timingPath(clients.activeId)}?${new URLSearchParams(key)}`);if(!currentView(view))return;
+    clients.gameTimings={...data,childId:clients.activeId};
+  }else delete clients.gameTimings;
   return renderDetail(id,updateHash);
 }
 function renderDetail(id, updateHash = true) {
@@ -254,14 +261,14 @@ function renderDetail(id, updateHash = true) {
   const game = gameCopy(GAME_MAP[id]); document.title = `${game.title} — حواس`;
   page(`<div class="breadcrumb"><button data-action="home">بازی‌ها</button>${icon('chevron')}<span>${game.title}</span></div>${guideState?`<div class="guided-banner"><b>ارزیابی اولیه · ${fa(GAMES.findIndex(game=>game.id===id)+1)} از ۷</b><span>این بخش شامل پنج تمرین در سطح آسان است.</span><button class="text-button" data-action="assessment">دیدن مسیر ارزیابی ←</button></div>`:""}<section class="intro-layout"><div class="intro-copy"><div class="eyebrow">${icon('spark')} ${game.skill}</div><h1>${game.title}</h1><details class="companion-guide intro-companion"><summary>راهنمای همراه</summary><p class="intro-description">${game.description}</p><ol class="rules">${game.rules.map((rule,i) => `<li><span>${fa(i+1)}</span><p>${rule}</p></li>`).join('')}</ol></details>${lessonState.steps.length?`<section class="lesson-box" id="lesson-box" aria-label="نمونهٔ آموزشی تعاملی">${lessonContent()}</section>`:""}<fieldset class="level-selector"><legend>سطح تمرین تعیین‌شده</legend><div class="levels">${Object.entries(LEVELS).map(([id,level],i) => `<button class="level-button ${selectedLevel === id ? 'selected' : ''}" data-action="level" data-level="${id}" aria-pressed="${selectedLevel === id}" ${guideState||currentUser?.role!=='admin'?"disabled":""}><span class="level-bars" aria-hidden="true">${[0,1,2].map(j=>`<i class="${j<=i?'lit':''}"></i>`).join('')}</span><b>${level.label}</b><small>${level.caption}</small></button>`).join('')}</div></fieldset>${id === 'hunt' ? `<fieldset class="theme-selector"><legend>با چی بازی کنیم؟</legend><div class="theme-options">${Object.entries(THEMES).map(([key,label]) => `<button class="theme-button ${key===selectedTheme?'selected':''}" data-action="theme" data-theme="${key}" aria-pressed="${key===selectedTheme}">${label}</button>`).join('')}</div></fieldset>` : ''}${taskOptions(game)}${assessmentInfo()}${currentUser?.role==='admin'&&activeProfile(clients)?`<div class="difficulty-policy"><span>روش سطح: ${policy?.mode==='fixed'?'ثابت؛ انتخاب سطح، تنظیم ادمین را ثابت می‌کند.':'تطبیقی؛ سطح جلسهٔ بعد از عملکرد تعیین می‌شود.'}</span><button class="text-button" data-action="adaptive-level">فعال‌کردن سطح تطبیقی</button></div>`:''}<div class="start-row"><button class="button primary" data-action="practice">بریم تمرین کنیم ${icon('arrow')}</button>${!guideState && latestBaseline(clients,id,currentVariant()) ? '<button class="button primary" data-action="main-game">بازی اصلی ←</button>' : '<span>۵ تمرین؛ ارزیابی جدا از امتیاز اصلی</span>'}</div></div><aside class="intro-art" style="--card-color:${game.color}"><div class="intro-art-bubble">${gameArtwork(id,{theme:selectedTheme})}</div><div class="intro-art-note">${icon('target')} <span>یک قانون ساده، یک چالش جذاب</span></div><div class="session-summary" id="session-summary">${levelSummary(game)}</div></aside></section>`, 'content-main');
   if(guideState)document.querySelectorAll('[data-action="theme"],[data-action="hunt-mode"],[data-action="material"],[data-action="traffic-mode"],[data-action="search-mode"],[data-action="search-layout"]').forEach(button=>button.disabled=true);
-  if(lessonState.steps.length)narrateFrozen(lessonGuidanceKey(selectedGame,lessonState.steps[lessonState.index],gameOptions()),`lesson:${viewVersion}:${lessonState.index}`);
+  if(lessonState.steps.length)narrateEntry(lessonGuidanceKey(selectedGame,lessonState.steps[lessonState.index],gameOptions()));
 }
 function levelSummary(game) {
   const l = LEVELS[selectedLevel];
-  const {visibleMs,intervalMs}=reactionTiming(gameOptions());
+  const timing=gameOptions().timing||defaultTiming(gameOptions()),{visibleMs,intervalMs}=timing;
   if (game.kind === 'reaction') return `<span><b>۱۵۰</b> نوبت · ۳۰ هدف</span><span><b>${fa(visibleMs)}</b> میلی‌ثانیه نمایش</span><span><b>${time((150+(game.id==='nback'?l.n:0))*intervalMs)}</b> زمان فعال</span>${game.id==='hunt'?`<span><b>${fa(HUNT_SETTINGS[selectedLevel].sceneItems)}</b> شکل هم‌زمان</span>`:''}`;
-  if (game.kind === 'search') return `<span><b>۱۰</b> دور جست‌وجو</span><span><b>${fa(l.searchSeconds)}</b> ثانیه برای هر دور</span><span><b>${selectedSearchMode==='dual'?'۲':'۱'}</b> هدف در هر دور</span>`;
-  return `<span><b>${fa(l.required)}</b> وسیلهٔ ضروری</span><span><b>${fa(l.seconds)}</b> ثانیه فرصت</span>`;
+  if (game.kind === 'search') return `<span><b>۱۰</b> دور جست‌وجو</span><span><b>${(timing.searchMs/1000).toLocaleString('fa-IR')}</b> ثانیه برای هر دور</span><span><b>${selectedSearchMode==='dual'?'۲':'۱'}</b> هدف در هر دور</span>`;
+  return `<span><b>${fa(l.required)}</b> وسیلهٔ ضروری</span><span><b>${(timing.limitMs/1000).toLocaleString('fa-IR')}</b> ثانیه فرصت</span>`;
 }
 
 async function start(practice, forceBaseline = false, repeatOptions = null) {
@@ -283,6 +290,10 @@ async function start(practice, forceBaseline = false, repeatOptions = null) {
   const attempt={};launchAttempt=attempt;starting=true;notify('در حال آماده‌سازی بازی…');document.querySelectorAll('[data-action="practice"],[data-action="repeat-practice"],[data-action="main-game"],[data-action="replay"]').forEach(button=>button.disabled=true);
   try {
     const run=(!practice||sessionIsBaseline)?await request(`/children/${clients.activeId}/sessions`,{method:'POST',body:{...options,kind:sessionIsBaseline?'baseline':'training'}}):null;
+    if(!run&&!repeatOptions){
+      const key=timingIdentity({...options,variant:currentVariant()}),data=await request(`${timingPath(clients.activeId)}?${new URLSearchParams(key)}`);
+      options.timing={...data.levels.find(row=>row.level===selectedLevel).timing};
+    }
     const world=await preloadWorld(run?.settings||options);
     if(launchAttempt!==attempt)return;
     remoteRun=run;loadedWorld=world;
@@ -299,10 +310,10 @@ async function start(practice, forceBaseline = false, repeatOptions = null) {
   sessionRecordId=null;completedRecord=null;
   route = 'play'; playPhase='ready'; preparationClock=null;
   engine = FACTORIES[selectedGame]({ ...options,...remoteRun?.settings,...(remoteRun?{experienceVersion:remoteRun.settings.experienceVersion??1}:{}),level:selectedLevel,practice,reviewEnabled:remoteRun?remoteRun.settings.reviewEnabled:practice,random:remoteRun?seededRandom(remoteRun.settings.seed):Math.random }); engine.clock.pause(); arenaKey = '';
-  sessionOptions={...options,...remoteRun?.settings,level:engine.level,experienceVersion:engine.experienceVersion};
+  sessionOptions={...options,...remoteRun?.settings,level:engine.level,experienceVersion:engine.experienceVersion,...(engine.experienceVersion>=3?{timing:{...engine.timing}}:{})};
   repeatingPractice=Boolean(repeatOptions);
   const game = GAME_MAP[selectedGame];
-  page(`<div class="play-heading"><div><span class="section-kicker">${practice ? sessionIsBaseline ? '۵ تمرین برای آموزش و ارزیابی پایه' : 'وقت تمرینه؛ امتیازت ثبت نمی‌شه' : 'نوبت ماجراجویی توئه'}</span><h1>${game.title}<span class="level-pill">${LEVELS[selectedLevel].label}</span></h1></div><div class="play-heading-actions"><button class="icon-button sound-button" data-action="sound" aria-label="${progress.sound?'خاموش‌کردن صدا و راهنمای گویا':'روشن‌کردن صدا و راهنمای گویا'}" aria-pressed="${progress.sound}">${icon(progress.sound?'sound':'mute')}</button><button class="button subtle pause-button" data-action="pause">${icon('pause')} توقف</button></div></div><section class="play-panel ${game.kind}" data-game="${game.id}" data-interval-ms="${engine.intervalMs||1000}" data-visible-ms="${engine.visibleMs||0}" style="--game-color:${game.color};--game-accent:${game.accent}" aria-label="محیط بازی"><div class="play-hud"><div><span id="progress-label"></span><b id="position"></b></div><div class="hud-time">${icon('clock')}<div><span id="time-label"></span><b id="time"></b></div></div><div><span>پاسخ‌های هدف درست</span><b id="hits">۰</b></div></div><div class="progress-track"><span id="progress-fill"></span></div><div class="instruction-strip" id="instruction"></div><div id="arena" class="arena"></div><div class="play-controls" id="play-controls"></div><div class="visual-feedback" id="visual-feedback" aria-hidden="true"><span class="feedback-good">${icon('check')}</span><span class="feedback-wrong">${icon('repeat')}</span><span class="feedback-cleared">${icon('spark')}</span><strong class="feedback-label"></strong></div><div id="feedback" class="feedback" role="status">با آرامش و دقت شروع کن؛ تو می‌تونی!</div></section><p class="play-footnote">${icon('info')} ${practice ? sessionIsBaseline ? 'این پنج تمرین برای آموزش و پیشنهاد سطح اولیه ثبت می‌شوند.' : 'این بخش فقط برای یادگرفتن قانون بازیه.' : game.kind==='reaction' ? 'محرک کوتاه دیده می‌شه؛ تا شروع نوبت بعد فرصت پاسخ داری.' : 'عجله نکن؛ انتخاب درست، مهم‌تر از انتخاب سریعه.'}</p>`, 'play-main');
+  page(`<div class="play-heading"><div><span class="section-kicker">${practice ? sessionIsBaseline ? '۵ تمرین برای آموزش و ارزیابی پایه' : 'وقت تمرینه؛ امتیازت ثبت نمی‌شه' : 'نوبت ماجراجویی توئه'}</span><h1>${game.title}<span class="level-pill">${LEVELS[selectedLevel].label}</span></h1></div><div class="play-heading-actions">${guideControl('current','راهنما')}<button class="icon-button sound-button" data-action="sound" aria-label="${progress.sound?'خاموش‌کردن صدا و راهنمای گویا':'روشن‌کردن صدا و راهنمای گویا'}" aria-pressed="${progress.sound}">${icon(progress.sound?'sound':'mute')}</button><button class="button subtle pause-button" data-action="pause">${icon('pause')} توقف</button></div></div><section class="play-panel ${game.kind}" data-game="${game.id}" data-interval-ms="${engine.intervalMs||1000}" data-visible-ms="${engine.visibleMs||0}" style="--game-color:${game.color};--game-accent:${game.accent}" aria-label="محیط بازی"><div class="play-hud"><div><span id="progress-label"></span><b id="position"></b></div><div class="hud-time">${icon('clock')}<div><span id="time-label"></span><b id="time"></b></div></div><div><span>پاسخ‌های هدف درست</span><b id="hits">۰</b></div></div><div class="progress-track"><span id="progress-fill"></span></div><div class="instruction-strip" id="instruction"></div><div id="arena" class="arena"></div><div class="play-controls" id="play-controls"></div><div class="visual-feedback" id="visual-feedback" aria-hidden="true"><span class="feedback-good">${icon('check')}</span><span class="feedback-wrong">${icon('repeat')}</span><span class="feedback-cleared">${icon('spark')}</span><strong class="feedback-label"></strong></div><div id="feedback" class="feedback" role="status">با آرامش و دقت شروع کن؛ تو می‌تونی!</div></section><p class="play-footnote">${icon('info')} ${practice ? sessionIsBaseline ? 'این پنج تمرین برای آموزش و پیشنهاد سطح اولیه ثبت می‌شوند.' : 'این بخش فقط برای یادگرفتن قانون بازیه.' : game.kind==='reaction' ? 'محرک کوتاه دیده می‌شه؛ تا شروع نوبت بعد فرصت پاسخ داری.' : 'عجله نکن؛ انتخاب درست، مهم‌تر از انتخاب سریعه.'}</p>`, 'play-main');
   updatePlay();
   frame = requestAnimationFrame(loop);
 }
@@ -325,7 +336,6 @@ function updatePreparation() {
     document.querySelector('#arena').innerHTML=playPhase==='ready'?preparationView(engine):countdownView();
     document.querySelector('#play-controls').innerHTML=playPhase==='ready'?`<button class="button primary begin-button" data-action="begin-game">آماده‌ام، شروع کنیم ${icon('play')}</button><span class="keyboard-hint">یا کلید <kbd>فاصله</kbd></span>`:'';
     setText('feedback','زمان آماده‌شدن و خواندن توضیحات، جزو زمان بازی نیست.');
-    if(playPhase==='ready'&&(engine.practice||engine.experienceVersion===1))narrateFrozen(guidanceKey({...engine,targetCount:engine.targets?.length||engine.targetCount}),`ready:${viewVersion}`);
   }
   if(playPhase==='countdown'){
     const number=Math.max(1,3-Math.floor(preparationClock.elapsed/1000)),node=document.getElementById('countdown-number');
@@ -393,9 +403,9 @@ function updatePlay() {
     const response = document.querySelector('[data-action="respond"]'); if (response) response.disabled = engine.gate || engine.paused || !!engine.response || engine.current.scored === false;
     if(engine.gameId==='hunt'&&engine.moving)syncHuntFocus(document.querySelector('.hunt-surface'),huntFocus);
   }
-  if(search&&engine.preview&&!engine.review){setText('preview-seconds',`${fa(Math.ceil((engine.revealAt-engine.clock.elapsed)/1000))} ثانیه`);const previewFill=document.querySelector('.preview-timer span');const previewRatio=Math.max(0,Math.min(1,(engine.revealAt-engine.clock.elapsed)/2000));if(previewFill)previewFill.style.width=`${100*previewRatio}%`;document.querySelector('.search-clock-arc')?.setAttribute('stroke-dashoffset',String(100*(1-previewRatio)));}
+  if(search&&engine.preview&&!engine.review){setText('preview-seconds',`${fa(Math.ceil((engine.revealAt-engine.clock.elapsed)/1000))} ثانیه`);const previewFill=document.querySelector('.preview-timer span');const previewRatio=Math.max(0,Math.min(1,(engine.revealAt-engine.clock.elapsed)/engine.timing.previewMs));if(previewFill)previewFill.style.width=`${100*previewRatio}%`;document.querySelector('.search-clock-arc')?.setAttribute('stroke-dashoffset',String(100*(1-previewRatio)));}
   playMotion.sync(document.querySelector('.play-panel'),engine,{paused:modal.open||document.hidden===true,reduced:matchMedia('(prefers-reduced-motion: reduce)').matches});
-  if(search&&!engine.preview&&!engine.review&&!engine.roundBreak){const timeFill=document.querySelector('#search-time-fill');if(timeFill)timeFill.style.width=`${100*engine.remainingMs/(LEVELS[engine.level].searchSeconds*1000)}%`;}
+  if(search&&!engine.preview&&!engine.review&&!engine.roundBreak){const timeFill=document.querySelector('#search-time-fill');if(timeFill)timeFill.style.width=`${100*engine.remainingMs/engine.timing.searchMs}%`;}
   const missionFill=document.querySelector('#mission-time-fill');if(missionFill)missionFill.style.width=`${engine.practice?100:100*engine.remainingMs/engine.limitMs}%`;
   const feedback = document.getElementById('feedback');
   if (engine.feedback && feedback.textContent !== engine.feedback) { feedback.textContent = engine.feedback; feedback.className = `feedback ${engine.feedbackKind}`; }
@@ -415,7 +425,7 @@ function renderArena(game) {
   if(engine.review){
     instruction.innerHTML=`${icon('info')}<span>مرور تمرین · <b>زمان متوقف است</b></span>`;arena.innerHTML=reviewView(engine);
     const position=game.kind==='reaction'?engine.position:game.kind==='search'?engine.index:engine.judged;
-    controls.innerHTML=`<button class="button primary review-next" data-action="continue-review">${position>=engine.total-1?'دیدن نتیجهٔ تمرین':'آماده‌ام، تمرین بعدی'} ${icon('arrow')}</button>`;narrateFrozen(arena.querySelector('[data-guide]')?.dataset.guide,`review:${viewVersion}:${engine.outcomes.length}`);return;
+    controls.innerHTML=`<button class="button primary review-next" data-action="continue-review">${position>=engine.total-1?'دیدن نتیجهٔ تمرین':'آماده‌ام، تمرین بعدی'} ${icon('arrow')}</button>`;return;
   }
   if (game.kind === 'reaction') {
     let cue, button;
@@ -425,12 +435,12 @@ function renderArena(game) {
     if (game.id === 'stroop') { cue = `${stroopRulePicture(engine.current.phase)}<span class="sr-only">مرحلهٔ ${fa(engine.current.phase+1)}: ${STROOP_RULES[engine.current.phase].title}</span>`; button = 'این هدفه'; }
     instruction.innerHTML = cue;
     if (engine.gate) {
-      arena.innerHTML=transitionView(engine);if(!engine.transitionClock)narrateFrozen(guidanceKey({...engine,phase:engine.current.phase,targetCount:engine.targets?.length}),`rule:${viewVersion}:${engine.current.phase}`);
+      arena.innerHTML=transitionView(engine);
     } else arena.innerHTML = reactionScene(game);
     controls.innerHTML = game.id==='hunt'?huntControls(engine):game.id==='nback'?memoryControls(engine):game.id==='stroop'?stroopControls(engine):`<button class="button response-button" data-action="respond" ${engine.gate || engine.response || engine.current.scored === false ? 'disabled' : ''}>${icon('tap')} <span>${game.id==='traffic'?'حرکت':'بزن'}</span><span class="sr-only">${button}</span></button><span class="keyboard-hint">یا کلید <kbd>فاصله</kbd> روی کیبورد</span>`;
   } else if (game.kind === 'search') {
     const dual=engine.targetCount===2;
-    instruction.innerHTML = `${icon(engine.preview ? 'info' : 'target')}<span>${engine.preview ? dual?'دو ثانیه فرصت داری؛ <b>هر دو نمونه رو به خاطر بسپار.</b>':'دو ثانیه فرصت داری؛ <b>شکل و علامتش رو به خاطر بسپار.</b>' : dual?'نمونه‌ها پنهان شدند؛ <b>هر دو هدف رو پیدا کن.</b>':'نمونه پنهان شده؛ <b>همون شکل رو پیدا کن.</b>'}</span>`;
+    instruction.innerHTML = `${icon(engine.preview ? 'info' : 'target')}<span>${engine.preview ? dual?`${(engine.timing.previewMs/1000).toLocaleString('fa-IR')} ثانیه فرصت داری؛ <b>هر دو نمونه رو به خاطر بسپار.</b>`:`${(engine.timing.previewMs/1000).toLocaleString('fa-IR')} ثانیه فرصت داری؛ <b>شکل و علامتش رو به خاطر بسپار.</b>` : dual?'نمونه‌ها پنهان شدند؛ <b>هر دو هدف رو پیدا کن.</b>':'نمونه پنهان شده؛ <b>همون شکل رو پیدا کن.</b>'}</span>`;
     arena.innerHTML=`<div class="search-world">${searchWorkspaceHeading(engine)}${searchRounds(engine)}${engine.preview?searchPreview(engine):`<div class="search-board-meta">${searchMemoryNote()}${searchTargetStatus(engine)}</div><div class="search-time-track" aria-hidden="true"><span id="search-time-fill"></span></div>${searchBoard()}`}</div>`;
     controls.innerHTML = `<span class="search-tip">${icon('info')} ${engine.preview ? 'هنوز گزینه‌ها نمایش داده نشدن.' : dual?`${fa(engine.found.size)} از ۲ هدف این دور پیدا شده؛ به جزئیات دقت کن.`:'روی شکل درست بزن؛ به جزئیات دقت کن.'}</span>`;
   } else {
@@ -515,14 +525,17 @@ function closeModal() {
 function syncSoundControls(){
   document.querySelectorAll('.sound-button').forEach(node=>{node.innerHTML=icon(progress.sound?'sound':'mute');node.setAttribute('aria-pressed',String(progress.sound));node.setAttribute('aria-label',progress.sound?'خاموش‌کردن صدا و راهنمای گویا':'روشن‌کردن صدا و راهنمای گویا');});
 }
-function narrateFrozen(key,context){
-  if(!progress.sound||!key||lastSpokenContext===context)return;
-  if(route==='play'&&playPhase==='playing'&&!engine?.paused)return;
-  lastSpokenContext=context;void guidance.play(key);
+function narrateEntry(key){
+  const identity=`${currentUser?.id}:${clients.activeId}:${selectedGame}`;
+  if(guidanceVisit?.identity!==identity)guidanceVisit={identity,attempted:false};
+  if(guidanceVisit.attempted)return;
+  guidanceVisit.attempted=true;
+  if(progress.sound&&key)void guidance.play(key);
 }
+
 function changeMemoryLesson(action){
   const step=lessonState?.steps[lessonState.index];if(route!=='detail'||step?.kind!=='memory')return;
-  guidance.stop();lastSpokenContext='';
+  guidance.stop();
   if(action==='lesson-memory-next')lessonState.memoryIndex=Math.min(step.stimuli.length-1,(lessonState.memoryIndex||0)+1);
   if(action==='lesson-memory-help')lessonState.memoryHelp=true;
   if(action==='lesson-memory-replay'){lessonState.memoryIndex=0;lessonState.memoryHelp=false;lessonState.answered=false;}
@@ -664,6 +677,7 @@ function activateUserTab(tab){
 }
 async function loadUserTab(){
  if(userTab==='audit')return showAudit(true);
+  if(userTab==='difficulty')return loadGameTiming();
  if(userTab!=='sessions')return;
  const panel=document.querySelector('#user-sessions');if(!panel)return;
  const view=beginView();panel.setAttribute('aria-busy','true');
@@ -721,6 +735,7 @@ async function submitForm(form){
 }
 async function processForm(form){
   const values=Object.fromEntries([...form.querySelectorAll('[name]')].map(el=>[el.name||el.getAttribute('name'),el.value]));
+  if(form.hasAttribute('data-timing-level'))return saveGameTiming(form,values);
   if(form.id==='login-form'){
     if(!api.csrfToken)await request('/auth/session');
     const auth=await request('/auth/login',{method:'POST',body:values});
@@ -781,6 +796,7 @@ async function refreshFilteredReport(){
  }
 }
 async function changeInput(event){
+  if(event.target.matches('[data-timing-select]'))return changeGameTimingSelection(event.target);
   if(event.target.matches('[data-birth-part]'))return syncBirthDate(event.target.closest('[data-birth-date]'));
   if(['new-user-role','new-user-method','new-user-child'].includes(event.target.id))return syncCreateControls();
   if(['policy-game','policy-variant'].includes(event.target.id))return syncPolicyControls(event.target.id==='policy-game');
@@ -803,7 +819,19 @@ async function handleAction(event) {
   const leaving=['home','admin','admin-users','admin-invitations','admin-audit','account','profiles','assessment','assessment-next','assess-game','assessment-train','open','inspect-user','review-profile','select-profile','logout','new-user','new-registration','create-mode','close-modal','games','refresh-panel','dashboard','report-links','edit-profile','unresolved-page'];
   if(leaving.includes(action)&&!await navigationGuard.allow(submitForm)){if(button.tagName==='A')event.preventDefault();return;}
   if(action==='toggle-password'){const input=button.closest('.input-shell')?.querySelector('input');if(input){const show=input.type==='password';input.type=show?'text':'password';button.setAttribute('aria-pressed',String(show));button.setAttribute('aria-label',show?'پنهان‌کردن رمز':'نمایش رمز');button.innerHTML=icon(show?'eye-off':'eye');}return;}
-  if(action==='listen-guide'){if(route==='play'&&playPhase==='playing'&&!engine?.paused)return;if(guidance.key===button.dataset.guide&&guidance.audio)return guidance.stop();progress.sound=true;writeProgress(progress);syncSoundControls();return guidance.play(button.dataset.guide);}
+  if(action==='listen-guide'){
+    const key=button.dataset.guide==='current'?guidanceKey({...engine,targetCount:engine?.targets?.length||engine?.targetCount,phase:engine?.current?.phase}):button.dataset.guide;
+    if(route==='play'&&!modal.open&&(playPhase==='countdown'||playPhase==='playing'&&(!engine?.paused||engine?.transitionClock&&!engine.transitionClock.paused))){pause();if(engine?.done)return;}
+    progress.sound=true;writeProgress(progress);syncSoundControls();return guidance.play(key);
+  }
+  if(action==='reset-game-timing'){
+    const form=button.closest('[data-timing-level]');if(form.dataset.waiting==='true')return;
+    form.timingReset=true;delete form.dataset.acknowledged;
+    try{return await submitForm(form);}finally{delete form.timingReset;}
+  }
+  if(action==='reload-game-timing'){
+    const holder=button.closest('#game-timing-settings');if(await navigationGuard.allow(submitForm)&&holder.isConnected)return loadGameTiming(holder.timingSelection);return;
+  }
   if(['lesson-memory-next','lesson-memory-help','lesson-memory-replay'].includes(action))return changeMemoryLesson(action);
   if(button.tagName==='A')event.preventDefault();
   if(action==='admin-menu')return toggleAdminMenu();
@@ -951,7 +979,12 @@ document.addEventListener('keydown', event=>{
 });
 document.addEventListener('visibilitychange', ()=>{ if(document.hidden&&route==='play'&&engine&&(!engine.paused||engine.transitionClock||playPhase==='countdown')) { if(modal.open) { engine.pause();preparationClock?.pause(); } else pause(); } });
 window.addEventListener('orientationchange',()=>{if(route==='play'&&engine&&(!engine.paused||engine.transitionClock||playPhase==='countdown')&&!modal.open)pause();});
-function gameOptions(){return {gameId:selectedGame,clientExperienceVersion:EXPERIENCE_VERSION,view:'panel',level:selectedLevel,theme:selectedTheme,material:selectedMaterial,layout:selectedLayout,trafficMode:selectedTrafficMode,targetCount:selectedGame==='search'?(selectedSearchMode==='dual'?2:1):(selectedHuntMode==='divided'?2:1)};}
+function gameOptions(){
+ const options={gameId:selectedGame,clientExperienceVersion:EXPERIENCE_VERSION,view:'panel',level:selectedLevel,theme:selectedTheme,material:selectedMaterial,layout:selectedLayout,trafficMode:selectedTrafficMode,targetCount:selectedGame==='search'?(selectedSearchMode==='dual'?2:1):(selectedHuntMode==='divided'?2:1)};
+ const key=timingIdentity({...options,variant:currentVariant()}),cached=clients.gameTimings;
+ if(cached?.childId===clients.activeId&&['gameId','variant','timingFamily'].every(field=>cached.identity[field]===key[field]))options.timing={...cached.levels.find(row=>row.level===selectedLevel).timing};
+ return options;
+}
 async function refreshClients(view=null){
  const viewerId=currentUser?.id,viewerRole=currentUser?.role;
  const valid=()=>currentUser?.id===viewerId&&currentUser?.role===viewerRole&&(!view||currentView(view));let data;
@@ -1068,6 +1101,7 @@ async function account(){
  if(!currentUser)return showLogin();if(currentUser.passwordChangeRequired)return forcedPassword();const view=beginView();if(!await refreshClients(view))return;
  if(currentUser.role==='admin'){const data=await viewRequest(view,`/children?view=panel&owner=unassigned&page=${unresolvedPage}`);if(!currentView(view))return;unresolvedProfiles=data.profiles;unresolvedPage=data.pagination.page;unresolvedPages=data.pagination.pages;}
  guideState=null;engine=null;route='account';setHash(currentUser.role==='admin'?'#admin/settings':'#account');if(modal.open)modal.close();page(accountView(currentUser,unresolvedProfiles),'content-main account-main');if(unresolvedPages>1)document.querySelector('.import-section')?.insertAdjacentHTML('beforeend',`<div class="pagination"><button class="button subtle" data-action="unresolved-page" data-page="${unresolvedPage-1}" ${unresolvedPage<=1?'disabled':''}>قبلی</button><button class="button subtle" data-action="unresolved-page" data-page="${unresolvedPage+1}" ${unresolvedPage>=unresolvedPages?'disabled':''}>بعدی</button></div>`);
+ if(currentUser.role==='admin')await loadGameTiming();
 }
 async function adminUsers(){
  if(currentUser?.role!=='admin')return home();const view=beginView(),query=new URLSearchParams({...adminState,pageSize:20});const data=await viewRequest(view,`/users?${query}`);if(!currentView(view))return;
@@ -1150,7 +1184,49 @@ function syncCreateControls(){
  const fields=document.querySelector('#new-profile-fields');fields.hidden=!user||existing;fields.disabled=!user||existing;
  const needsPassword=user||direct,label=document.querySelector('#temporary-password-label');label.hidden=!needsPassword;form.elements.password.disabled=!needsPassword;form.elements.password.required=needsPassword;
 }
-const policyVariants={hunt:['standard','divided'],traffic:['standard','signs'],nback:['standard','numbers','toys'],search:['standard','scattered','letters','letters-scattered','dual','letters-dual','scattered-dual','letters-scattered-dual']};
+async function loadGameTiming(selection=null){
+ const holder=document.querySelector('#game-timing-settings');if(!holder||currentUser?.role!=='admin')return;
+ if(!selection&&holder.timingData)return;
+ const key=selection||holder.timingSelection||{gameId:'hunt',variant:'standard',timingFamily:'static'};
+ holder.timingData=null;holder.timingSelection=key;holder.querySelector('#timing-levels').innerHTML='<p>در حال دریافت زمان‌بندی…</p>';
+ const view={version:viewVersion,userId:currentUser.id,role:currentUser.role},attempt={};holder.timingAttempt=attempt;
+ holder.setAttribute('aria-busy','true');holder.querySelector('#timing-error').textContent='';
+ try{
+  const data=await viewRequest(view,`${timingPath(holder.dataset.child)}?${new URLSearchParams(key)}`);
+  if(!currentView(view)||!holder.isConnected||holder.timingAttempt!==attempt||!data)return;
+  holder.timingData=data;holder.timingSelection=data.identity;
+  holder.querySelector('#timing-levels').innerHTML=data.levels.map(row=>timingLevelView(data,row,holder.dataset.child)).join('');
+  navigationGuard.sync();
+ }catch(error){if(currentView(view)&&holder.isConnected&&holder.timingAttempt===attempt){holder.querySelector('#timing-error').textContent=error.message;throw error;}}
+ finally{if(holder.timingAttempt===attempt)holder.removeAttribute('aria-busy');}
+}
+async function changeGameTimingSelection(select){
+ const holder=select.closest('#game-timing-settings'),previous=holder.timingSelection||{gameId:'hunt',variant:'standard',timingFamily:'static'};
+ const next={...previous,[select.dataset.timingSelect]:select.value};
+ if(select.dataset.timingSelect==='gameId'){next.variant='standard';next.timingFamily=next.gameId==='hunt'?'static':'standard';}
+ next.protocolVersion=GAME_PROTOCOLS[next.gameId];
+ const restore=key=>{
+  holder.querySelector('[data-timing-select=gameId]').value=key.gameId;
+  holder.querySelector('[data-timing-select=variant]').innerHTML=timingVariantOptions(key.gameId);holder.querySelector('[data-timing-select=variant]').value=key.variant;
+  holder.querySelector('[data-timing-family-label]').hidden=key.gameId!=='hunt';holder.querySelector('[data-timing-select=timingFamily]').value=key.timingFamily==='moving'?'moving':'static';
+ };
+ restore(previous);
+ if(!await navigationGuard.allow(submitForm)||!holder.isConnected)return;
+ restore(next);return loadGameTiming(next);
+}
+async function saveGameTiming(form,values){
+ const holder=form.closest('#game-timing-settings'),view={version:viewVersion,userId:currentUser.id,role:currentUser.role};
+ const key={gameId:form.dataset.game,variant:form.dataset.variant,timingFamily:form.dataset.family,protocolVersion:Number(form.dataset.protocol),level:form.dataset.timingLevel};
+ const errorNode=form.querySelector('[data-timing-form-error]');errorNode.textContent='';
+ try{
+  const timing=form.timingReset?null:validateTiming(key.gameId,Object.fromEntries(timingFields(key.gameId).map(field=>[field,Math.round(Number(values[field])*1000)])));
+  const data=await request(timingPath(form.dataset.child),{method:'PATCH',body:{...key,timing,expectedRevision:Number(form.dataset.revision)}});
+  acknowledgeForm(form);
+  if(currentUser?.id!==view.userId||currentUser?.role!==view.role||!form.isConnected||!holder.isConnected)return;
+  holder.timingData=data;form.outerHTML=timingLevelView(data,data.levels.find(row=>row.level===key.level),holder.dataset.child);navigationGuard.sync();if(currentView(view))notify('زمان‌بندی برای جلسهٔ بعد ذخیره شد.');
+ }catch(error){if(form.isConnected&&currentView(view))errorNode.textContent=error.message;throw error;}
+}
+const policyVariants=TIMING_VARIANTS;
 function policyOptions(gameId,variant){return {gameId,targetCount:variant.includes('dual')||variant==='divided'?2:1,material:variant.includes('letters')?'letters':['numbers','toys'].includes(variant)?variant:'shapes',layout:variant.includes('scattered')?'scattered':'grid',trafficMode:variant==='signs'?'signs':'circles'};}
 function syncPolicyControls(reset=true){
  const form=document.querySelector('#admin-difficulty-form');if(!form)return;const game=form.elements.gameId.value;

@@ -1,10 +1,10 @@
 import { Session, ActiveClock } from './session.js';
-import { reactionTiming, RULE_NOTICE_MS } from '../config.js';
+import { RULE_NOTICE_MS } from '../config.js';
 
 export class ReactionSession extends Session {
   constructor(options, trials) {
     super(options); this.trials = trials; this.index = 0; this.onset = 0; this.response = null; this.gate = false;
-    Object.assign(this,reactionTiming({...options,level:this.level,stimulusVersion:this.stimulusVersion,experienceVersion:this.experienceVersion}));
+    Object.assign(this,this.timing);
     this.transitionClock=null;
     this.maxScore = trials.filter(t => t.scored !== false && t.target).length;
     this.total = trials.filter(t => t.scored !== false).length;

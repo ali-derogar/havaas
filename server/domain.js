@@ -1,4 +1,4 @@
-import { GAME_MAP, GAME_PROTOCOLS, LEVELS, PROTOCOL, EXPERIENCE_VERSION } from '../src/config.js';
+import { GAME_MAP, GAME_PROTOCOLS, PROTOCOL, EXPERIENCE_VERSION } from '../src/config.js';
 import { FACTORIES } from '../src/games/index.js';
 import { generateSearch } from '../src/games/search.js';
 import { seededRandom } from '../src/core/random.js';
@@ -51,7 +51,7 @@ export function canonicalResult(run,payload) {
       check(Number.isInteger(o.round)&&o.round>=1&&o.round<=boards.length&&(i===0||o.round>=payload.outcomes[i-1].round),'دور جست‌وجو معتبر نیست.');
       if(o.round!==searchRound){check(o.round===searchRound+1&&found.get(searchRound)===settings.targetCount,'دور قبلی جست‌وجو کامل نشده است.');searchRound=o.round;roundStartedAt=records.at(-1).atMs;}
       check((found.get(searchRound)||0)<settings.targetCount,'دور جست‌وجو قبلاً پایان یافته است.');
-      const revealAt=roundStartedAt+PROTOCOL.previewMs,deadline=revealAt+LEVELS[settings.level].searchSeconds*1000;
+      const revealAt=roundStartedAt+engine.timing.previewMs,deadline=revealAt+engine.timing.searchMs;
       check(o.atMs+tolerance>=revealAt,'پاسخ قبل از پایان نمایش نمونه ثبت شده است.');
       if(o.response)check(o.atMs<deadline+tolerance,'پاسخ پس از پایان زمان جست‌وجو ثبت شده است.');
       else check(o.atMs+tolerance>=deadline,'خطای حذف قبل از پایان زمان جست‌وجو معتبر نیست.');
@@ -64,7 +64,7 @@ export function canonicalResult(run,payload) {
       if(practice)check(item===engine.items[i],'ترتیب آموزش معتبر نیست.');
       check(!item.blocked||(!practice&&!o.response)||cleared.get(item.id)<=o.atMs,'مانع وسیله کنار نرفته است.');
       if(!practice){
-        const effectiveTime=o.atMs+wrongItems*PROTOCOL.penaltyMs,limit=LEVELS[settings.level].seconds*1000;
+        const effectiveTime=o.atMs+wrongItems*PROTOCOL.penaltyMs,limit=engine.timing.limitMs;
         if(o.response)check(effectiveTime<limit+tolerance,'انتخاب پس از پایان زمان مأموریت ثبت شده است.');
         else check(item.required&&effectiveTime+tolerance>=limit,'حذف وسیله فقط پس از پایان زمان مأموریت ثبت می‌شود.');
       }
@@ -74,7 +74,7 @@ export function canonicalResult(run,payload) {
     let rt=o.response?o.reactionMs:null;
     if(o.response)check((rt===null&&!correct)||Number.isFinite(rt)&&rt>=0&&rt<=payload.durationMs,'زمان پاسخ معتبر نیست.');
     if(trials&&o.response)check(rt!==null&&rt<engine.intervalMs,'پاسخ خارج از پنجرهٔ نوبت است.');
-    if(boards&&o.response&&target)check(rt!==null&&rt<=LEVELS[settings.level].searchSeconds*1000&&Math.abs(o.atMs-roundStartedAt-PROTOCOL.previewMs-rt)<=tolerance,'زمان واکنش با آغاز جست‌وجو یکسان نیست.');
+    if(boards&&o.response&&target)check(rt!==null&&rt<=engine.timing.searchMs&&Math.abs(o.atMs-roundStartedAt-engine.timing.previewMs-rt)<=tolerance,'زمان واکنش با آغاز جست‌وجو یکسان نیست.');
     if(game.kind==='adventure'&&o.response&&target){const onset=Math.max(records.at(-1)?.atMs||0,...[...cleared.values()].filter(at=>at<=o.atMs));rt=Math.max(0,o.atMs-onset);}
     if(game.kind==='adventure'&&!target&&o.response)wrongItems++;
     records.push({number:i+1,target,response:o.response,correct,reactionMs:rt,atMs:o.atMs,...context,...(stimulus?{stimulus}:{}),...(o.response&&trials?{selectedTarget,selectedStimulus}:{})});
@@ -84,13 +84,13 @@ export function canonicalResult(run,payload) {
   if(game.kind==='adventure'){
     if(practice)check(records.length===5,'آموزش باید پنج تصمیم داشته باشد.');
     else {
-      const deadline=LEVELS[settings.level].seconds*1000;
+      const deadline=engine.timing.limitMs;
       for(const atMs of cleared.values()){
         const priorWrong=records.filter(o=>!o.target&&o.response&&o.atMs<atMs-tolerance).length;
         check(atMs+priorWrong*PROTOCOL.penaltyMs<deadline+tolerance,'مانع پس از پایان زمان مأموریت کنار زده شده است.');
       }
       for(const item of engine.items.filter(i=>i.required))check(chosen.has(item.id),'همهٔ وسایل ضروری تعیین تکلیف نشده‌اند.');
-      const hits=records.filter(o=>o.target&&o.response).length,wrong=records.filter(o=>!o.target&&o.response).length,limit=LEVELS[settings.level].seconds*1000;
+      const hits=records.filter(o=>o.target&&o.response).length,wrong=records.filter(o=>!o.target&&o.response).length,limit=engine.timing.limitMs;
       completed=departedAt!==null;
       if(completed)check(hits===engine.required.length&&departedAt+wrong*PROTOCOL.penaltyMs<limit+tolerance&&departedAt>=records.at(-1).atMs,'شرایط خروج به‌موقع برقرار نیست.');
       else check(payload.durationMs+wrong*2000>=limit,'مأموریت هنوز پایان نیافته است.');
@@ -100,6 +100,6 @@ export function canonicalResult(run,payload) {
   for(const o of records)aggregate.record(o.target,o.response,o.reactionMs,{selectedTarget:o.selectedTarget});
   const m=aggregate.metrics,times=m.reactionTimes;
   const score=game.kind==='reaction'?Math.max(0,m.hits-m.falseAlarms):m.hits;
-  return {version:1,experienceVersion:settings.experienceVersion,...(game.id==='hunt'?{stimulusFamily:settings.theme||'star'}:{}),feedbackMode:practice&&settings.reviewEnabled?'guided':'continuous',stimulusVersion:settings.stimulusVersion??engine.stimulusVersion??1,protocolVersion:settings.protocolVersion,gameId:game.id,level:settings.level,variant:settings.variant,score,maxScore:engine.maxScore,hits:m.hits,correctResponses:m.hits+m.correctRejects,correctRejections:m.correctRejects,omissions:m.misses,falseSelections:m.falseAlarms,meanReactionMs:times.length?Math.round(times.reduce((a,b)=>a+b,0)/times.length):null,reactionMeasure:engine.reactionMeasure,longestStreak:m.maxStreak,durationMs:Math.round(payload.durationMs),completed,finishedAt:new Date().toISOString(),outcomes:records,sessionId:run.id,settingsSnapshot:settings,...(game.kind==='search'?{targetsPerRound:settings.targetCount,rounds:engine.total,roundFlow:engine.result.roundFlow}:{}),...(game.kind==='adventure'?{events:clearEvents.map(event=>({...event})),mission:engine.mission.title,departed:!practice&&completed,obstaclesCleared:cleared.size,inventory:records.filter(o=>o.target&&o.response).map(o=>o.item)}:{})};
+  return {version:1,experienceVersion:settings.experienceVersion,...(settings.experienceVersion>=3?{timing:engine.result.timing,timingKey:engine.result.timingKey}:{}),...(game.id==='hunt'?{stimulusFamily:settings.theme||'star'}:{}),feedbackMode:practice&&settings.reviewEnabled?'guided':'continuous',stimulusVersion:settings.stimulusVersion??engine.stimulusVersion??1,protocolVersion:settings.protocolVersion,gameId:game.id,level:settings.level,variant:settings.variant,score,maxScore:engine.maxScore,hits:m.hits,correctResponses:m.hits+m.correctRejects,correctRejections:m.correctRejects,omissions:m.misses,falseSelections:m.falseAlarms,meanReactionMs:times.length?Math.round(times.reduce((a,b)=>a+b,0)/times.length):null,reactionMeasure:engine.reactionMeasure,longestStreak:m.maxStreak,durationMs:Math.round(payload.durationMs),completed,finishedAt:new Date().toISOString(),outcomes:records,sessionId:run.id,settingsSnapshot:settings,...(game.kind==='search'?{targetsPerRound:settings.targetCount,rounds:engine.total,roundFlow:engine.result.roundFlow}:{}),...(game.kind==='adventure'?{events:clearEvents.map(event=>({...event})),mission:engine.mission.title,departed:!practice&&completed,obstaclesCleared:cleared.size,inventory:records.filter(o=>o.target&&o.response).map(o=>o.item)}:{})};
 }
-export function summaryResult(result){if(!result)return result;const source={...result,experienceVersion:result.experienceVersion??1,...(result.gameId==='hunt'&&result.settingsSnapshot?.theme?{stimulusFamily:result.stimulusFamily||result.settingsSnapshot.theme}:{})};return Object.fromEntries(['version','experienceVersion','stimulusFamily','feedbackMode','stimulusVersion','protocolVersion','gameId','level','variant','score','maxScore','hits','correctResponses','correctRejections','omissions','falseSelections','meanReactionMs','reactionMeasure','longestStreak','durationMs','completed','finishedAt','sessionId','targetsPerRound','rounds','roundFlow','mission','departed','obstaclesCleared','inventory','legacyId','source'].filter(key=>Object.hasOwn(source,key)).map(key=>[key,source[key]]));}
+export function summaryResult(result){if(!result)return result;const source={...result,experienceVersion:result.experienceVersion??1,...(result.gameId==='hunt'&&result.settingsSnapshot?.theme?{stimulusFamily:result.stimulusFamily||result.settingsSnapshot.theme}:{})};return Object.fromEntries(['version','experienceVersion','timing','timingKey','stimulusFamily','feedbackMode','stimulusVersion','protocolVersion','gameId','level','variant','score','maxScore','hits','correctResponses','correctRejections','omissions','falseSelections','meanReactionMs','reactionMeasure','longestStreak','durationMs','completed','finishedAt','sessionId','targetsPerRound','rounds','roundFlow','mission','departed','obstaclesCleared','inventory','legacyId','source'].filter(key=>Object.hasOwn(source,key)).map(key=>[key,source[key]]));}

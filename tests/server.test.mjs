@@ -386,9 +386,9 @@ apiTest('server: experience versions are authoritative and old baselines still u
  const old=await start(admin,'traffic','baseline',{trafficMode:'signs'});delete old.settings.experienceVersion;
  await db.pool.query('UPDATE game_sessions SET settings=$1 WHERE id=$2',[old.settings,old.id]);
  const saved=await complete(admin,old);assert.equal(saved.status,200,JSON.stringify(saved.data));assert.equal(saved.data.record.result.experienceVersion,1);
- const run=await start(user,'traffic','training',{trafficMode:'signs',experienceVersion:1});assert.equal(run.settings.experienceVersion,2);
- const result=await complete(user,run,{...playSession(run),experienceVersion:1});assert.equal(result.status,200);assert.equal(result.data.record.result.experienceVersion,2);
- const reports=await user.call(`/children/${child}/reports`);assert.equal(reports.data.records.find(record=>record.id===run.id).result.experienceVersion,2);
+ const run=await start(user,'traffic','training',{trafficMode:'signs',experienceVersion:1});assert.equal(run.settings.experienceVersion,EXPERIENCE_VERSION);
+ const result=await complete(user,run,{...playSession(run),experienceVersion:1});assert.equal(result.status,200);assert.equal(result.data.record.result.experienceVersion,EXPERIENCE_VERSION);
+ const reports=await user.call(`/children/${child}/reports`);assert.equal(reports.data.records.find(record=>record.id===run.id).result.experienceVersion,EXPERIENCE_VERSION);
 });
 
 apiTest('server: an installed legacy client can still save its old reaction timing after a server upgrade',async()=>{
@@ -401,7 +401,7 @@ apiTest('server: an installed legacy client can still save its old reaction timi
 });
 apiTest('server: unsupported client timing versions cannot create a session',async()=>{
  const child=seed.children[0].id,before=await db.pool.query('SELECT count(*) FROM game_sessions WHERE child_id=$1',[child]);
- for(const clientExperienceVersion of [0,3,'2',{},[]]){
+ for(const clientExperienceVersion of [0,4,'2',{},[]]){
   const response=await user.call(`/children/${child}/sessions`,{method:'POST',body:{gameId:'traffic',kind:'baseline',clientExperienceVersion}});assert.equal(response.status,409);assert.equal(response.data.code,'CLIENT_VERSION_UNSUPPORTED');
  }
  assert.deepEqual((await db.pool.query('SELECT count(*) FROM game_sessions WHERE child_id=$1',[child])).rows,before.rows);

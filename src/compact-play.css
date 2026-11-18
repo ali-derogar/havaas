@@ -70,3 +70,7 @@
  .play-panel[data-game=traffic][data-phase=playing] .response-button { min-width:0; width:100%; font-size:20px; }
  .play-panel[data-game=traffic][data-phase=playing]>.feedback { display:none; }
 }
+
+/* Keep the on-demand voice control within the existing play toolbar. */
+.play-heading>div:first-child{min-width:0}.play-heading h1{flex-wrap:wrap}.play-heading-actions{flex-shrink:0}.play-heading-actions .guide-audio-button{min-width:0;min-height:44px;padding:8px 10px;font-size:12px;gap:5px}.play-heading-actions .guide-audio-button .icon{width:20px;height:20px}
+@media(max-width:700px){.play-heading-actions .guide-audio-button{padding:7px;font-size:11px;gap:4px}.play-heading-actions .guide-audio-button .icon{width:18px;height:18px}}

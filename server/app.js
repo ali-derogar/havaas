@@ -20,6 +20,7 @@ import {appOrigin,normalizeAppOrigin} from './origin.js';
 import {serializeCsv} from './csv.js';
 import {registerPwa} from './pwa.js';
 import {EXPERIENCE_VERSION} from '../src/config.js';
+import {registerGameTimings,sessionTiming} from './game-timing.js';
 
 const PgStore=connectPg(session);
 const role=(req,roles)=>check(roles.includes(req.user.role),'اجازهٔ این عملیات را ندارید.',403,'FORBIDDEN');
@@ -54,6 +55,7 @@ export function createApp({pool,secret=process.env.SESSION_SECRET,production=pro
   registerAccounts(app,pool,{authLimit,role,profileDTO});
   registerReportLinks(app,pool,childAccess);
   registerAudit(app,pool,role);
+  registerGameTimings(app,pool,{role,childAccess});
   app.get('/api/children',async(req,res)=>{
     if(req.query.view==='panel'){
       role(req,['admin']);const {page,pageSize}=pagination(req.query),unassigned=req.query.owner==='unassigned';
@@ -116,13 +118,14 @@ export function createApp({pool,secret=process.env.SESSION_SECRET,production=pro
     await childAccess(pool,req.user,req.params.id);
     // Cached clients predating timing negotiation still run the original engine.
     const clientVersion=req.body.clientExperienceVersion??1;
-    check([1,EXPERIENCE_VERSION].includes(clientVersion),'نسخهٔ برنامه با سرور سازگار نیست؛ برنامه را به‌روزرسانی کنید.',409,'CLIENT_VERSION_UNSUPPORTED');
+    check([1,2,EXPERIENCE_VERSION].includes(clientVersion),'نسخهٔ برنامه با سرور سازگار نیست؛ برنامه را به‌روزرسانی کنید.',409,'CLIENT_VERSION_UNSUPPORTED');
     const s=normalizeSettings(req.body,{experienceVersion:clientVersion}),kind=req.body.kind;check(['baseline','training'].includes(kind),'نوع جلسه معتبر نیست.');
     const run=await transaction(pool,async db=>{
       if(kind==='training')check((await db.query("SELECT 1 FROM game_sessions WHERE child_id=$1 AND kind='baseline' AND result->>'gameId'=$2 AND COALESCE(result->>'variant','standard')=$3 AND (result->>'protocolVersion')::int=$4 AND result IS NOT NULL",[req.params.id,s.gameId,s.variant,s.protocolVersion])).rowCount,'اول ارزیابی پایه را انجام دهید.',409,'BASELINE_REQUIRED');
       await db.query('INSERT INTO difficulty(child_id,game_id,variant,protocol) VALUES($1,$2,$3,$4) ON CONFLICT DO NOTHING',[req.params.id,s.gameId,s.variant,s.protocolVersion]);
       const difficulty=(await db.query('SELECT * FROM difficulty WHERE child_id=$1 AND game_id=$2 AND variant=$3 AND protocol=$4 FOR UPDATE',[req.params.id,s.gameId,s.variant,s.protocolVersion])).rows[0];
       const settings={...s,level:kind==='baseline'?'easy':difficulty.level,seed:randomBytes(4).readUInt32BE(),practice:kind==='baseline',reviewEnabled:kind==='baseline'};
+      if(clientVersion>=3)Object.assign(settings,await sessionTiming(db,req.params.id,settings,kind));
       return (await db.query('INSERT INTO game_sessions(id,child_id,actor_id,kind,settings,difficulty_revision) VALUES($1,$2,$3,$4,$5,$6) RETURNING *',[randomUUID(),req.params.id,req.user.id,kind,settings,difficulty.revision])).rows[0];
     });const reference={...run.settings,feedbackMode:kind==='baseline'?'guided':'continuous',stimulusFamily:run.settings.theme};res.status(201).json({id:run.id,settings:run.settings,kind:run.kind,...(req.body.view==='panel'?{bestScore:await bestScoreFor(pool,req.params.id,reference,kind)}:{})});
   });

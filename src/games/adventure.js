@@ -57,7 +57,7 @@ export class AdventureSession extends Session {
       const desktop=scatter(this.items.length,900,this.fieldHeights.desktop,80,this.random),mobile=scatter(this.items.length,300,this.fieldHeights.mobile,52,this.random);
       this.items.forEach((item,i)=>{item.layout={desktop:{x:desktop[i].x/9,y:desktop[i].y/this.fieldHeights.desktop*100},mobile:{x:mobile[i].x/3,y:mobile[i].y/this.fieldHeights.mobile*100},angle:(this.random()-.5)*(this.level==='hard'?30:18),layer:1+Math.floor(this.random()*4)};});
     }
-    this.total = this.practice ? 5 : this.required.length; this.maxScore = this.required.length; this.judged = 0; this.penaltyMs = 0; this.limitMs = this.practice ? Infinity : settings.seconds * 1000;this.clock.resume();
+    this.total = this.practice ? 5 : this.required.length; this.maxScore = this.required.length; this.judged = 0; this.penaltyMs = 0; this.limitMs = this.practice ? Infinity : this.timing.limitMs;this.clock.resume();
   }
   get currentItem() { return this.items[this.judged]; }
   get score() { return this.metrics.hits; }

@@ -3,6 +3,7 @@ import { GAME_PROTOCOLS, EXPERIENCE_VERSION, PRESENTATION_VERSION } from '../../
 import { FACTORIES } from '../../src/games/index.js';
 import { CLIENTS_KEY } from '../../src/core/clients.js';
 import { seededRandom } from '../../src/core/random.js';
+import {defaultTiming,timingIdentity} from '../../src/game-timing.js';
 export function mockRemote(values){
   const user={id:'test-user',name:'کاربر آزمون',email:'therapist@example.test',role:'user',active:true};
   const runs=new Map();let number=0;
@@ -17,6 +18,10 @@ export function mockRemote(values){
     else if(path==='/api/children'&&method==='POST'){const p={...body,id:`child-${data.profiles.length+1}`};data.profiles.push(p);data.activeId=p.id;write(data);result={profile:p};}
     else if(/^\/api\/children\/[^/]+$/.test(path)&&method==='PATCH'){const p=data.profiles.find(p=>p.id===path.split('/')[3]);Object.assign(p,body);write(data);result={profile:p};}
     else if(/^\/api\/children\/[^/]+$/.test(path)&&method==='DELETE'){const id=path.split('/')[3];data.profiles=data.profiles.filter(p=>p.id!==id);data.records=data.records.filter(r=>r.profileId!==id);if(data.activeId===id)data.activeId=data.profiles[0]?.id||null;write(data);result={ok:true};}
+    else if(path.endsWith('/game-timings')&&method==='GET'){
+      const identity=timingIdentity({...Object.fromEntries(query),protocolVersion:Number(query.get('protocolVersion'))||undefined});
+      result={identity,levels:['easy','medium','hard'].map(level=>({level,timing:defaultTiming({...identity,level,theme:identity.timingFamily==='moving'?'fish':'star'})}))};
+    }
     else if(path.endsWith('/difficulty')&&method==='PATCH')result={setting:body};
     else if(path.endsWith('/sessions')&&method==='POST'){
       const engine=FACTORIES[body.gameId]({...body,practice:body.kind==='baseline',random:seededRandom(42),now:()=>0});

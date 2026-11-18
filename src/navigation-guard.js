@@ -1,4 +1,4 @@
-const guardedIds=new Set(['edit-user-form','profile-form','admin-difficulty-form','create-user-form','report-link-form','registration-link-form','invitation-form','password-form','registration-form']);
+const guardedIds=new Set(['edit-user-form','profile-form','admin-difficulty-form','game-timing-easy-form','game-timing-medium-form','game-timing-hard-form','create-user-form','report-link-form','registration-link-form','invitation-form','password-form','registration-form']);
 const fields=form=>[...form.querySelectorAll('input,textarea,select')];
 const fieldKey=(node,index)=>node.name||node.getAttribute('data-birth-part')||String(index);
 export function createNavigationGuard({document,tracker,identity,prepareDraft=()=>{},onSaveError=()=>{}}){

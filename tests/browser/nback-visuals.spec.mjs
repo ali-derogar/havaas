@@ -102,7 +102,7 @@ test('memory: starting during a material refresh keeps the selected mode and ign
  try{
   await page.locator('[data-action=material][data-material=numbers]').click();await fetched;
   const requested=page.waitForRequest(r=>r.method()==='POST'&&r.url().endsWith('/sessions'));
-  await click(page,'main-game');const launch=await requested;expect(launch.postDataJSON()).toMatchObject({material:'numbers',clientExperienceVersion:2,kind:'training'});
+  await click(page,'main-game');const launch=await requested;expect(launch.postDataJSON()).toMatchObject({material:'numbers',clientExperienceVersion:3,kind:'training'});
   const guideResponse=page.waitForResponse(r=>r.url().includes('/api/bootstrap')&&r.status()===200);releaseGuide();await(await guideResponse).finished();await page.evaluate(()=>new Promise(resolve=>setTimeout(resolve,0)));
   releaseStart();await expect(page.locator('.memory-preparation')).toBeVisible();await expect(page.locator('.level-pill')).toHaveText('سخت');await begin(page);await expect(page.locator('.memory-stage .symbol text')).toHaveText(/^[0-9]$/);await expect(page.locator('#position')).toHaveText('۱ از ۳');
  }finally{releaseGuide();releaseStart();}

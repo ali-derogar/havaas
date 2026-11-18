@@ -25,9 +25,9 @@ test('new reaction exposure and response windows gradually change at every diffi
 test('the server owns experience versions, accepts old runs, and rejects shortened or out-of-window new runs',()=>{
  for(const gameId of ['hunt','traffic','nback','stroop','search','ark','space'])for(const level of Object.keys(LEVELS)){
   const settings={...normalizeSettings({gameId,theme:'bird',experienceVersion:1,pacedRounds:true}),seed:42,level};
-  assert.equal(settings.experienceVersion,2);if(gameId==='search')assert.equal(settings.pacedRounds,false);
+  assert.equal(settings.experienceVersion,3);if(gameId==='search')assert.equal(settings.pacedRounds,false);
   const run={id:'current',kind:'training',settings},payload=playSession(run);
-  const result=canonicalResult(run,{...payload,experienceVersion:999});assert.equal(result.experienceVersion,2);assert.equal(summaryResult(result).experienceVersion,2);
+  const result=canonicalResult(run,{...payload,experienceVersion:999});assert.equal(result.experienceVersion,3);assert.equal(summaryResult(result).experienceVersion,3);
   if(['hunt','traffic','nback','stroop'].includes(gameId)){
    assert.throws(()=>canonicalResult(run,{...payload,durationMs:payload.durationMs-10}));
    const forged=structuredClone(payload);forged.outcomes.find(o=>o.response).reactionMs=reactionTiming(settings).intervalMs;assert.throws(()=>canonicalResult(run,forged));

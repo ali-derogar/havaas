@@ -22,7 +22,7 @@ async function advance(page,ms){await page.evaluate(ms=>window.advanceGame(ms),m
 async function start(page,{practice=false,begin=true,gameId='traffic'}={}){
  await page.addInitScript(()=>{let now=0,id=0;const pending=new Map();performance.now=()=>now;requestAnimationFrame=fn=>{pending.set(++id,fn);return id;};cancelAnimationFrame=id=>pending.delete(id);window.advanceGame=ms=>{now+=ms;const callbacks=[...pending.values()];pending.clear();for(const fn of callbacks)fn(now);};});
  await page.goto('/');await page.locator('#login-form [name=identifier]').fill(player.username);await page.locator('#login-form [name=password]').fill(password);await page.locator('#login-form button[type=submit]').click();await expect(page.locator('.hero')).toBeVisible();
- await page.locator(`[data-action=open][data-game="${gameId}"]`).first().click();await page.evaluate(()=>{window.guidanceBeforeStart=window.guideStarts?.length||0;});await action(page,practice?'practice':'main-game').click();await expect(page.locator('.game-preparation')).toBeVisible();
+ await page.locator(`[data-action=open][data-game="${gameId}"]`).first().click();await expect(page.locator('.intro-layout')).toBeVisible();await page.evaluate(()=>{window.guidanceBeforeStart=window.guideStarts?.length||0;});await action(page,practice?'practice':'main-game').click();await expect(page.locator('.game-preparation')).toBeVisible();
  if(begin){await action(page,'begin-game').click();await advance(page,3000);}
 }
 

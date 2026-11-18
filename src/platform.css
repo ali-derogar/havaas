@@ -487,3 +487,5 @@
  }
 }
 @keyframes platform-drift {50% {translate:0 -6px;}}
+
+.timing-settings{margin-block:2rem;min-width:0}.timing-selectors{margin-block:1rem}.timing-level-form{border:1px solid var(--border,#dbe3eb);border-radius:18px;padding:1.25rem;margin-block:1rem;min-width:0}.timing-level-form h3,.timing-source{margin:0}.timing-source{color:var(--muted,#526377)}.timing-level-form input{max-width:100%;min-width:0}.timing-level-form .report-actions{flex-wrap:wrap}.timing-level-form small{font-weight:normal;color:var(--muted,#526377)}

@@ -1,4 +1,5 @@
 import { PRESENTATION_VERSION, EXPERIENCE_VERSION } from '../config.js';
+import {resolveTiming,timingKey} from '../game-timing.js';
 
 /** A monotonic clock which excludes every paused interval. */
 export class ActiveClock {
@@ -10,12 +11,13 @@ export class ActiveClock {
 }
 
 export class Session {
-  constructor({ gameId, level = 'easy', practice = false, variant = 'standard', protocolVersion = 2, reviewEnabled = false, stimulusVersion = PRESENTATION_VERSION, experienceVersion = EXPERIENCE_VERSION, now, random = Math.random }) {
+  constructor({ gameId, level = 'easy', practice = false, variant = 'standard', protocolVersion = 2, reviewEnabled = false, stimulusVersion = PRESENTATION_VERSION, experienceVersion = EXPERIENCE_VERSION, now, random = Math.random, timing, theme }) {
     this.gameId = gameId; this.level = level; this.practice = practice; this.random = random;
     this.reviewEnabled = practice && reviewEnabled; this.review = null;
     this.outcomes = []; this.finishedAt = null; this.protocolVersion = protocolVersion;
     this.stimulusVersion=stimulusVersion;this.variant = variant; this.reactionMeasure = 'stimulus-onset';
     this.experienceVersion=experienceVersion;
+    this.timing=resolveTiming({gameId,level,stimulusVersion,experienceVersion,timing,theme});
     this.clock = new ActiveClock(now); this.done = false; this.completed = false; this.feedback = ''; this.feedbackKind = '';
     this.metrics = { hits: 0, misses: 0, falseAlarms: 0, correctRejects: 0, streak: 0, maxStreak: 0, reactionTimes: [] };
   }
@@ -37,7 +39,7 @@ export class Session {
   get result() {
     const m = this.metrics, times = m.reactionTimes;
     return {
-      version: 1, experienceVersion:this.experienceVersion, ...(this.gameId==='hunt'?{stimulusFamily:this.theme||'star'}:{}), feedbackMode:this.reviewEnabled?'guided':'continuous', stimulusVersion:this.stimulusVersion||1, protocolVersion: this.protocolVersion, gameId: this.gameId, level: this.level, variant: this.variant, score: this.score, maxScore: this.maxScore,
+      version: 1, experienceVersion:this.experienceVersion, ...(this.experienceVersion>=3?{timing:{...this.timing},timingKey:timingKey(this.timing)}:{}), ...(this.gameId==='hunt'?{stimulusFamily:this.theme||'star'}:{}), feedbackMode:this.reviewEnabled?'guided':'continuous', stimulusVersion:this.stimulusVersion||1, protocolVersion: this.protocolVersion, gameId: this.gameId, level: this.level, variant: this.variant, score: this.score, maxScore: this.maxScore,
       hits: m.hits, correctResponses: m.hits + m.correctRejects, correctRejections: m.correctRejects, omissions: m.misses, falseSelections: m.falseAlarms,
       meanReactionMs: times.length ? Math.round(times.reduce((a, b) => a + b, 0) / times.length) : null, reactionMeasure: this.reactionMeasure,
       longestStreak: m.maxStreak, durationMs: Math.round(this.clock.elapsed), completed: this.completed, finishedAt: this.finishedAt || new Date().toISOString(), outcomes: this.outcomes.map(outcome => ({ ...outcome })),
