@@ -44,6 +44,7 @@ test('platform design: centre dashboard, users, details, settings and invitation
  const errors=[];page.on('pageerror',error=>errors.push(error.message));await login(page,'admin');
  await shots(page,'admin');
  await action(page,'admin-users');await expect(page.locator('.users-card')).toBeVisible();await shots(page,'users');
+ await page.locator('#user-filter-form [name=search]').fill(seed.users.otherUser.username);await page.locator('#user-filter-form button[type=submit]').click();await expect(page.locator(`[data-action=inspect-user][data-user="${seed.users.otherUser.id}"]`)).toBeVisible();
  await action(page,'inspect-user',`[data-user="${seed.users.otherUser.id}"]`);await expect(page.locator('.user-tabs')).toBeVisible();await shots(page,'user-overview');
  for(const tab of ['details','difficulty']){
   await action(page,'user-tab',`[data-tab="${tab}"]`);await expect(page.locator(`#user-${tab}`)).toBeVisible();await shots(page,`user-${tab}`);

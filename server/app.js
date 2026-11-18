@@ -66,7 +66,13 @@ export function createApp({pool,secret=process.env.SESSION_SECRET,production=pro
     role(req,['admin']);const validation=validateProfile(req.body);check(!validation.error,validation.error);
     const ownerId=req.body.ownerUserId?uuid(req.body.ownerUserId):null;
     if(ownerId)check((await pool.query("SELECT 1 FROM users WHERE id=$1 AND role='user'",[ownerId])).rowCount,'کاربر معتبر انتخاب کنید.');
-    const child=await managedTransaction(pool,req,async db=>(await db.query('INSERT INTO children(id,owner_user_id,profile) VALUES($1,$2,$3) RETURNING *',[randomUUID(),ownerId,validation.profile])).rows[0]);res.status(201).json({profile:profileDTO(child,req.user)});
+    const child=await managedTransaction(pool,req,async db=>{
+      const name=`${validation.profile.firstName} ${validation.profile.lastName}`;
+      if(ownerId)check(name.length>=2&&name.length<=120,'مجموع نام و نام خانوادگی باید ۲ تا ۱۲۰ نویسه باشد.');
+      const created=(await db.query('INSERT INTO children(id,owner_user_id,profile) VALUES($1,$2,$3) RETURNING *',[randomUUID(),ownerId,validation.profile])).rows[0];
+      if(ownerId)await db.query('UPDATE users SET name=$1 WHERE id=$2',[name,ownerId]);
+      return created;
+    });res.status(201).json({profile:profileDTO(child,req.user)});
   });
   app.get('/api/children/:id',async(req,res)=>res.json({profile:profileDTO(await childAccess(pool,req.user,req.params.id),req.user)}));
   app.patch('/api/children/:id',async(req,res)=>{

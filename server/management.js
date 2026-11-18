@@ -24,7 +24,7 @@ export function registerAudit(app,pool,role){
   for(const [key,column] of [['userId','target_user_id'],['actorId','actor_id'],['childId','child_id']])if(req.query[key]){params.push(uuid(req.query[key]));where.push(`a.${column}=$${params.length}`);}
   if(req.query.action){check(/^[a-z_]+\.(created|updated|completed)$/.test(req.query.action),'نوع رویداد معتبر نیست.');params.push(req.query.action);where.push(`a.action=$${params.length}`);}
   for(const [key,operator] of [['from','>='],['to','<']])if(req.query[key]){
-   const value=req.query[key];check(typeof value==='string'&&/^\d{4}-\d{2}-\d{2}$/.test(value)&&Number.isFinite(Date.parse(value))&&new Date(value+'T12:00:00Z').toISOString().slice(0,10)===value,'تاریخ معتبر انتخاب کنید.');
+   const value=req.query[key];check(typeof value==='string'&&/^\d{4}-\d{2}-\d{2}$/.test(value)&&Number(value.slice(0,4))>=1&&Number.isFinite(Date.parse(value))&&new Date(value+'T12:00:00Z').toISOString().slice(0,10)===value,'تاریخ معتبر انتخاب کنید.');
    params.push(value);where.push(`a.created_at ${operator} (($${params.length}::date${key==='to'?"+1":''})::timestamp AT TIME ZONE 'Asia/Tehran')`);
   }
   const filter=where.length?'WHERE '+where.join(' AND '):'',total=Number((await pool.query(`SELECT count(*) FROM audit_events a ${filter}`,params)).rows[0].count),pages=Math.max(1,Math.ceil(total/pageSize)),effective=Math.min(page,pages);

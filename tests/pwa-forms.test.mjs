@@ -27,3 +27,7 @@ test('PWA preserves edits made during an acknowledged save, even when they resto
 test('PWA never clears unsaved changes just because a failed submission was captured',()=>{
  const {form,label,tracker}=fixture();label.value='not saved';tracker.changed(form);tracker.capture(form);assert.equal(tracker.isDirty(form),true);
 });
+test('showing a password does not create unsaved changes, while editing a visible password still does',()=>{
+ const {form,tracker}=fixture(),password=form.querySelector('[name=password]');password.type='text';assert.equal(tracker.isDirty(form),false);
+ password.value='visible edit';tracker.changed(form);assert.equal(tracker.isDirty(form),true);password.type='password';assert.equal(tracker.isDirty(form),true);
+});

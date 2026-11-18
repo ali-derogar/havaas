@@ -1,7 +1,7 @@
 const guardedIds=new Set(['edit-user-form','profile-form','admin-difficulty-form','create-user-form','report-link-form','registration-link-form','invitation-form','password-form','registration-form']);
 const fields=form=>[...form.querySelectorAll('input,textarea,select')];
 const fieldKey=(node,index)=>node.name||node.getAttribute('data-birth-part')||String(index);
-export function createNavigationGuard({document,tracker,identity}){
+export function createNavigationGuard({document,tracker,identity,prepareDraft=()=>{},onSaveError=()=>{}}){
  let known=new WeakMap(),drafts=new Map(),asking=null,cancelPending=null;
  const forms=()=>[...document.querySelectorAll('form')].filter(form=>guardedIds.has(form.id));
  const dirty=form=>form.dataset.acknowledged!=='true'&&tracker.isDirty(form);
@@ -9,6 +9,7 @@ export function createNavigationGuard({document,tracker,identity}){
   for(const form of forms())if(!known.has(form)){
    const key=identity()+':'+form.id+':'+(form.dataset.user||'');known.set(form,key);tracker.remember(form);
    const draft=drafts.get(key);if(draft){
+    prepareDraft(form,draft.values);
     fields(form).forEach((node,index)=>{const value=draft.values[fieldKey(node,index)];if(value!==undefined)node.value=value;});
     for(const [name,value] of Object.entries(draft.versions))form.dataset[name]=value;
    }
@@ -22,27 +23,29 @@ export function createNavigationGuard({document,tracker,identity}){
   }
  }
  function acknowledge(form,submission){tracker.saved(form,submission);drafts.delete(known.get(form));if(tracker.isDirty(form))delete form.dataset.acknowledged;else form.dataset.acknowledged='true';}
- const hasChanges=()=>{sync();return forms().some(form=>form.dataset.waiting==='true'&&form.dataset.acknowledged!=='true'||dirty(form));};
+ const hasChanges=()=>{sync();return Boolean(asking)||forms().some(form=>form.dataset.waiting==='true'&&form.dataset.acknowledged!=='true'||dirty(form));};
  function allow(save){
-  sync();const changed=forms().filter(form=>form.dataset.waiting==='true'&&form.dataset.acknowledged!=='true'||dirty(form));if(!changed.length)return Promise.resolve(true);
   if(asking)return asking;
+  sync();const changed=forms().filter(form=>form.dataset.waiting==='true'&&form.dataset.acknowledged!=='true'||dirty(form));if(!changed.length)return Promise.resolve(true);
   const waiting=changed.some(form=>form.dataset.waiting==='true'),previous=document.activeElement,dialog=document.createElement('dialog');
   dialog.className='navigation-confirm';dialog.setAttribute('aria-labelledby','navigation-confirm-title');
   dialog.innerHTML=`<h2 id="navigation-confirm-title">${waiting?'در حال ثبت اطلاعات':'تغییرات ذخیره نشده‌اند'}</h2><p>${waiting?'تا دریافت پاسخ ثبت، در همین صفحه بمانید.':'پیش از ادامه، تغییرات فرم را ذخیره کنید یا کنار بگذارید.'}</p><p class="form-error" role="alert"></p><div class="modal-buttons"><button class="button primary" data-guard="stay" autofocus>ماندن</button>${waiting?'':'<button class="button subtle" data-guard="save">ذخیره و ادامه</button><button class="text-button danger" data-guard="discard">کنارگذاشتن و ادامه</button>'}</div>`;
   document.body.append(dialog);
   asking=new Promise(resolve=>{
-   const finish=allowed=>{cancelPending=null;dialog.close?.();dialog.remove();asking=null;previous?.focus?.({preventScroll:true});resolve(allowed);};
+   let settled=false;
+   const finish=allowed=>{if(settled)return;settled=true;cancelPending=null;dialog.close?.();dialog.remove();asking=null;previous?.focus?.({preventScroll:true});resolve(allowed);};
    cancelPending=()=>finish(false);
    dialog.addEventListener('cancel',event=>{event.preventDefault();finish(false);});
    dialog.addEventListener('click',async event=>{
+    if(settled)return;
     const action=event.target.closest('[data-guard]')?.dataset.guard;if(!action)return;
     if(action==='stay')return finish(false);
     if(action==='discard'){for(const form of changed){drafts.delete(known.get(form));tracker.saved(form,tracker.capture(form));}return finish(true);}
     const buttons=[...dialog.querySelectorAll('button')];buttons.forEach(button=>button.disabled=true);
     try{
-     for(const form of changed){if(form.reportValidity&&!form.reportValidity())return finish(false);await save(form);if(form.dataset.acknowledged!=='true')return finish(false);}
+     for(const form of changed){if(form.reportValidity&&!form.reportValidity())return finish(false);await save(form);if(settled)return;if(form.dataset.acknowledged!=='true')return finish(false);}
      finish(true);
-    }catch(error){dialog.querySelector('[role=alert]').textContent=error.message;buttons.forEach(button=>button.disabled=false);}
+    }catch(error){if(settled){onSaveError(error);return;}dialog.querySelector('[role=alert]').textContent=error.message;buttons.forEach(button=>button.disabled=false);}
    });
    if(dialog.showModal)dialog.showModal();else queueMicrotask(()=>finish(false));
   });return asking;

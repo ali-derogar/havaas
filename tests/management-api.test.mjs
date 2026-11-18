@@ -77,3 +77,46 @@ apiTest('management: accepting a token is attributed to its authenticated holder
  const signup=await newcomer.call('/public/registration/complete',{method:'POST',body:{token:link.data.url.split('/').at(-1),username:'audit-signup-'+randomUUID(),password:seed.password,profile:{firstName:'تازه',lastName:'ثبت‌نام',birthDate:'2016-01-01',grade:'پایهٔ ۳',school:'مدرسه'}}});assert.equal(signup.status,201);
  const own=(await admin.call(`/admin/audit-events?userId=${signup.data.user.id}&pageSize=100`)).data.events;assert.ok(own.some(event=>event.action==='registration_links.updated'&&event.actorId===signup.data.user.id));
 });
+
+apiTest('management: a write returns its own profile snapshot even when another editor commits immediately afterwards',async()=>{
+ const path=`/users/${seed.users.user.id}`,before=(await admin.call(path)).data,wrapped=new Map();let injected=false;
+ const acquire=client=>{
+  if(wrapped.has(client))return;const query=client.query;wrapped.set(client,query);
+  client.query=async function(...args){
+   const result=await query.apply(this,args);
+   if(args[0]==='COMMIT'&&!injected){injected=true;await db.pool.query("UPDATE children SET profile=jsonb_set(profile,'{concerns}',to_jsonb($1::text)) WHERE id=$2",['new concurrent note',before.profile.id]);}
+   return result;
+  };
+ };
+ db.pool.on('acquire',acquire);
+ let saved;
+ try{saved=await admin.call(path,{method:'PATCH',body:{expectedRevision:before.user.revision,expectedProfileRevision:before.profile.revision,profile:{...before.profile,school:'atomic response school'}}});}
+ finally{db.pool.off('acquire',acquire);for(const [client,query] of wrapped)client.query=query;}
+ assert.equal(injected,true);assert.equal(saved.status,200);assert.equal(saved.data.profile.concerns,before.profile.concerns);assert.equal(saved.data.profile.revision,before.profile.revision+1);
+ const latest=(await admin.call(path)).data;assert.equal(latest.profile.concerns,'new concurrent note');assert.equal(latest.profile.revision,saved.data.profile.revision+1);
+ assert.equal((await admin.call(path,{method:'PATCH',body:{expectedRevision:saved.data.user.revision,expectedProfileRevision:saved.data.profile.revision,profile:saved.data.profile}})).status,409);
+});
+
+apiTest('management: creating an account linked to an existing profile returns the final account revision',async()=>{
+ const profile={firstName:'نام',lastName:'پرونده',birthDate:'2016-01-01',grade:'پایهٔ ۳',school:'مدرسه',concerns:''};
+ const child=await admin.call('/children',{method:'POST',body:profile});assert.equal(child.status,201);
+ const created=await admin.call('/users',{method:'POST',body:{username:'linked-'+randomUUID(),name:'نام اولیه حساب',role:'user',method:'direct',password:seed.password,childId:child.data.profile.id}});assert.equal(created.status,201);
+ const latest=(await admin.call(`/users/${created.data.user.id}`)).data;assert.equal(created.data.user.name,'نام پرونده');assert.equal(created.data.user.revision,latest.user.revision);
+ assert.equal((await admin.call(`/users/${created.data.user.id}`,{method:'PATCH',body:{expectedRevision:created.data.user.revision,name:created.data.user.name}})).status,200);
+});
+
+apiTest('management: legacy profile creation synchronizes its owner name and rolls back an invalid combined name',async()=>{
+ const id=randomUUID();await db.pool.query("INSERT INTO users(id,username,name,role,pending,active) VALUES($1,$2,$3,'user',true,false)",[id,'legacy-owner-'+id,'نام حساب قدیمی']);
+ const original=(await admin.call(`/users/${id}`)).data.user,profile={firstName:'مالک',lastName:'تازه',birthDate:'2016-01-01',grade:'پایهٔ ۳',school:'مدرسه',concerns:'private owner note'};
+ assert.equal((await admin.call('/children',{method:'POST',body:{...profile,ownerUserId:id}})).status,201);
+ const latest=(await admin.call(`/users/${id}`)).data;assert.equal(latest.user.name,'مالک تازه');assert.equal(latest.user.revision,original.revision+1);assert.equal(latest.profile.concerns,'private owner note');
+ const other=randomUUID();await db.pool.query("INSERT INTO users(id,username,name,role,pending,active) VALUES($1,$2,$3,'user',true,false)",[other,'invalid-owner-'+other,'نام معتبر']);
+ const count=Number((await db.pool.query('SELECT count(*) FROM audit_events')).rows[0].count);
+ assert.equal((await admin.call('/children',{method:'POST',body:{...profile,firstName:'ا'.repeat(80),lastName:'ب'.repeat(80),ownerUserId:other}})).status,400);
+ const unchanged=(await admin.call(`/users/${other}`)).data;assert.equal(unchanged.profile,null);assert.equal(unchanged.user.name,'نام معتبر');assert.equal(Number((await db.pool.query('SELECT count(*) FROM audit_events')).rows[0].count),count);
+});
+
+apiTest('management: audit date filters reject year zero without a database error and accept year one',async()=>{
+ for(const key of ['from','to']){const invalid=await admin.call(`/admin/audit-events?${key}=0000-01-01`);assert.equal(invalid.status,400);assert.equal(invalid.data.code,'REQUEST_ERROR');}
+ assert.equal((await admin.call('/admin/audit-events?from=0001-01-01')).status,200);
+});

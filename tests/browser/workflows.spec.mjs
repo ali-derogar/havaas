@@ -19,7 +19,8 @@ async function click(page,action,selector=''){
  if(await target.count()&&await target.evaluate(el=>Boolean(el.closest('.admin-sidebar')))&&await page.locator('.menu-toggle').isVisible()&&!await page.locator('body').evaluate(el=>el.classList.contains('admin-menu-open')))await page.locator('.menu-toggle').click();
  const endpoint=action==='admin'?'/api/admin/dashboard':action==='admin-users'?'/api/users?':action==='admin-invitations'?'/api/registration-links':null;
  const reportRefresh=['dashboard','select-record'].includes(action)&&await page.locator('.user-tabs').count()>0;
- const refresh=reportRefresh?page.waitForResponse(r=>r.url().includes('/reports?view=panel')&&r.status()===200):endpoint?page.waitForResponse(r=>r.url().includes(endpoint)&&r.status()===200):['open','material','search-mode','search-layout','hunt-mode','theme','level','adaptive-level','dashboard','account','assessment-reports','select-record','inspect-user','report-links'].includes(action)?page.waitForResponse(r=>r.url().includes('/api/bootstrap')&&r.status()===200):null;
+ const inspectedId=action==='inspect-user'?selector.match(/data-user="([^"]+)"/)?.[1]:null;
+ const refresh=reportRefresh?page.waitForResponse(r=>r.url().includes('/reports?view=panel')&&r.status()===200):inspectedId?page.waitForResponse(r=>r.url().endsWith(`/api/users/${inspectedId}`)&&r.request().method()==='GET'&&r.status()===200):endpoint?page.waitForResponse(r=>r.url().includes(endpoint)&&r.status()===200):['open','material','search-mode','search-layout','hunt-mode','theme','level','adaptive-level','dashboard','account','assessment-reports','select-record','report-links'].includes(action)?page.waitForResponse(r=>r.url().includes('/api/bootstrap')&&r.status()===200):null;
  await target.click();
  if(refresh){const response=await refresh;await response.finished();await page.evaluate(()=>new Promise(resolve=>setTimeout(resolve,0)));}
  if(action==='inspect-user')await expect(page.locator('.user-tabs')).toBeVisible();
@@ -150,10 +151,10 @@ test('hunt hit areas stay separate and the response remains reachable on short p
 test('admin can switch the reviewed client from the report selector without returning to the previous account',async({page})=>{
  await login(page,'admin');await click(page,'inspect-user',`[data-user="${seed.users.user.id}"]`);
  await click(page,'user-tab','[data-tab="details"]');await expect(page.locator('#profile-form [name=firstName]')).toHaveValue('سارا');
- await click(page,'user-tab','[data-tab="sessions"]');await page.locator('#report-profile').selectOption(seed.children[1].id);
+ await click(page,'user-tab','[data-tab="sessions"]');await page.locator('#report-client-filter [name=search]').fill(seed.users.otherUser.username);await page.locator('#report-client-filter button:not([type])').click();await expect(page.locator(`#report-profile option[value="${seed.children[1].id}"]`)).toHaveCount(1);await page.locator('#report-profile').selectOption(seed.children[1].id);
  await expect(page.getByRole('heading',{level:1,name:`بررسی ${seed.users.otherUser.name}`,exact:true})).toBeVisible();
  await click(page,'user-tab','[data-tab="details"]');await expect(page.locator('#profile-form [name=firstName]')).toHaveValue('علی');await expect(page.locator('#profile-form [name=concerns]')).toHaveValue('clinical-secret-1');await expect(page.locator('#edit-user-form')).toHaveAttribute('data-user',seed.users.otherUser.id);
- await click(page,'user-tab','[data-tab="sessions"]');await page.locator('#report-profile').selectOption(seed.children[0].id);
+ await click(page,'user-tab','[data-tab="sessions"]');await page.locator('#report-client-filter [name=search]').fill(seed.users.user.username);await page.locator('#report-client-filter button:not([type])').click();await expect(page.locator(`#report-profile option[value="${seed.children[0].id}"]`)).toHaveCount(1);await page.locator('#report-profile').selectOption(seed.children[0].id);
  await expect(page.getByRole('heading',{level:1,name:`بررسی ${seed.users.user.name}`,exact:true})).toBeVisible();await click(page,'user-tab','[data-tab="details"]');await expect(page.locator('#profile-form [name=firstName]')).toHaveValue('سارا');await expect(page.locator('#edit-user-form')).toHaveAttribute('data-user',seed.users.user.id);
 });
 
@@ -181,6 +182,7 @@ test('leaving while a session is starting cancels late success and failure witho
 
 for(const delayed of ['user','bootstrap'])test(`an old admin ${delayed} response cannot render clinical data after switching to the client in the same tab`,async({page})=>{
  await login(page,'admin');await click(page,'admin-users');let release,ready,intercepted=false;const gate=new Promise(resolve=>release=resolve),fetched=new Promise(resolve=>ready=resolve);
+ await page.locator('#user-filter-form [name=search]').fill(seed.users.user.username);const listed=page.waitForResponse(r=>r.url().includes('/api/users?')&&r.status()===200);await page.locator('#user-filter-form button[type=submit]').click();await listed;await expect(page.locator(`[data-action=inspect-user][data-user="${seed.users.user.id}"]`)).toBeVisible();
  const matches=url=>delayed==='user'?url.endsWith(`/api/users/${seed.users.user.id}`):url.includes('/api/bootstrap');
  await page.route(delayed==='user'?`**/api/users/${seed.users.user.id}`:'**/api/bootstrap*',async route=>{if(intercepted)return route.continue();intercepted=true;const response=await route.fetch();ready();await gate;await route.fulfill({response});});
  try{

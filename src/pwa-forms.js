@@ -5,7 +5,7 @@ function formState(form){
   if(['checkbox','radio'].includes(control.type))value=Boolean(control.checked);
   if(control.type==='file')value=[...control.files||[]].map(file=>[file.name,file.size,file.lastModified]);
   if(control.tagName==='SELECT'&&control.multiple)value=[...control.options].filter(option=>option.selected).map(option=>option.value);
-  return [control.name||'',control.type||control.tagName,value];
+  return [control.name||'',control.type==='password'?'text':control.type||control.tagName,value];
  }));
 }
 export function createFormTracker(){

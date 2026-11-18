@@ -54,7 +54,7 @@ const guidance=new GuidancePlayer({onState:(state,key)=>{
 const clients = {version:1,activeId:null,profiles:[],records:[],difficulties:[]};
 const api=new ApiClient();
 const formTracker=createFormTracker();
-const navigationGuard=createNavigationGuard({document,tracker:formTracker,identity:()=>`${currentUser?.id||'guest'}:${clients.activeId||''}`});
+const navigationGuard=createNavigationGuard({document,tracker:formTracker,identity:()=>`${currentUser?.id||'guest'}:${clients.activeId||''}`,prepareDraft:(form,values)=>{if(form.id==='admin-difficulty-form'){form.elements.gameId.value=values.gameId;syncPolicyControls();}},onSaveError:showError});
 let currentUser=null,members=[],inviteToken=null,inviteInfo=null,remoteRun=null,pendingSave=null,starting=false,launchAttempt=null,previewImport=null,importAttempt=null;
 let inspectedUserId=null,publicReportData=null,viewVersion=0;
 let dashboardDays=30,userTab='overview',registrationToken=null,createContext={};
@@ -91,6 +91,7 @@ function header() {
 const footer = () => `<footer class="site-footer"><span>${logo()} حواس؛ جایی برای بازی و کشف</span><span>با سرعت خودت، به سبک خودت ${icon('spark')}</span></footer>`;
 function page(content, className = '') {
   navigationGuard.stash();
+  if(!modal.open)modal.replaceChildren();
   playMotion.reset();
   guidance.stop();lastSpokenContext='';
   viewVersion++;
@@ -489,6 +490,7 @@ function finish() {
 
 function openModal(content, kind) {
   if (modal.open) modal.close(); modalKind=kind; modal.innerHTML = content; modal.showModal();
+  queueMicrotask(()=>navigationGuard.sync());
   if(route==='play'&&engine)playMotion.sync(document.querySelector('.play-panel'),engine,{paused:true,reduced:matchMedia('(prefers-reduced-motion: reduce)').matches});
 }
 function about() {
@@ -624,13 +626,13 @@ function acknowledgeForm(form,data){
 function refreshFailure(error,retry=null){
  if(error.code==='STALE_RESPONSE')return;
  if(error.status===401||error.code==='PASSWORD_CHANGE_REQUIRED')return showError(error);
- if(retry)pendingPanelRefresh={userId:currentUser?.id,retry};
+ if(retry)pendingPanelRefresh={view:{version:viewVersion,userId:currentUser?.id,role:currentUser?.role},retry};
  notify('عملیات ثبت شد، ولی دریافت آخرین اطلاعات ممکن نشد.');
  const node=document.querySelector('#account-status')||document.querySelector('#app-status');
  if(node&&!node.querySelector('[data-action=refresh-panel]'))node.insertAdjacentHTML('beforeend',' <button class="button subtle" data-action="refresh-panel">تلاش دوباره برای دریافت اطلاعات</button>');
 }
 async function retryPanelRefresh(){
- if(pendingPanelRefresh?.userId===currentUser?.id){const retry=pendingPanelRefresh.retry;pendingPanelRefresh=null;return retry();}
+ const pending=pendingPanelRefresh;pendingPanelRefresh=null;if(pending&&currentView(pending.view))return pending.retry();
  if(route==='report-links')return refreshReportLinks({version:viewVersion,userId:currentUser.id,role:currentUser.role},clients.activeId);
  if(route==='admin-user')return inspectUser(inspectedUserId);
  if(route==='admin-users')return adminUsers();if(route==='invitations')return adminInvitations();if(route==='admin')return adminPanel();
@@ -736,7 +738,7 @@ async function processForm(form){
     const auth=await request('/public/registration/complete',{method:'POST',body:{token:registrationToken,username:values.username,password:values.password,email:values.email,profile:values}});history.replaceState?.({},'',location.pathname);return openSignedInHome(auth);
   }
   if(form.id==='registration-link-form'){
-    const view={version:viewVersion,userId:currentUser.id,role:currentUser.role},data=await viewRequest(view,'/registration-links',{method:'POST',body:values});if(!currentView(view))return;acknowledgeForm(form);
+    const view={version:viewVersion,userId:currentUser.id,role:currentUser.role},data=await request('/registration-links',{method:'POST',body:values});acknowledgeForm(form);if(!currentView(view))return false;
     if(form.isConnected&&modal.open){form.hidden=true;showInvitation(data);}scheduleAdminRefresh(view);return;
   }
   if(form.id==='audit-filter-form'){Object.assign(auditState,values,{page:1});return showAudit();}
@@ -744,14 +746,14 @@ async function processForm(form){
   if(form.id==='report-client-filter'){clients.selectorSearch=values.search;clients.selectorPage=1;return dashboard();}
   if(form.id==='user-filter-form'){Object.assign(adminState,values,{page:1});return adminUsers();}
   if(form.id==='create-user-form'){
-    const view={version:viewVersion,userId:currentUser.id,role:currentUser.role},preview=previewImport,data=await viewRequest(view,'/users',{method:'POST',body:{...values,profile:values}});
-    if(!currentView(view))return;acknowledgeForm(form);if(!form.isConnected||!modal.open){scheduleAdminRefresh(view);return;}
-    if(form.dataset.importSource&&preview&&preview===previewImport){const source=form.dataset.importSource;const choices=new Map([...document.querySelectorAll('.import-mapping')].map(row=>[row.dataset.source,row.querySelector('[name=targetId]').value]));if(!await refreshClients(view)||preview!==previewImport)return;if(data.profile&&!clients.profiles.some(p=>p.id===data.profile.id))clients.profiles.push(data.profile);preview.profiles.forEach(p=>p.targetId=p.sourceId===source?data.profile.id:choices.get(p.sourceId)||p.targetId);if(modal.open)modal.close();const target=document.querySelector('#import-preview');if(target)target.innerHTML=importPreviewView(preview,clients.profiles);return notify('کاربر ساخته شد؛ انتقال سوابق را تأیید کنید.');}
+    const view={version:viewVersion,userId:currentUser.id,role:currentUser.role},preview=previewImport,data=await request('/users',{method:'POST',body:{...values,profile:values}});
+    acknowledgeForm(form);if(!currentView(view))return false;if(!form.isConnected||!modal.open){scheduleAdminRefresh(view);return;}
+    if(form.dataset.importSource&&preview&&preview===previewImport){const source=form.dataset.importSource;const choices=new Map([...document.querySelectorAll('.import-mapping')].map(row=>[row.dataset.source,row.querySelector('[name=targetId]').value]));if(data.profile&&!clients.profiles.some(p=>p.id===data.profile.id))clients.profiles.push(data.profile);preview.profiles.forEach(p=>p.targetId=p.sourceId===source?data.profile.id:choices.get(p.sourceId)||p.targetId);if(modal.open)modal.close();const target=document.querySelector('#import-preview');if(target)target.innerHTML=importPreviewView(preview,clients.profiles);return notify('کاربر ساخته شد؛ انتقال سوابق را تأیید کنید.');}
     if(data.url){openModal('<h2 id="modal-title">دعوت ادمین</h2><div id="invitation-result"></div><button class="button subtle" data-action="close-modal">بستن</button>','invitation');showInvitation(data);}else{if(modal.open)modal.close();}notify('کاربر با موفقیت ساخته شد.');void refreshCreatedUsers();return;
   }
-  if(form.id==='edit-user-form'){const view={version:viewVersion,userId:currentUser.id,role:currentUser.role},body={username:values.username,...(form.dataset.role==='user'?{profile:values}:{name:values.name})};body.expectedRevision=Number(form.dataset.revision);if(body.profile)body.expectedProfileRevision=Number(form.dataset.profileRevision);const data=await viewRequest(view,`/users/${form.dataset.user}`,{method:'PATCH',body});if(!currentView(view)||!data)return;acknowledgeForm(form,data);if(data.user.id===currentUser.id)currentUser=data.user;if(!currentView(view)||!form.isConnected)return;notify('اطلاعات کاربر ذخیره شد.');try{await inspectUser(data.user.id);notify('اطلاعات کاربر ذخیره شد.');}catch(error){if(currentUser?.id===view.userId)refreshFailure(error);}return;}
+  if(form.id==='edit-user-form'){const view={version:viewVersion,userId:currentUser.id,role:currentUser.role},body={username:values.username,...(form.dataset.role==='user'?{profile:values}:{name:values.name})};body.expectedRevision=Number(form.dataset.revision);if(body.profile)body.expectedProfileRevision=Number(form.dataset.profileRevision);const data=await request(`/users/${form.dataset.user}`,{method:'PATCH',body});acknowledgeForm(form,data);if(data.user.id===currentUser.id)currentUser=data.user;if(!currentView(view)||!form.isConnected)return false;notify('اطلاعات کاربر ذخیره شد.');try{await inspectUser(data.user.id);notify('اطلاعات کاربر ذخیره شد.');}catch(error){if(currentUser?.id===view.userId)refreshFailure(error);}return;}
   if(form.id==='report-link-form'){const childId=clients.activeId,version=viewVersion;const data=await request(`/children/${childId}/report-links`,{method:'POST',body:values});acknowledgeForm(form);if(version!==viewVersion||childId!==clients.activeId)return;showInvitation(data);form.hidden=true;document.querySelector('#invitation-result')?.insertAdjacentHTML('beforeend','<button class="button subtle" data-action="new-report-link">ساخت لینک جدید</button>');notify('لینک ساخته شد.');try{await refreshReportLinks({version:viewVersion,userId:currentUser.id,role:currentUser.role},childId);}catch(error){if(version===viewVersion)refreshFailure(error);}return;}
-  if(form.id==='admin-difficulty-form'){const view={version:viewVersion,userId:currentUser.id,role:currentUser.role},childId=clients.activeId;await viewRequest(view,`/children/${childId}/difficulty`,{method:'PATCH',body:{...policyOptions(values.gameId,values.variant),mode:values.mode,level:values.level}});if(!currentView(view))return;acknowledgeForm(form);notify('تنظیم سطح برای جلسهٔ بعد ذخیره شد.');try{if(!await refreshClients(view))return;syncPolicyControls(false);}catch(error){if(currentUser?.id===view.userId)refreshFailure(error);}return;}
+  if(form.id==='admin-difficulty-form'){const view={version:viewVersion,userId:currentUser.id,role:currentUser.role},childId=clients.activeId;const data=await request(`/children/${childId}/difficulty`,{method:'PATCH',body:{...policyOptions(values.gameId,values.variant),mode:values.mode,level:values.level}});if(data.setting){const row=data.setting,setting={gameId:row.game_id??row.gameId,variant:row.variant,protocolVersion:row.protocol??row.protocolVersion,mode:row.mode,level:row.level,revision:row.revision};clients.difficulties=clients.difficulties.filter(d=>d.gameId!==setting.gameId||d.variant!==setting.variant||d.protocolVersion!==setting.protocolVersion);clients.difficulties.push(setting);}acknowledgeForm(form);if(!currentView(view))return false;notify('تنظیم سطح برای جلسهٔ بعد ذخیره شد.');try{if(!await refreshClients(view))return;syncPolicyControls(false);}catch(error){if(currentUser?.id===view.userId)refreshFailure(error);}return;}
   if(form.id==='invitation-form'){const data=await request('/invitations',{method:'POST',body:values});return showInvitation(data);}
   if(form.id!=='profile-form')return false;
   const validation=validateProfile(values);if(validation.error){document.querySelector('#profile-error').textContent=validation.error;return false;}
@@ -786,7 +788,7 @@ async function changeInput(event){
   if(event.target.id==='report-profile') {
     if(!await navigationGuard.allow(submitForm)){event.target.value=clients.activeId;return;}
     const profile=(clients.selectorProfiles||clients.profiles).find(p=>p.id===event.target.value);if(!profile)return;
-    clients.activeId=profile.id;reportState.recordId=null;
+    clients.activeId=profile.id;reportState.recordId=null;reportState.variant='';reportState.page=1;
     if(currentUser.role==='admin'&&inspectedUserId){inspectedUserId=profile.ownerUserId||null;if(inspectedUserId)return inspectUser(inspectedUserId);}
     await dashboard();
   }
@@ -798,7 +800,7 @@ async function handleAction(event) {
   const button = event.target.closest('[data-action]'); if(!button||button.disabled) return;
   const action=button.dataset.action;
   if(button.tagName==='A')event.preventDefault();
-  const leaving=['home','admin','admin-users','admin-invitations','admin-audit','account','profiles','assessment','assessment-next','assess-game','assessment-train','open','inspect-user','review-profile','select-profile','logout','new-user','new-registration','create-mode','close-modal','games','refresh-panel','dashboard','report-links','edit-profile'];
+  const leaving=['home','admin','admin-users','admin-invitations','admin-audit','account','profiles','assessment','assessment-next','assess-game','assessment-train','open','inspect-user','review-profile','select-profile','logout','new-user','new-registration','create-mode','close-modal','games','refresh-panel','dashboard','report-links','edit-profile','unresolved-page'];
   if(leaving.includes(action)&&!await navigationGuard.allow(submitForm)){if(button.tagName==='A')event.preventDefault();return;}
   if(action==='toggle-password'){const input=button.closest('.input-shell')?.querySelector('input');if(input){const show=input.type==='password';input.type=show?'text':'password';button.setAttribute('aria-pressed',String(show));button.setAttribute('aria-label',show?'پنهان‌کردن رمز':'نمایش رمز');button.innerHTML=icon(show?'eye-off':'eye');}return;}
   if(action==='listen-guide'){if(route==='play'&&playPhase==='playing'&&!engine?.paused)return;if(guidance.key===button.dataset.guide&&guidance.audio)return guidance.stop();progress.sound=true;writeProgress(progress);syncSoundControls();return guidance.play(button.dataset.guide);}
@@ -963,6 +965,7 @@ function showLogin(invite=null){
   page(loginView({invite}), 'auth-main');
 }
 function clearPrivateData(){
+ if(modal.open)modal.close();modal.replaceChildren();modalKind='';
  navigationGuard.clear();completedRecord=null;delete clients.panelSummary;delete clients.reportPage;delete clients.selectorProfiles;unresolvedProfiles=[];
  members=[];inspectedUserId=null;publicReportData=null;previewImport=null;importAttempt=null;remoteRun=null;pendingAdminRefresh=null;pendingPanelRefresh=null;
  pendingStart=null;guideState=null;lessonState=null;editingProfile=null;sessionRecordId=null;sessionOptions=null;repeatingPractice=false;engine=null;launchAttempt=null;starting=false;userTab='overview';
@@ -1120,7 +1123,7 @@ async function adminPanel(){
 }
 async function inspectUser(id){
  if(currentUser?.role!=='admin')return home();const view=beginView(),data=await viewRequest(view,`/users/${id}`);if(!currentView(view))return;
- if(inspectedUserId!==id){userTab='overview';reportState.recordId=null;reportState.page=1;clients.selectorSearch='';clients.selectorPage=1;}
+ if(inspectedUserId!==id){userTab='overview';reportState.recordId=null;reportState.variant='';reportState.page=1;clients.selectorSearch='';clients.selectorPage=1;}
  inspectedUserId=id;inspectedRevision=data.user.revision||1;clients.activeId=data.profile?.id||null;
  if(data.profile){if(!await refreshClients(view))return;}else{delete clients.panelSummary;delete clients.reportPage;clients.profiles=[];clients.records=[];clients.difficulties=[];}
  const evaluation=clients.panelSummary?{steps:clients.panelSummary.assessmentSteps}:data.profile?await viewRequest(view,`/children/${data.profile.id}/assessment`):null;if(!currentView(view))return;
@@ -1171,10 +1174,12 @@ async function previewLegacy(readDocument){
 }
 async function loadImportTargets(search='',pageNumber=1,existingView=null){
  const preview=previewImport;if(!preview?.id)return;const view=existingView||{version:viewVersion,userId:currentUser.id,role:currentUser.role};
+ const attempt={};preview.targetAttempt=attempt;const valid=()=>currentView(view)&&preview===previewImport&&preview.targetAttempt===attempt;
+ const read=async path=>{try{return await viewRequest(view,path);}catch(error){if(valid())throw error;return null;}};
  for(const row of document.querySelectorAll('.import-mapping')){const profile=preview.profiles.find(p=>p.sourceId===row.dataset.source);if(profile)profile.targetId=row.querySelector('[name=targetId]').value||null;}
- const data=await viewRequest(view,`/users?role=user&page=${pageNumber}&pageSize=20&search=${encodeURIComponent(search)}`);if(!currentView(view)||preview!==previewImport||!data)return;
+ const data=await read(`/users?role=user&page=${pageNumber}&pageSize=20&search=${encodeURIComponent(search)}`);if(!valid()||!data)return;
  const choices=data.users.filter(u=>u.childId).map(u=>({id:u.childId,ownerUserId:u.id,firstName:u.name,lastName:''}));
- for(const profile of preview.profiles.filter(p=>p.targetId&&!choices.some(c=>c.id===p.targetId))){const known=clients.profiles.find(p=>p.id===profile.targetId);if(known)choices.push(known);else{const found=await viewRequest(view,`/children/${profile.targetId}`);if(!currentView(view)||preview!==previewImport)return;if(found?.profile)choices.push(found.profile);}}
+ for(const profile of preview.profiles.filter(p=>p.targetId&&!choices.some(c=>c.id===p.targetId))){const known=clients.profiles.find(p=>p.id===profile.targetId);if(known)choices.push(known);else{const found=await read(`/children/${profile.targetId}`);if(!valid())return;if(found?.profile)choices.push(found.profile);}}
  clients.profiles=[...clients.profiles.filter(p=>p.id===clients.activeId),...choices.filter(p=>p.id!==clients.activeId)];preview.targetSearch=search;
  const filter=`<form id="import-target-filter" class="admin-filters"><label>جستجوی کاربر مقصد<input name="search" value="${esc(search)}"></label><button class="button subtle">جستجو</button><button type="button" class="button subtle" data-action="import-target-page" data-page="${data.pagination.page-1}" ${data.pagination.page<=1?'disabled':''}>قبلی</button><button type="button" class="button subtle" data-action="import-target-page" data-page="${data.pagination.page+1}" ${data.pagination.page>=data.pagination.pages?'disabled':''}>بعدی</button></form>`;
  const container=document.querySelector('#import-preview');if(container)container.innerHTML=filter+importPreviewView(preview,clients.profiles);
