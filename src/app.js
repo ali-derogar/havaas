@@ -107,6 +107,8 @@ function page(content, className = '') {
   if(launchAttempt){launchAttempt=null;starting=false;}
   cancelAnimationFrame(frame);
   document.body.dataset.screen=route;reactionPointerInput=false;
+  if(['detail','play','result'].includes(route)&&GAME_MAP[selectedGame])document.body.dataset.game=selectedGame;
+  else delete document.body.dataset.game;
   document.body.dataset.panel=currentUser?.role==='admin'&&!publicReportData&&!guestScreen()&&!currentUser.passwordChangeRequired?'admin':currentUser&&!publicReportData&&!guestScreen()?'client':'guest';
   const theme=platformTheme(route,document.body.dataset.panel);
   if(theme)document.body.dataset.platformTheme=theme;

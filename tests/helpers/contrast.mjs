@@ -9,6 +9,19 @@ export function contrastIssues() {
   };
   const mix = (front, back) => front.slice(0, 3).map((v, i) => v * front[3] + back[i] * (1 - front[3]));
   const luminance = color => color.slice(0, 3).map(v => v / 255).map(v => v <= .04045 ? v / 12.92 : ((v + .055) / 1.055) ** 2.4).reduce((sum, v, i) => sum + v * [.2126, .7152, .0722][i], 0);
+  const extremes = colors => {
+    const sorted = colors.toSorted((a, b) => luminance(a) - luminance(b));
+    return [sorted[0], sorted.at(-1)];
+  };
+  const layers = image => {
+    let depth = 0, start = 0;const result = [];
+    for (let i = 0; i < image.length; i++) {
+      if (image[i] === '(') depth++;
+      else if (image[i] === ')') depth--;
+      else if (image[i] === ',' && depth === 0) {result.push(image.slice(start, i));start = i + 1;}
+    }
+    result.push(image.slice(start));return result.reverse();
+  };
   const path = node => {
     const parts = [];
     for (let el = node; el && parts.length < 4; el = el.parentElement) {
@@ -27,22 +40,26 @@ export function contrastIssues() {
     if (!text || !node.getClientRects().length) continue;
     const style = getComputedStyle(node), rect = node.getBoundingClientRect();
     if (style.visibility !== 'visible' || rect.width < 2 || rect.height < 2 || !node.checkVisibility({checkOpacity:true,checkVisibilityCSS:true})) continue;
-    let back = [255, 255, 255], transparent = false;
+    let backgrounds = [[255, 255, 255]], transparent = false;
     const chain = [];
     for (let ancestor = node; ancestor; ancestor = ancestor.parentElement) chain.unshift(ancestor);
     for (const ancestor of chain) {
       const ancestorStyle = getComputedStyle(ancestor);
       if (Number(ancestorStyle.opacity) === 0) transparent = true;
-      back = mix(rgba(ancestorStyle.backgroundColor), back);
-      if (!ancestorStyle.backgroundImage.includes('url(')) {
-        const solid = ancestorStyle.backgroundImage.match(/rgba?\([^)]+\)/g)?.map(rgba).find(color => color[3] === 1);
-        if (solid) back = mix(solid, back);
+      backgrounds = backgrounds.map(back => mix(rgba(ancestorStyle.backgroundColor), back));
+      for (const layer of layers(ancestorStyle.backgroundImage)) {
+        if (layer.includes('url(')) continue;
+        const stops = layer.match(/rgba?\([^)]+\)/g)?.map(rgba);
+        if (stops?.length) backgrounds = extremes(stops.flatMap(stop => backgrounds.map(back => mix(stop, back))));
       }
     }
     if (transparent) continue;
     const foreground = placeholder ? getComputedStyle(node, '::placeholder').color : style.color;
-    const fore = mix(rgba(foreground), back), a = luminance(fore), b = luminance(back);
-    const ratio = (Math.max(a, b) + .05) / (Math.min(a, b) + .05);
+    const candidates = backgrounds.map(back => {
+      const a = luminance(mix(rgba(foreground), back)), b = luminance(back);
+      return {back, ratio: (Math.max(a, b) + .05) / (Math.min(a, b) + .05)};
+    });
+    const {back, ratio} = candidates.toSorted((a, b) => a.ratio - b.ratio)[0];
     const large = parseFloat(style.fontSize) >= 24 || parseFloat(style.fontSize) >= 18.66 && Number(style.fontWeight) >= 700;
     if (ratio + .01 < (large ? 3 : 4.5)) issues.push({selector: path(node), text: text.slice(0, 90), ratio: Number(ratio.toFixed(2)), color: style.color, background: back.map(Math.round)});
   }

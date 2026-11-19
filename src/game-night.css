@@ -1,0 +1,169 @@
+/* Night editions of the seven worlds. Canonical exercise paper, artwork and
+   stimulus colors stay in their existing game stylesheets. */
+@media screen {
+  :root[data-color-scheme=dark] :is(body,.game-card,.assessment-step)[data-game=hunt] {
+    --night-base:#0c211c;--night-panel:#12382c;--night-raised:#1c4938;
+    --night-accent:#93e7bd;--night-rgb:73,204,140;--night-secondary:#ffd38b;
+    --night-button-start:#b4f1cf;--night-button-end:#75d9a8;--night-ink:#073021;
+  }
+  :root[data-color-scheme=dark] :is(body,.game-card,.assessment-step)[data-game=ark] {
+    --night-base:#0b222d;--night-panel:#123949;--night-raised:#1b4b59;
+    --night-accent:#8de5ef;--night-rgb:64,198,213;--night-secondary:#f6c86d;
+    --night-button-start:#b6eff3;--night-button-end:#78d8e3;--night-ink:#082b35;
+  }
+  :root[data-color-scheme=dark] :is(body,.game-card,.assessment-step)[data-game=space] {
+    --night-base:#12172e;--night-panel:#212b50;--night-raised:#2c3961;
+    --night-accent:#b8c5ff;--night-rgb:138,161,255;--night-secondary:#8ee6e1;
+    --night-button-start:#d5dcff;--night-button-end:#aebefc;--night-ink:#192044;
+  }
+  :root[data-color-scheme=dark] :is(body,.game-card,.assessment-step)[data-game=traffic] {
+    --night-base:#10232b;--night-panel:#183847;--night-raised:#234c56;
+    --night-accent:#ffd48f;--night-rgb:246,184,84;--night-secondary:#8de2e5;
+    --night-button-start:#ffe5b3;--night-button-end:#f8cb83;--night-ink:#352a17;
+  }
+  :root[data-color-scheme=dark] :is(body,.game-card,.assessment-step)[data-game=search] {
+    --night-base:#1b1930;--night-panel:#2a2947;--night-raised:#383655;
+    --night-accent:#c3b4fa;--night-rgb:164,144,236;--night-secondary:#8ce1cf;
+    --night-button-start:#e0d6ff;--night-button-end:#c5b5f5;--night-ink:#271f43;
+  }
+  :root[data-color-scheme=dark] :is(body,.game-card,.assessment-step)[data-game=nback] {
+    --night-base:#21182f;--night-panel:#342544;--night-raised:#453459;
+    --night-accent:#d6b5fb;--night-rgb:184,142,234;--night-secondary:#f4cb8e;
+    --night-button-start:#ebd6ff;--night-button-end:#d1b1f5;--night-ink:#30203e;
+  }
+  :root[data-color-scheme=dark] :is(body,.game-card,.assessment-step)[data-game=stroop] {
+    --night-base:#2a1929;--night-panel:#44283c;--night-raised:#59374a;
+    --night-accent:#f3b1ce;--night-rgb:223,126,173;--night-secondary:#f9d982;
+    --night-button-start:#fbd6e8;--night-button-end:#f1b1d0;--night-ink:#3b2130;
+  }
+
+  /* Color travels with the current game, then resets on navigation. */
+  :root[data-color-scheme=dark] body[data-game][data-screen],
+  :root[data-color-scheme=dark] body[data-panel=client] :is(.game-card,.assessment-step)[data-game] {
+    --theme-bg:var(--night-base);--theme-surface:var(--night-panel);
+    --theme-raised:var(--night-raised);--theme-line:rgba(var(--night-rgb),.35);
+    --theme-link:var(--night-accent);--theme-soft:var(--night-raised);
+    --theme-focus:var(--night-accent);--theme-muted:#cad6de;
+  }
+  :root[data-color-scheme=dark] body[data-game][data-screen] {
+    background:radial-gradient(ellipse at 8% 0,rgba(var(--night-rgb),.16),transparent 48%),
+      radial-gradient(ellipse at 95% 90%,rgba(var(--night-rgb),.09),transparent 52%),var(--night-base);
+  }
+
+  /* Colored, tangible cards; the illustrations keep their original saturation. */
+  :root[data-color-scheme=dark] body[data-panel=client] :is(.game-card,.assessment-step)[data-game] {
+    background:radial-gradient(ellipse at 100% 0,rgba(var(--night-rgb),.12),transparent 68%),
+      linear-gradient(155deg,var(--night-raised),var(--night-panel)) var(--night-panel);
+    border-color:var(--theme-line);box-shadow:0 5px 0 var(--night-base),0 14px 28px #0002;
+  }
+  :root[data-color-scheme=dark] body[data-panel=client] .game-card[data-game]:hover {
+    border-color:var(--night-accent);box-shadow:0 5px 0 var(--night-base),0 12px 30px rgba(var(--night-rgb),.16);
+  }
+  :root[data-color-scheme=dark] body[data-panel=client] .game-card[data-game] .skill-label {color:var(--night-accent);}
+  :root[data-color-scheme=dark] body[data-panel=client] .game-card[data-game] .card-arrow {
+    background:var(--night-raised);border:1px solid var(--theme-line);color:var(--night-accent);
+  }
+  :root[data-color-scheme=dark] body[data-panel=client] .game-card[data-game]:hover .card-arrow {
+    background:var(--night-button-end);color:var(--night-ink);
+  }
+  :root[data-color-scheme=dark] body[data-panel=client] .assessment-step[data-game] {
+    border-top-color:var(--night-accent)!important;
+  }
+  :root[data-color-scheme=dark] body[data-panel=client] .assessment-step[data-game] .button.primary,
+  :root[data-color-scheme=dark] body[data-game][data-screen] .button.primary,
+  :root[data-color-scheme=dark] body[data-game][data-screen] .play-panel .response-button,
+  :root[data-color-scheme=dark] body[data-game][data-screen] .lesson-yes {
+    background:linear-gradient(135deg,var(--night-button-start),var(--night-button-end)) var(--night-button-end);
+    color:var(--night-ink);border-color:var(--night-accent);
+    box-shadow:inset 0 1px 0 #ffffff70,0 4px 0 var(--night-base),0 5px 18px rgba(var(--night-rgb),.14);
+  }
+  :root[data-color-scheme=dark] body[data-panel=client] .assessment-step[data-game] .button.primary:hover:not(:disabled),
+  :root[data-color-scheme=dark] body[data-game][data-screen] .button.primary:hover:not(:disabled),
+  :root[data-color-scheme=dark] body[data-game][data-screen] .play-panel .response-button:hover:not(:disabled),
+  :root[data-color-scheme=dark] body[data-game][data-screen] .lesson-yes:hover:not(:disabled) {
+    background:linear-gradient(135deg,var(--night-button-start),var(--night-button-start)) var(--night-button-start);
+    box-shadow:inset 0 1px 0 #ffffff90,0 4px 0 var(--night-base),0 7px 22px rgba(var(--night-rgb),.2);
+  }
+
+  /* Depth around teaching and results, with no extra motion or stimulus effects. */
+  :root[data-color-scheme=dark] body[data-game][data-screen] :is(.intro-art,.lesson-box,.companion-guide,.assessment-info,.result-card,.result-learning,.recap-step,.mission-brief) {
+    background:radial-gradient(ellipse at 0 0,rgba(var(--night-rgb),.08),transparent 65%),
+      linear-gradient(145deg,var(--night-raised),var(--night-panel)) var(--night-panel);
+    border-color:var(--theme-line);box-shadow:inset 0 1px 0 rgba(var(--night-rgb),.15),0 5px 0 var(--night-base),0 12px 28px #0002;
+  }
+  :root[data-color-scheme=dark] body[data-game][data-screen] .intro-art {position:relative;isolation:isolate;overflow:hidden;}
+  :root[data-color-scheme=dark] body[data-game][data-screen] .intro-art::before {
+    content:'';position:absolute;width:280px;height:280px;inset-inline-end:-100px;bottom:-115px;
+    border:1px solid rgba(var(--night-rgb),.22);border-radius:50%;pointer-events:none;z-index:-1;
+    box-shadow:0 0 0 28px rgba(var(--night-rgb),.04),0 0 0 56px rgba(var(--night-rgb),.025);
+  }
+  :root[data-color-scheme=dark] body[data-game][data-screen] .intro-art::after {
+    content:'';position:absolute;inset:0;pointer-events:none;z-index:-1;
+    background:radial-gradient(circle at 12% 62%,rgba(var(--night-rgb),.3) 0 2px,transparent 3px),
+      radial-gradient(circle at 87% 70%,rgba(var(--night-rgb),.25) 0 2px,transparent 3px),
+      radial-gradient(circle at 8% 92%,rgba(var(--night-rgb),.18) 0 1px,transparent 2px);
+  }
+  :root[data-color-scheme=dark] body:is([data-game=ark],[data-game=hunt]) .intro-art::before {
+    width:340px;height:180px;bottom:-105px;border-radius:50%;
+    box-shadow:0 0 0 20px rgba(var(--night-rgb),.05),0 0 0 40px rgba(var(--night-rgb),.025);
+  }
+  :root[data-color-scheme=dark] body[data-game=traffic] .intro-art::before {border-style:dashed;}
+  :root[data-color-scheme=dark] body[data-game=stroop] .intro-art::before {border-radius:45% 55% 62% 38%;transform:rotate(-18deg);}
+  :root[data-color-scheme=dark] body[data-game][data-screen] :is(.intro-copy>.eyebrow,.intro-art-note,.session-summary b) {color:var(--night-accent);}
+  :root[data-color-scheme=dark] body[data-game][data-screen] :is(.option-hint,.score-note,.rule-transition>p) {color:var(--theme-muted);}
+  :root[data-color-scheme=dark] body[data-game][data-screen] .level-button.selected,
+  :root[data-color-scheme=dark] body[data-game][data-screen] .theme-button.selected {
+    background:var(--night-raised);border-color:var(--night-accent);color:var(--night-accent);
+    box-shadow:inset 0 0 0 1px rgba(var(--night-rgb),.22),0 3px 10px rgba(var(--night-rgb),.08);
+  }
+  :root[data-color-scheme=dark] body[data-game][data-screen] :is(.level-button.selected,.theme-button.selected):hover:not(:disabled) {background:var(--night-panel);}
+
+  :root[data-color-scheme=dark] body[data-game][data-screen] .play-panel {
+    border-color:rgba(var(--night-rgb),.55);
+    box-shadow:0 7px 0 var(--night-base),0 15px 42px #0003,0 0 28px rgba(var(--night-rgb),.06);
+  }
+  :root[data-color-scheme=dark] body[data-game][data-screen] .play-panel>.play-hud {
+    background:radial-gradient(ellipse at 0 0,rgba(var(--night-rgb),.1),transparent 65%),
+      linear-gradient(115deg,var(--night-raised),var(--night-panel)) var(--night-panel);
+    box-shadow:inset 0 -1px 0 rgba(var(--night-rgb),.35);
+  }
+  :root[data-color-scheme=dark] body[data-game][data-screen] .play-hud #hits {
+    border-color:var(--night-secondary);color:var(--night-accent);box-shadow:0 0 0 4px rgba(var(--night-rgb),.12);
+  }
+  :root[data-color-scheme=dark] body[data-game][data-screen] .play-panel>.progress-track>span {
+    background:linear-gradient(90deg,var(--night-accent),var(--night-secondary));
+  }
+  :root[data-color-scheme=dark] body[data-game][data-screen] .play-panel>.instruction-strip {
+    background:linear-gradient(110deg,var(--night-panel),var(--night-raised)) var(--night-raised);
+  }
+  :root[data-color-scheme=dark] body[data-game][data-screen] .play-panel>:is(.play-controls,.feedback) {
+    background:linear-gradient(120deg,var(--night-raised),var(--night-panel)) var(--night-panel);
+  }
+  :root[data-color-scheme=dark] body[data-game][data-screen] .play-panel :is(.game-preparation,.game-countdown,.practice-review,.rule-transition,.round-intermission) {
+    background:radial-gradient(ellipse at top,rgba(var(--night-rgb),.12),transparent 68%),
+      linear-gradient(var(--night-raised),var(--night-panel)) var(--night-panel);
+  }
+  :root[data-color-scheme=dark] body[data-game=ark][data-screen] .ark-shore-sign>:is(span,strong) {color:#0b3542;}
+  :root[data-color-scheme=dark] body[data-game][data-screen] :is(.result-stats,.stroop-scorecard) {
+    background:linear-gradient(130deg,var(--night-raised),var(--night-panel)) var(--night-panel);
+    border-color:var(--theme-line);box-shadow:inset 0 1px 0 rgba(var(--night-rgb),.14);
+  }
+  :root[data-color-scheme=dark] body[data-game][data-screen] .result-main-score>b {color:var(--night-accent);text-shadow:0 2px 18px rgba(var(--night-rgb),.2);}
+  :root[data-color-scheme=dark] body[data-game][data-screen] .result-stars>.earned {text-shadow:0 2px 14px #f9cb5840;}
+
+  /* The hub's illustrated night sky connects the individual worlds. */
+  :root[data-color-scheme=dark] body[data-panel=client]:is([data-screen=home],[data-screen=assessment]) {
+    background:radial-gradient(ellipse at 3% 0,#5b489522,transparent 45%),radial-gradient(ellipse at 95% 40%,#28796714,transparent 45%),#101820;
+  }
+  :root[data-color-scheme=dark] body[data-panel=client][data-screen=home] .client-welcome {
+    --theme-link:#d3bdfb;--theme-line:#61527e;--theme-muted:#cbd3e5;
+    background:radial-gradient(ellipse at 10% 40%,#7558b52b,transparent 65%),linear-gradient(120deg,#24253f,#2b2949) #24253f;
+    border-color:#61527e;box-shadow:0 5px 0 #171d2c,0 15px 35px #0002;
+  }
+  :root[data-color-scheme=dark] body[data-panel=client][data-screen=home] .client-welcome::after {
+    background:radial-gradient(circle at 50% 50%,#a386df14,transparent 70%);box-shadow:0 0 0 30px #a386df06,0 0 0 60px #a386df04;
+  }
+  :root[data-color-scheme=dark] body[data-panel=client][data-screen=home] .client-welcome .button.primary {
+    background:linear-gradient(130deg,#b3efde,#80d7c3) #80d7c3;border-color:#b3efde;color:#15382f;box-shadow:0 4px 0 #162c2c;
+  }
+}

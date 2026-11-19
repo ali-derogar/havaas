@@ -29,7 +29,8 @@ async function start(page,gameId,extra={}){
  await click(page,'main-game');await expect(page.locator('.game-preparation')).toBeVisible();await click(page,'begin-game');await page.evaluate(()=>window.advanceCompact(3000));
 }
 
-for(const [gameId,extra] of [['hunt',{}],['traffic',{}],['traffic',{trafficMode:'signs'}],['nback',{}],['stroop',{}]])test(`compact: ${gameId}${extra.trafficMode?' signs':''} keeps the full stimulus and controls visible without overlapping touch targets`,async({page})=>{
+for(const appearance of ['light','dark'])for(const [gameId,extra] of [['hunt',{}],['traffic',{}],['traffic',{trafficMode:'signs'}],['nback',{}],['stroop',{}]])test(`compact ${appearance}: ${gameId}${extra.trafficMode?' signs':''} keeps the full stimulus and controls visible without overlapping touch targets`,async({page})=>{
+ await page.emulateMedia({colorScheme:appearance});
  await start(page,gameId,extra);
  for(const [width,height] of [[320,568],[360,600],[800,360]]){
   await page.setViewportSize({width,height});await page.evaluate(()=>scrollTo(0,0));if(await page.locator('#modal[open]').count())await click(page,'resume');await page.evaluate(()=>window.advanceCompact(0));
@@ -42,7 +43,7 @@ for(const [gameId,extra] of [['hunt',{}],['traffic',{}],['traffic',{trafficMode:
   if(gameId==='hunt'){
    const overlaps=await page.locator('.hunt-choice').evaluateAll(nodes=>{const rects=nodes.map(node=>node.getBoundingClientRect());return rects.flatMap((a,i)=>rects.slice(i+1).filter(b=>Math.min(a.right,b.right)-Math.max(a.left,b.left)>.5&&Math.min(a.bottom,b.bottom)-Math.max(a.top,b.top)>.5));});expect(overlaps).toEqual([]);
   }
-  await page.screenshot({path:`.local/verification/audit-${gameId}${extra.trafficMode?'-signs':''}-${width}x${height}.png`,animations:'disabled'});
+  await page.screenshot({path:`.local/verification/audit-${gameId}${extra.trafficMode?'-signs':''}-${appearance}-${width}x${height}.png`,animations:'disabled'});
  }
 });
 

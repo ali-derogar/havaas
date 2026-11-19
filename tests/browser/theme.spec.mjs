@@ -22,8 +22,12 @@ async function fits(page) {
   await expect(selector(page)).toBeInViewport();
 }
 async function darkSurface(page, target) {
-  const color = await page.locator(target).first().evaluate(node => getComputedStyle(node).backgroundColor);
-  expect(color).toMatch(/^rgb\((16, 24, 32|25, 37, 46|34, 51, 62)\)$/);
+  const {color, allowed} = await page.locator(target).first().evaluate(node => {
+    const style = getComputedStyle(node);
+    const rgb = value => /^#[\da-f]{6}$/i.test(value) ? `rgb(${[1, 3, 5].map(i => parseInt(value.slice(i, i + 2), 16)).join(', ')})` : value;
+    return {color: style.backgroundColor, allowed: ['--theme-bg', '--theme-surface', '--theme-raised'].map(name => rgb(style.getPropertyValue(name).trim()))};
+  });
+  expect(allowed).toContain(color);
 }
 async function shot(page, name) {
   await page.evaluate(() => document.fonts.ready);

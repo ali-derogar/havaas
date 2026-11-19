@@ -5,6 +5,7 @@ import {playSession} from '../helpers/play-session.mjs';
 import {contrastIssues} from '../helpers/contrast.mjs';
 
 const games = ['hunt', 'ark', 'space', 'traffic', 'search', 'nback', 'stroop'];
+const accents = {hunt:'#93e7bd', ark:'#8de5ef', space:'#b8c5ff', traffic:'#ffd48f', search:'#c3b4fa', nback:'#d6b5fb', stroop:'#f3b1ce'};
 let seed, player, child;
 test.use({serviceWorkers: 'block', reducedMotion: 'reduce', viewport: {width: 1440, height: 1000}});
 test.beforeAll(async () => {
@@ -51,10 +52,30 @@ async function bothWidths(page, state) {
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
   }
 }
+async function unchangedWithoutNightStyles(page, state, appearance = 'light') {
+  const previous = await page.evaluate(() => window.HavaasTheme.getPreference());
+  const sheet = page.locator('link[href="/src/game-night.css"]');
+  let styled, original;
+  try {
+    await page.evaluate(value => window.HavaasTheme.setPreference(value), appearance);
+    styled = await page.screenshot({fullPage:true,animations:'disabled'});
+    await sheet.evaluate(node => {node.disabled=true;});
+    original = await page.screenshot({fullPage:true,animations:'disabled'});
+  } finally {
+    await sheet.evaluate(node => {node.disabled=false;});
+    await page.evaluate(value => window.HavaasTheme.setPreference(value), previous);
+  }
+  if (!styled.equals(original)) {
+    await test.info().attach(`${state}-styled`,{body:styled,contentType:'image/png'});
+    await test.info().attach(`${state}-original`,{body:original,contentType:'image/png'});
+  }
+  expect(styled.equals(original),`${state}: existing ${appearance} appearance must stay identical`).toBe(true);
+}
 
 test('dark navigation, badges, account descriptions and admin tables use paired colors', async ({page}) => {
   await page.goto('/');await expect(page.locator('#login-form')).toBeVisible();await bothWidths(page, 'login');
-  await login(page);await bothWidths(page, 'home');
+  await login(page);await bothWidths(page, 'home');await unchangedWithoutNightStyles(page,'home');
+  for (const game of games) expect(await page.locator(`.game-card[data-game=${game}]`).evaluate(node => getComputedStyle(node).getPropertyValue('--night-accent').trim())).toBe(accents[game]);
   await page.locator('[data-action=open][data-game=hunt]').first().click();await expect(page.locator('.intro-layout')).toBeVisible();
   await bothWidths(page, 'game before initial assessment');
   const auth = await (await page.request.get('/api/auth/session')).json(), headers = {'X-CSRF-Token': auth.csrfToken};
@@ -62,12 +83,14 @@ test('dark navigation, badges, account descriptions and admin tables use paired 
   expect(response.ok()).toBe(true);const run = await response.json();
   expect((await page.request.post(`/api/children/${child.id}/sessions/${run.id}/complete`, {headers, data: {result: playSession(run)}})).ok()).toBe(true);
   await click(page, 'home');await expect(page.locator('.client-welcome')).toBeVisible();
+  await expect(page.locator('body')).not.toHaveAttribute('data-game');
   for (const action of ['assessment', 'account', 'report-links', 'dashboard']) {
     await click(page, action);await expect(page.locator('body')).toHaveAttribute('data-screen', action === 'dashboard' ? 'reports' : action);
     await bothWidths(page, action);
+    if (action === 'dashboard') await unchangedWithoutNightStyles(page,'reports','dark');
   }
   await click(page, 'account');await expect(page.locator('#password-form')).toBeVisible();await click(page, 'logout');await login(page, seed.users.admin);
-  await bothWidths(page, 'admin');
+  await bothWidths(page, 'admin');await unchangedWithoutNightStyles(page,'admin','dark');
   for (const [action, screen] of [['admin-users', 'admin-users'], ['admin-invitations', 'invitations'], ['admin-audit', 'audit'], ['admin-game-settings', 'game-settings'], ['account', 'account']]) {
     if (await page.locator('.menu-toggle').isVisible()) await click(page, 'admin-menu');
     await click(page, action);await expect(page.locator('body')).toHaveAttribute('data-screen', screen);await bothWidths(page, screen);
@@ -76,8 +99,15 @@ test('dark navigation, badges, account descriptions and admin tables use paired 
 
 for (const game of games) test(`dark ${game}: teaching, rules, arena and expanded result stay readable`, async ({page}) => {
   await login(page);await page.locator(`[data-action=open][data-game=${game}]`).first().click();
+  await expect(page.locator('body')).toHaveAttribute('data-game', game);
   await expect(page.locator('.intro-layout')).toBeVisible();await page.locator('.intro-companion').evaluate(node => {node.open = true;});
   await bothWidths(page, `${game} introduction`);
+  await unchangedWithoutNightStyles(page,`${game}-intro`);
+  for (const width of [1440,360]) {
+    await page.setViewportSize({width,height:1000});
+    await page.screenshot({path:`.local/verification/night-${game}-intro-${width}.png`,fullPage:true,animations:'disabled'});
+  }
+  await page.setViewportSize({width:360,height:1000});
   if (game === 'nback') await click(page, 'lesson-memory-help');
   if (game === 'search') {
     await click(page, 'lesson-choice', '[data-index="0"]');await readable(page, 'search learning feedback');
@@ -89,6 +119,17 @@ for (const game of games) test(`dark ${game}: teaching, rules, arena and expande
   await click(page, 'main-game');await expect(page.locator('.game-preparation')).toBeVisible();await bothWidths(page, `${game} preparation`);
   await click(page, 'begin-game');await page.evaluate(() => window.advanceContrast(3000));
   await expect(page.locator('.play-panel')).toHaveAttribute('data-phase', 'playing');await bothWidths(page, `${game} arena`);
+  await unchangedWithoutNightStyles(page,`${game}-play`);
+  const identity = await page.locator('.play-panel').evaluate(node => {
+    const style = getComputedStyle(node), button = node.querySelector('.response-button,.begin-button,.depart-button');
+    return {accent:style.getPropertyValue('--night-accent').trim(), hud:getComputedStyle(node.querySelector('.play-hud')).backgroundImage, button:button ? getComputedStyle(button).backgroundImage : ''};
+  });
+  expect(identity.accent).toBe(accents[game]);expect(identity.hud).toContain('gradient');
+  if (identity.button) expect(identity.button).toContain('gradient');
+  for (const width of [1440,360]) {
+    await page.setViewportSize({width,height:1000});
+    await page.screenshot({path:`.local/verification/night-${game}-play-${width}.png`,fullPage:true});
+  }
   if (game === 'search') {
     await page.screenshot({path: '.local/verification/theme-fixed-search-mobile.png', fullPage: true});
     await page.evaluate(() => window.advanceContrast(2000));await expect(page.locator('.search-grid')).toBeVisible();await readable(page, 'search choices');
@@ -115,5 +156,12 @@ for (const game of games) test(`dark ${game}: teaching, rules, arena and expande
   await expect(page.locator('.result-card')).toBeVisible();
   await page.locator('details.result-learning').evaluate(node => {node.open = true;});
   await bothWidths(page, `${game} result and recap`);
+  await unchangedWithoutNightStyles(page,`${game}-result`);
+  await expect(page.locator('body')).toHaveAttribute('data-game', game);
+  await page.locator('details.result-learning').evaluate(node => {node.open=false;});
+  for (const width of [1440,360]) {
+    await page.setViewportSize({width,height:1000});
+    await page.screenshot({path:`.local/verification/night-${game}-result-${width}.png`,fullPage:true});
+  }
   if (game === 'nback') await page.screenshot({path: '.local/verification/theme-fixed-memory-result.png', fullPage: true});
 });
