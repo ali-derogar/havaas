@@ -16,7 +16,7 @@ export async function readBuiltinProfile(db,level){
   const row=rows.find(row=>row.game_id===entry.gameId&&row.variant===entry.variant&&row.protocol===entry.protocolVersion&&row.timing_family===family);
   if(row?.timing)entry.timings[family]=row.timing;
  }
- return {id:`builtin:${level}`,name:LEVELS[level].label,description:'سطح پیش‌فرض؛ قابل استفاده به روش ثابت یا تطبیقی',builtin:true,builtinLevel:level,archived:false,revision:1+rows.reduce((sum,row)=>sum+row.revision,0),settings};
+ return {id:`builtin:${level}`,name:LEVELS[level].label,description:'سطح پیش‌فرض؛ می‌توانید آن را به‌صورت ثابت یا تطبیقی انتخاب کنید',builtin:true,builtinLevel:level,archived:false,revision:1+rows.reduce((sum,row)=>sum+row.revision,0),settings};
 }
 export async function readTrainingProfile(db,id){
  if(typeof id==='string'&&id.startsWith('builtin:'))return readBuiltinProfile(db,id.slice(8));
@@ -51,12 +51,12 @@ export function registerTrainingProfiles(app,pool,{role}){
     await auditProfile(db,req,previous.id,['settings']);return readBuiltinProfile(db,previous.builtinLevel);
    }
    const name=textOf(req.body.name??previous?.name,'نام پروفایل معتبر وارد کنید.'),description=textOf(req.body.description??previous?.description??'','توضیحات معتبر وارد کنید.');
-   check(name.length>=2&&name.length<=120&&description.length<=500,'نام باید ۲ تا ۱۲۰ نویسه و توضیحات حداکثر ۵۰۰ نویسه باشد.');
-   check(!Object.values(LEVELS).some(level=>level.label===name),'این نام برای سطح پیش‌فرض رزرو شده است.');
+   check(name.length>=2&&name.length<=120&&description.length<=500,'نام باید بین ۲ تا ۱۲۰ کاراکتر داشته باشد. توضیحات هم نباید بیشتر از ۵۰۰ کاراکتر باشند.');
+   check(!Object.values(LEVELS).some(level=>level.label===name),'این نام متعلق به یکی از سطح‌های پیش‌فرض است. نام دیگری انتخاب کنید.');
    check(req.body.archived===undefined||typeof req.body.archived==='boolean','وضعیت بایگانی معتبر نیست.');
    const archived=req.body.archived??previous?.archived??false;let settings;
    try{settings=validateProfileSettings(req.body.settings??previous?.settings);}catch(error){check(false,error.message);}
-   if(!archived)check(!(await db.query('SELECT 1 FROM training_profiles WHERE lower(name)=lower($1) AND NOT archived AND id IS DISTINCT FROM $2::uuid',[name,previous?.id||null])).rowCount,'پروفایل فعالی با این نام وجود دارد.',409,'PROFILE_NAME_EXISTS');
+   if(!archived)check(!(await db.query('SELECT 1 FROM training_profiles WHERE lower(name)=lower($1) AND NOT archived AND id IS DISTINCT FROM $2::uuid',[name,previous?.id||null])).rowCount,'قبلاً پروفایل فعالی با این نام ساخته شده است. نام دیگری انتخاب کنید.',409,'PROFILE_NAME_EXISTS');
    const fields=['name','description','settings','archived'].filter(field=>!isDeepStrictEqual(previous?.[field],{name,description,settings,archived}[field]));
    if(previous&&!fields.length)return previous;
    const id=previous?.id||randomUUID();
@@ -80,11 +80,11 @@ export async function assignedTrainingProfile(db,childId,key){
 }
 export async function prepareProfileAssignment(db,req,key,current){
  const explicit=Object.hasOwn(req.body,'trainingProfileId');
- if(!explicit){check(!current?.training_profile_id,'برای تغییر پروفایل، پنل را به‌روزرسانی کنید.',409,'CLIENT_UPDATE_REQUIRED');return {mode:req.body.mode,level:req.body.level,id:null};}
+ if(!explicit){check(!current?.training_profile_id,'برای تغییر پروفایل، برنامه را به‌روزرسانی کنید.',409,'CLIENT_UPDATE_REQUIRED');return {mode:req.body.mode,level:req.body.level,id:null};}
  guardRevision(req.body.expectedRevision,current?.revision||0,current||{},true);
  let selection={mode:req.body.mode,level:req.body.level,id:null};
  if(req.body.trainingProfileId!==null){
-  const profile=await readTrainingProfile(db,uuid(req.body.trainingProfileId));check(!profile.archived||current?.training_profile_id===profile.id,'پروفایل بایگانی‌شده قابل تخصیص جدید نیست.',409,'PROFILE_ARCHIVED');
+  const profile=await readTrainingProfile(db,uuid(req.body.trainingProfileId));check(!profile.archived||current?.training_profile_id===profile.id,'برای انتخاب این پروفایل برای کاربر جدید، اول آن را از بایگانی برگردانید.',409,'PROFILE_ARCHIVED');
   selection={mode:'fixed',level:profileEntry(profile.settings,key.gameId,key.variant).level,id:profile.id};
  }
  check(['fixed','adaptive'].includes(selection.mode)&&Object.hasOwn(LEVELS,selection.level),'سطح و روش معتبر انتخاب کنید.');

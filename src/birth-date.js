@@ -19,7 +19,7 @@ export function syncBirthDate(field){
   const selected=Number(day.value),count=month?(year?daysInJalaliMonth(year,month):month<=6?31:30):31;
   if(day.options.length!==count+1){day.innerHTML=dayOptions(count,selected);day.value=selected<=count&&selected>0?String(selected):'';}
   const value=jalaliToGregorian(year,month,Number(day.value));
-  const error=value>field.dataset.max?'تاریخ تولد نمی‌تواند در آینده باشد.':value&&value<field.dataset.min?'تاریخ تولد باید در محدودهٔ صد سال اخیر باشد.':'';
+  const error=value>field.dataset.max?'تاریخ تولد نمی‌تواند در آینده باشد.':value&&value<field.dataset.min?'تاریخ تولد نمی‌تواند بیش از صد سال قبل باشد.':'';
   field.querySelector('[name=birthDate]').value=error?'':value;
   day.setCustomValidity(error);
   if(error)day.setAttribute('aria-invalid','true');else day.removeAttribute('aria-invalid');

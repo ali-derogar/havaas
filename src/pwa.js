@@ -17,7 +17,7 @@ export function setupPwa({canUpdate=()=>true,formTracker=null}={}){
   activeForms().forEach(form=>forms.remember(form));
   for(const card of document.querySelectorAll('[data-pwa-install]')){card.hidden=installed||standalone();const button=card.querySelector('[data-pwa-action=install]'),label=installPrompt?'نصب حواس':'راهنمای نصب';if(button&&button.textContent!==label)button.textContent=label;}
   const current=state();banner.hidden=!current||dismissed===current||document.body.dataset.screen==='play';
-  message.textContent=current==='offline'?'آفلاین هستی؛ برای دریافت و ثبت نتیجه، اتصال لازم است.':notice||'نسخهٔ تازهٔ حواس آماده است.';
+  message.textContent=current==='offline'?'اینترنت قطع شده. برای دیدن و ذخیرهٔ نتیجه‌ها، دوباره وصل شو.':notice||'نسخهٔ جدید حواس آمادهٔ نصبه.';
   update.hidden=current==='offline'||!registration?.waiting||!safe();update.disabled=preparing;
  }
  function release(){
@@ -32,7 +32,7 @@ export function setupPwa({canUpdate=()=>true,formTracker=null}={}){
  worker.addEventListener('message',event=>{
   if(event.data?.type==='PWA_PREPARE_UPDATE')event.ports[0]?.postMessage({ready:prepare()});
   if(event.data?.type==='PWA_CANCEL_UPDATE')release();
-  if(event.data?.type==='PWA_UPDATE_BLOCKED'){release();notice='ابتدا بازی، ثبت نتیجه یا فرم باز را در پنجره‌های دیگر کامل کن؛ سپس دوباره تلاش کن.';dismissed='';sync();}
+  if(event.data?.type==='PWA_UPDATE_BLOCKED'){release();notice='حواس در یک پنجرهٔ دیگه بازه. اول بازی یا ذخیرهٔ اطلاعات رو اونجا تموم کن، بعد دوباره به‌روزرسانی رو بزن.';dismissed='';sync();}
  });
  worker.addEventListener('controllerchange',()=>{if(preparing){clearTimeout(updateTimer);location.reload();}else sync();});
  window.addEventListener('beforeinstallprompt',event=>{event.preventDefault();installPrompt=event;installed=false;sync();});
@@ -53,7 +53,7 @@ export function setupPwa({canUpdate=()=>true,formTracker=null}={}){
     finally{button.disabled=false;sync();}
    }else{
     const help=button.closest('[data-pwa-install]').querySelector('[data-pwa-help]');help.hidden=false;
-    help.textContent=ios?'در Safari، دکمهٔ اشتراک‌گذاری را بزن و «افزودن به صفحهٔ اصلی» (Add to Home Screen) را انتخاب کن.':'از منوی مرورگر، «نصب برنامه» یا «افزودن به صفحهٔ اصلی» را انتخاب کن.';
+    help.textContent=ios?'در Safari، دکمهٔ اشتراک‌گذاری رو بزن و «افزودن به صفحهٔ اصلی» (Add to Home Screen) رو انتخاب کن.':'از منوی مرورگر، «نصب برنامه» یا «افزودن به صفحهٔ اصلی» رو انتخاب کن.';
    }
   }
  });

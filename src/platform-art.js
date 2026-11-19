@@ -66,5 +66,5 @@ export function assessmentMap(steps) {
   <path class="map-trail" d="M650 121C605 121 595 82 550 82S495 128 450 128s-55-45-100-45-55 45-100 45-55-45-100-45-55 38-100 38" stroke="#b4a0ce" stroke-width="3" stroke-dasharray="5 9" stroke-linecap="round"/>
   ${steps.map(({baseline},i)=>{const [x,y]=positions[i];return `<g class="map-stop ${baseline?'map-done':''}" style="--stop-index:${i}"><circle cx="${x}" cy="${y+5}" r="26" fill="${baseline?'#87b3a1':'#d2bddf'}"/><circle cx="${x}" cy="${y}" r="26" fill="${baseline?'#bce3cb':'#fffaf0'}" stroke="${baseline?'#6d9d86':'#c8b6d8'}" stroke-width="2"/><text x="${x}" y="${y+7}" text-anchor="middle" fill="#344c55" font-size="21" font-weight="700">${baseline?'✓':(i+1).toLocaleString('fa-IR')}</text></g>`;}).join('')}
   ${spark(625,55,'#dfac51',9)}${spark(78,42,'#dfac51',8)}${spark(379,167,'#8a79b0',8)}
- </svg><span class="map-caption">هر ایستگاه، یک کشف تازه</span></div>`;
+ </svg><span class="map-caption">هر ایستگاه، یک بازی</span></div>`;
 }

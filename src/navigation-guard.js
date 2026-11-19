@@ -29,7 +29,7 @@ export function createNavigationGuard({document,tracker,identity,prepareDraft=()
   sync();const changed=forms().filter(form=>form.dataset.waiting==='true'&&form.dataset.acknowledged!=='true'||dirty(form));if(!changed.length)return Promise.resolve(true);
   const waiting=changed.some(form=>form.dataset.waiting==='true'),previous=document.activeElement,dialog=document.createElement('dialog');
   dialog.className='navigation-confirm';dialog.setAttribute('aria-labelledby','navigation-confirm-title');
-  dialog.innerHTML=`<h2 id="navigation-confirm-title">${waiting?'در حال ثبت اطلاعات':'تغییرات ذخیره نشده‌اند'}</h2><p>${waiting?'تا دریافت پاسخ ثبت، در همین صفحه بمانید.':'پیش از ادامه، تغییرات فرم را ذخیره کنید یا کنار بگذارید.'}</p><p class="form-error" role="alert"></p><div class="modal-buttons"><button class="button primary" data-guard="stay" autofocus>ماندن</button>${waiting?'':'<button class="button subtle" data-guard="save">ذخیره و ادامه</button><button class="text-button danger" data-guard="discard">کنارگذاشتن و ادامه</button>'}</div>`;
+  dialog.innerHTML=`<h2 id="navigation-confirm-title">${waiting?'در حال ثبت اطلاعات':'تغییرات ذخیره نشده‌اند'}</h2><p>${waiting?'اطلاعات در حال ذخیره‌شدن است؛ کمی صبر کنید.':'تغییراتتان هنوز ذخیره نشده. می‌خواهید آن‌ها را ذخیره کنید یا بدون ذخیره ادامه دهید؟'}</p><p class="form-error" role="alert"></p><div class="modal-buttons"><button class="button primary" data-guard="stay" autofocus>ماندن در این صفحه</button>${waiting?'':'<button class="button subtle" data-guard="save">ذخیره و ادامه</button><button class="text-button danger" data-guard="discard">ادامه بدون ذخیره</button>'}</div>`;
   document.body.append(dialog);
   asking=new Promise(resolve=>{
    let settled=false;

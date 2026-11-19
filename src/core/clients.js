@@ -37,15 +37,15 @@ export function latestBaseline(clients, gameId, variant = 'standard', level = nu
 }
 export function validateProfile(input, today = new Date()) {
   const keys=['firstName','lastName','birthDate','grade','school','concerns'];
-  if(!input||typeof input!=='object'||Array.isArray(input))return {error:'ساختار اطلاعات مشخصات معتبر نیست.'};
+  if(!input||typeof input!=='object'||Array.isArray(input))return {error:'مشخصات درست دریافت نشد. دوباره تلاش کنید.'};
   if(keys.some(key=>input[key]!==undefined&&input[key]!==null&&typeof input[key]!=='string'))return {error:'نام، تاریخ و سایر مشخصات باید به‌صورت متن وارد شوند.'};
   const profile = Object.fromEntries(keys.map(key => [key, (input[key] ?? '').trim()]));
-  if(Object.values(profile).some(value=>!isValidText(value)))return {error:'متن مشخصات شامل نویسهٔ نامعتبر است؛ آن بخش را دوباره وارد کنید.'};
-  if (!profile.firstName || !profile.lastName || !profile.birthDate || !profile.grade || !profile.school) return { error: 'نام، نام خانوادگی، تاریخ تولد، پایه و مدرسه را کامل کن.' };
-  if (Object.values(profile).some(value => value.length > 500)) return { error: 'طول هر بخش باید کمتر از ۵۰۰ نویسه باشد.' };
+  if(Object.values(profile).some(value=>!isValidText(value)))return {error:'بخشی از مشخصات قابل خواندن نیست. متن آن بخش را دوباره وارد کنید.'};
+  if (!profile.firstName || !profile.lastName || !profile.birthDate || !profile.grade || !profile.school) return { error: 'نام، نام خانوادگی، تاریخ تولد، پایه و مدرسه را کامل کنید.' };
+  if (Object.values(profile).some(value => value.length > 500)) return { error: 'هر بخش می‌تواند حداکثر ۵۰۰ کاراکتر داشته باشد.' };
   const birthday = new Date(`${profile.birthDate}T12:00:00Z`);
   const todayDate = [today.getFullYear(), String(today.getMonth()+1).padStart(2,'0'), String(today.getDate()).padStart(2,'0')].join('-');
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(profile.birthDate) || !Number.isFinite(birthday.getTime()) || birthday.toISOString().slice(0,10) !== profile.birthDate || profile.birthDate > todayDate || birthday.getUTCFullYear() < today.getFullYear() - 100) return { error: 'یک تاریخ تولد معتبر در گذشته وارد کن.' };
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(profile.birthDate) || !Number.isFinite(birthday.getTime()) || birthday.toISOString().slice(0,10) !== profile.birthDate || profile.birthDate > todayDate || birthday.getUTCFullYear() < today.getFullYear() - 100) return { error: 'تاریخ تولد را درست انتخاب کنید؛ تاریخ آینده یا بیش از صد سال قبل قابل قبول نیست.' };
   return { profile };
 }
 export function addRecord(clients, result, kind) {

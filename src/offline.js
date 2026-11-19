@@ -4,7 +4,7 @@ document.querySelector('#retry-connection').addEventListener('click',async event
   try{
     const response=await fetch('/health',{cache:'no-store',signal:controller.signal});if(!response.ok)throw Error('unavailable');
     location.reload();
-  }catch{status.textContent='هنوز ارتباط با مرکز برقرار نیست؛ اتصال اینترنت را بررسی کن.';}
+  }catch{status.textContent='هنوز وصل نشدیم. اینترنت رو بررسی کن و دوباره تلاش کن.';}
   finally{clearTimeout(timer);button.disabled=false;}
 });
-window.addEventListener('online',()=>{document.querySelector('#connection-status').textContent='اتصال دستگاه برگشت؛ برای ادامه «تلاش دوباره» را بزن.';});
+window.addEventListener('online',()=>{document.querySelector('#connection-status').textContent='اینترنت وصل شد! برای ادامه «تلاش دوباره» رو بزن.';});

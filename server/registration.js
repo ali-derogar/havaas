@@ -7,14 +7,14 @@ import {appOrigin} from './origin.js';
 async function inspect(db,raw,lock=false){
  check(typeof raw==='string'&&/^[a-f0-9]{64}$/.test(raw),'لینک ثبت‌نام معتبر نیست.',404,'REGISTRATION_INVALID');
  const link=(await db.query(`SELECT l.* FROM registration_links l JOIN users u ON u.id=l.created_by WHERE token_hash=$1 AND used_at IS NULL AND revoked_at IS NULL AND expires_at>now() AND u.active AND u.role='admin' ${lock?'FOR UPDATE OF l':''}`,[digest(raw)])).rows[0];
- check(link,'لینک ثبت‌نام منقضی، لغو یا استفاده شده است.',404,'REGISTRATION_INVALID');return link;
+ check(link,'اعتبار این لینک تمام شده، لغو شده یا قبلاً با آن ثبت‌نام شده است. از مدیر مرکز یک لینک تازه بگیرید.',404,'REGISTRATION_INVALID');return link;
 }
 export function registerPublicRegistration(app,pool,{authLimit,accountTransaction,creatorActive,signIn}){
  app.post('/api/public/registration/inspect',authLimit,async(req,res)=>{const link=await inspect(pool,req.body.token);res.json({expiresAt:link.expires_at});});
  app.post('/api/public/registration/complete',authLimit,async(req,res)=>{
-  await inspect(pool,req.body.token);check(req.body.role===undefined||req.body.role==='user','لینک ثبت‌نام فقط برای مراجعه‌کننده است.',400);
+  await inspect(pool,req.body.token);check(req.body.role===undefined||req.body.role==='user','با این لینک فقط می‌توان حساب مراجعه‌کننده ساخت.',400);
   const username=usernameOf(req.body.username),validation=validateProfile({...req.body.profile,concerns:''});check(!validation.error,validation.error);
-  const name=`${validation.profile.firstName} ${validation.profile.lastName}`;check(name.length<=120,'مجموع نام و نام خانوادگی باید حداکثر ۱۲۰ نویسه باشد.');
+  const name=`${validation.profile.firstName} ${validation.profile.lastName}`;check(name.length<=120,'نام و نام خانوادگی روی هم نباید بیشتر از ۱۲۰ کاراکتر باشند.');
   const email=req.body.email?emailOf(req.body.email):null,hash=await passwordHash(req.body.password);
   const user=await managedTransaction(pool,req,async db=>{
    const link=await inspect(db,req.body.token,true);await creatorActive(db,link.created_by);const id=randomUUID();if(!req.user)await db.query("SELECT set_config('havaas.actor_id',$1,true)",[id]);
@@ -27,12 +27,12 @@ export function registerPublicRegistration(app,pool,{authLimit,accountTransactio
 export function registerRegistrationAdmin(app,pool,{role,accountTransaction,creatorActive}){
  app.get('/api/registration-links',async(req,res)=>{role(req,['admin']);res.json({links:(await pool.query("SELECT l.id,l.label,l.created_at AS \"createdAt\",l.expires_at AS \"expiresAt\",l.used_at AS \"usedAt\",l.revoked_at AS \"revokedAt\",l.user_id AS \"userId\",u.name AS \"userName\",CASE WHEN l.used_at IS NOT NULL THEN 'used' WHEN l.revoked_at IS NOT NULL OR NOT c.active THEN 'revoked' WHEN l.expires_at<=now() THEN 'expired' ELSE 'open' END AS status FROM registration_links l LEFT JOIN users u ON u.id=l.user_id JOIN users c ON c.id=l.created_by ORDER BY l.created_at DESC,l.id")).rows});});
  app.post('/api/registration-links',async(req,res)=>{
-  role(req,['admin']);const message='عنوان دعوت باید ۱ تا ۱۰۰ نویسه باشد.',label=textOf(req.body.label??'دعوت مراجعه‌کننده',message);check(label.length>=1&&label.length<=100,message);
+  role(req,['admin']);const message='عنوان دعوت باید بین ۱ تا ۱۰۰ کاراکتر داشته باشد.',label=textOf(req.body.label??'دعوت مراجعه‌کننده',message);check(label.length>=1&&label.length<=100,message);
   const raw=token(),id=randomUUID(),expiresAt=new Date(Date.now()+48*60*60*1000);
   await managedTransaction(pool,req,async db=>{await creatorActive(db,req.user.id);await db.query('INSERT INTO registration_links(id,token_hash,label,created_by,expires_at) VALUES($1,$2,$3,$4,$5)',[id,digest(raw),label,req.user.id,expiresAt]);});
   res.status(201).json({id,expiresAt,url:`${appOrigin(req)}/#register/${raw}`});
  });
  app.delete('/api/registration-links/:id',async(req,res)=>{
-  role(req,['admin']);uuid(req.params.id);await managedTransaction(pool,req,async db=>{await creatorActive(db,req.user.id);check((await db.query('UPDATE registration_links SET revoked_at=COALESCE(revoked_at,now()) WHERE id=$1 AND used_at IS NULL',[req.params.id])).rowCount,'دعوت قابل لغو پیدا نشد.',404);});res.json({ok:true});
+  role(req,['admin']);uuid(req.params.id);await managedTransaction(pool,req,async db=>{await creatorActive(db,req.user.id);check((await db.query('UPDATE registration_links SET revoked_at=COALESCE(revoked_at,now()) WHERE id=$1 AND used_at IS NULL',[req.params.id])).rowCount,'این دعوت پیدا نشد یا دیگر قابل لغو نیست.',404);});res.json({ok:true});
  });
 }

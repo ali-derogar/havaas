@@ -17,9 +17,9 @@ export function recommendLevel(result) {
   const speedLimit = kind === 'reaction' ? 650 : kind === 'search' ? 5000 : 6000;
   const fast = Number.isFinite(result.meanReactionMs) && result.meanReactionMs <= speedLimit;
   const streak = result.longestStreak >= Math.min(10, p.count);
-  if (needsMorePractice(result)) return { level: levels[Math.max(0,index-1)], reason: 'برای تمرین تشخیص هدف و کاهش خطا، این سطح پیشنهاد می‌شود.' };
-  if (p.count >= 5 && p.recall >= .85 && p.accuracy >= .9 && p.errorRate <= .1 && fast && streak) return { level: levels[Math.min(2,index+1)], reason: 'پاسخ‌های درست، سرعت مناسب و زنجیرهٔ پاسخ‌ها نشان می‌دهند که برای چالش بعدی آماده‌ای.' };
-  return { level: levels[index], reason: 'ادامه در همین سطح به تمرین سرعت، دقت و پاسخ‌های پیوسته کمک می‌کند.' };
+  if (needsMorePractice(result)) return { level: levels[Math.max(0,index-1)], reason: 'تمرین در این سطح کمک می‌کند هدف‌ها را بهتر پیدا کنی و کمتر اشتباه کنی.' };
+  if (p.count >= 5 && p.recall >= .85 && p.accuracy >= .9 && p.errorRate <= .1 && fast && streak) return { level: levels[Math.min(2,index+1)], reason: 'پاسخ‌ها دقیق و سریع بودند. این سطح برای ادامهٔ تمرین پیشنهاد می‌شود.' };
+  return { level: levels[index], reason: 'بهتر است کمی بیشتر در همین سطح تمرین کنی تا دقت و سرعتت بهتر شود.' };
 }
 export const stimulusFamilyOf = result => {
   if(result.gameId!=='hunt')return '';
@@ -33,25 +33,25 @@ export function comparableRecords(records, reference = records.at(-1)) {
 }
 export function observations(result) {
   const p = performanceOf(result), strengths = [], practice = [];
-  if (p.recall >= .8 && result.hits > 0) strengths.push('بیشتر هدف‌ها به‌درستی شناسایی شده‌اند.');
-  else practice.push('در نوبت بعد، روی شناسایی هدف و کمتر جاانداختن آن تمرین کنید.');
+  if (p.recall >= .8 && result.hits > 0) strengths.push('بیشتر هدف‌ها درست پیدا شده‌اند.');
+  else practice.push('در تمرین بعد، به نمونهٔ هدف بیشتر دقت کنید تا هدف‌های کمتری از دست بروند.');
   if (result.falseSelections === 0 && result.hits > 0) strengths.push('انتخاب اشتباه ثبت نشده است.');
-  if (result.falseSelections > 0) practice.push('پیش از انتخاب، قانون و جزئیات محرک را دوباره بررسی کنید.');
-  if (result.longestStreak >= Math.min(10,p.count) && p.count >= 5) strengths.push('چند تصمیم درست به‌صورت پیوسته ثبت شده است.');
-  if (!result.completed) practice.push('برای کامل‌کردن سفر در زمان تعیین‌شده، دوباره در همین سطح یا سطح آسان‌تر تمرین کنید.');
-  if (!strengths.length) strengths.push('این جلسه نقطهٔ شروعی برای مقایسه با تمرین‌های بعدی است.');
+  if (result.falseSelections > 0) practice.push('قبل از انتخاب، یک بار دیگر به قانون بازی و گزینه‌ها نگاه کنید.');
+  if (result.longestStreak >= Math.min(10,p.count) && p.count >= 5) strengths.push('چند تصمیم درست پشت سر هم ثبت شده است.');
+  if (!result.completed) practice.push('برای تمام‌کردن بازی پیش از پایان زمان، دوباره در همین سطح یا سطح آسان‌تر تمرین کنید.');
+  if (!strengths.length) strengths.push('می‌توان نتیجهٔ این جلسه را با تمرین‌های بعدی مقایسه کرد.');
   return { strengths, practice };
 }
 export function progressText(records, reference = records.at(-1)) {
   const comparable = comparableRecords(records, reference);
-  if (comparable.length < 2) return 'برای بررسی روند، دست‌کم دو جلسه در یک بازی، سطح و حالت لازم است.';
+  if (comparable.length < 2) return 'برای مقایسهٔ نتیجه‌ها، باید دست‌کم دو جلسه از همین بازی با سطح و شرایط یکسان ثبت شود.';
   const first = performanceOf(comparable[0].result).accuracy, last = performanceOf(comparable.at(-1).result).accuracy;
   const delta = Math.round((last-first)*100);
-  return delta > 0 ? `دقت نسبت به نخستین جلسهٔ هم‌سطح ${delta.toLocaleString('fa-IR')} واحد درصد بیشتر شده است.` : delta < 0 ? `دقت نسبت به نخستین جلسهٔ هم‌سطح ${Math.abs(delta).toLocaleString('fa-IR')} واحد درصد کمتر شده است؛ یک تمرین دیگر روند را روشن‌تر می‌کند.` : 'دقت در نخستین و آخرین جلسهٔ هم‌سطح برابر بوده است.';
+  return delta > 0 ? `دقت نسبت به نخستین جلسهٔ هم‌سطح ${delta.toLocaleString('fa-IR')} واحد درصد بیشتر شده است.` : delta < 0 ? `دقت نسبت به نخستین جلسهٔ هم‌سطح ${Math.abs(delta).toLocaleString('fa-IR')} واحد درصد کمتر شده است؛ با تمرین‌های بیشتر، مقایسه دقیق‌تر می‌شود.` : 'دقت در نخستین و آخرین جلسهٔ هم‌سطح برابر بوده است.';
 }
 
 export function parentNarrative(record, records) {
   const r=record.result,p=performanceOf(r),fa=value=>Number(value).toLocaleString('fa-IR');
-  const response=r.meanReactionMs===null?'در این جلسه زمان واکنشِ درست قابل محاسبه نبود.':`میانگین زمان ${r.reactionMeasure==='decision-interval'?'انتخاب درست':'واکنش درست'} ${fa(r.meanReactionMs)} میلی‌ثانیه بود.`;
-  return `در ${record.kind==='baseline'?'ارزیابی اولیهٔ':'تمرین'} ${GAME_MAP[r.gameId].title}، ${fa(r.hits)} هدف از ${fa(r.maxScore)} هدف شناسایی شد و ${fa(r.correctResponses)} تصمیم از ${fa(p.count)} تصمیم درست بود. ${fa(r.omissions)} هدف بدون پاسخ و ${fa(r.falseSelections)} انتخاب اشتباه ثبت شد. طولانی‌ترین زنجیرهٔ تصمیم‌های درست ${fa(r.longestStreak)} بود. ${response} ${progressText(records,record)}`;
+  const response=r.meanReactionMs===null?'زمان پاسخ درست برای این جلسه ثبت نشده است.':`میانگین زمان ${r.reactionMeasure==='decision-interval'?'انتخاب درست':'واکنش درست'} ${fa(r.meanReactionMs)} میلی‌ثانیه بود.`;
+  return `در ${record.kind==='baseline'?'ارزیابی اولیهٔ':'تمرین'} ${GAME_MAP[r.gameId].title}، ${fa(r.hits)} هدف از ${fa(r.maxScore)} هدف شناسایی شد و ${fa(r.correctResponses)} تصمیم از ${fa(p.count)} تصمیم درست بود. ${fa(r.omissions)} هدف بدون پاسخ و ${fa(r.falseSelections)} انتخاب اشتباه ثبت شد. بیشترین تعداد تصمیم درست پشت سر هم ${fa(r.longestStreak)} بود. ${response} ${progressText(records,record)}`;
 }

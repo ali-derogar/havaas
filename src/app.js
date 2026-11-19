@@ -152,15 +152,15 @@ function home(updateHash = true) {
   if(currentUser.role==='admin')return adminPanel();
   pendingStart = null; guideState = null; engine = null; route = 'home'; if (modal.open) modal.close(); if (updateHash) setHash('#app');
   document.title = 'حواس — ماجراجویی‌های ذهنی';
-  page(`${clientWelcome(clients,currentUser)}<section class="library" id="games" aria-labelledby="library-heading"><div class="section-heading"><div><div class="section-kicker">یک چالش تازه انتخاب کن</div><h2 id="library-heading">امروز کدوم ماجراجویی؟ ${icon('spark')}</h2></div><p>از هر جا دوست داری، شروع کن.</p></div><div class="filter-bar" role="group" aria-label="دسته‌بندی بازی‌ها">${[['all','همهٔ بازی‌ها'],['attention','توجه و تمرکز'],['memory','حافظه'],['speed','سرعت واکنش']].map(([id,label]) => `<button class="filter ${filter === id ? 'selected' : ''}" data-action="filter" data-filter="${id}" aria-pressed="${filter === id}">${label}${id === 'all' ? '<span>۷</span>' : ''}</button>`).join('')}<span class="filter-note">همهٔ بازی‌ها برای تو بازه ${icon('check')}</span></div><div class="game-grid" id="game-grid">${gameCards()}</div></section>
-    <section class="little-note"><span class="note-symbol">${icon('spark')}</span><div><h3>برای بهترشدن، لازم نیست عجله کنی.</h3><p>از سطح آسان شروع کن، قانون بازی رو یاد بگیر و از مسیر لذت ببر.</p></div><span class="note-doodle">✳</span></section>`, 'home-main');
+  page(`${clientWelcome(clients,currentUser)}<section class="library" id="games" aria-labelledby="library-heading"><div class="section-heading"><div><div class="section-kicker">بازی مورد علاقه‌ات رو پیدا کن</div><h2 id="library-heading">دوست داری چی بازی کنی؟ ${icon('spark')}</h2></div><p>از هر جا دوست داری، شروع کن.</p></div><div class="filter-bar" role="group" aria-label="دسته‌بندی بازی‌ها">${[['all','همهٔ بازی‌ها'],['attention','توجه و تمرکز'],['memory','حافظه'],['speed','سرعت واکنش']].map(([id,label]) => `<button class="filter ${filter === id ? 'selected' : ''}" data-action="filter" data-filter="${id}" aria-pressed="${filter === id}">${label}${id === 'all' ? '<span>۷</span>' : ''}</button>`).join('')}<span class="filter-note">همهٔ بازی‌ها رو می‌تونی انتخاب کنی ${icon('check')}</span></div><div class="game-grid" id="game-grid">${gameCards()}</div></section>
+    <section class="little-note"><span class="note-symbol">${icon('spark')}</span><div><h3>برای بهترشدن، لازم نیست عجله کنی.</h3><p>اول قانون بازی رو یاد بگیر. هر وقت آماده بودی، شروع کن.</p></div><span class="note-doodle">✳</span></section>`, 'home-main');
 }
 function gameCards() {
   const shown = GAMES.filter(game => filter === 'all' || game.tags.includes(filter));
   return shown.map((game, index) => {
     const records = profileRecords(clients).filter(item => item.kind === 'training' && item.result.gameId === game.id);
     return `<button class="game-card" data-reveal data-action="open" data-game="${game.id}" style="--card-color:${game.color};--card-accent:${game.accent};--card-index:${index}"><div class="card-picture"><span class="card-number">${fa(GAMES.indexOf(game) + 1).padStart(2, '۰')}</span>${gameArtwork(game.id,{lazy:true})}${(clients.panelSummary?.games.find(g=>g.id===game.id)?.count??records.length) ? `<span class="played-badge">${icon('check')} بازی کردی</span>` : ''}</div><div class="card-content"><span class="skill-label">${game.skill}</span><h3>${game.title}</h3><p>${game.subtitle}</p><div class="card-bottom"><span>${icon('clock')} ${cardDuration(game)}</span><span class="card-arrow" aria-hidden="true">${icon('arrow')}</span></div></div></button>`;
-  }).join('') + (filter === 'all' ? `<div class="routine-card"><span class="routine-flower">✳</span><span class="section-kicker">یک یادآوری کوچولو</span><h3>هر روز، <br>چند دقیقه برای ذهنت.</h3><p>یک بازی رو انتخاب کن. <br>شاید امروز رکورد تازه‌ای بزنی!</p><button class="text-button" data-action="about">راهنمای شروع ${icon('arrow')}</button><span class="routine-dots">● ● ●</span></div>` : '');
+  }).join('') + (filter === 'all' ? `<div class="routine-card"><span class="routine-flower">✳</span><span class="section-kicker">یادآوری</span><h3>هر روز، <br>چند دقیقه برای ذهنت.</h3><p>با یک بازی شروع کن. <br>لازم نیست همه رو یک‌جا انجام بدی.</p><button class="text-button" data-action="about">راهنمای شروع ${icon('arrow')}</button><span class="routine-dots">● ● ●</span></div>` : '');
 }
 
 function lessonContent() {
@@ -519,7 +519,7 @@ function openModal(content, kind) {
 }
 function about() {
   if (route==='play' && engine){if(!engine.paused)engine.pause();preparationClock?.pause();}
-  openModal(`<button class="modal-close icon-button" data-action="close-modal" aria-label="بستن راهنما">${icon('close')}</button><span class="big-spark">✳</span><h2 id="modal-title">بازی کنیم، کشف کنیم!</h2><p>حواس یک مجموعهٔ هفت‌تایی از بازی‌های توجه و حافظه‌ست. برای هر مراجع یک اطلاعات مرکز داری؛ تمرین‌ها و نتیجه‌های هر نفر جدا ثبت می‌شوند.</p><ol class="modal-steps"><li><b>۱</b><span>مشخصات مراجع را ثبت کن و یک بازی انتخاب کن.</span></li><li><b>۲</b><span>با ۵ تمرین کوتاه، قانون را یاد بگیر و ارزیابی پایه را انجام بده.</span></li><li><b>۳</b><span>بازی کن و نتیجهٔ خودت رو ببین.</span></li></ol><p class="modal-small">روی گوشی با لمس بازی کن؛ روی کامپیوتر از ماوس و در بازی‌های واکنشی از کلید فاصله استفاده کن. صدا رو هم می‌تونی از بالای صفحه روشن کنی.</p><button class="button primary full-width" data-action="close-modal">فهمیدم ${icon('check')}</button>`, 'about');
+  openModal(`<button class="modal-close icon-button" data-action="close-modal" aria-label="بستن راهنما">${icon('close')}</button><span class="big-spark">✳</span><h2 id="modal-title">بازی کنیم، کشف کنیم!</h2><p>حواس هفت بازی برای تمرین دقت و حافظه داره. تمرین‌ها و نتیجه‌های هر نفر در حساب خودش ذخیره می‌شن.</p><ol class="modal-steps"><li><b>۱</b><span>از صفحهٔ اصلی، یک بازی انتخاب کن.</span></li><li><b>۲</b><span>با پنج تمرین کوتاه، قانون بازی رو یاد بگیر.</span></li><li><b>۳</b><span>بازی اصلی رو انجام بده و نتیجه‌ات رو ببین.</span></li></ol><p class="modal-small">روی گوشی با لمس بازی کن؛ روی کامپیوتر از ماوس و در بازی‌های واکنشی از کلید فاصله استفاده کن. صدا رو هم می‌تونی از بالای صفحه روشن کنی.</p><button class="button primary full-width" data-action="close-modal">فهمیدم ${icon('check')}</button>`, 'about');
 }
 function pause() {
   if (route!=='play'||!engine) return;
@@ -632,16 +632,16 @@ async function exportTrials() {
     if(!currentView(view)){await response.body?.cancel();return;}
     if(!response.ok){
       let error;try{error=await response.json();}catch{}
-      throw new ApiError(typeof error?.error==='string'?error.error:'دریافت خروجی مجاز یا ممکن نیست.',response.status,typeof error?.code==='string'?error.code:'EXPORT_FAILED');
+      throw new ApiError(typeof error?.error==='string'?error.error:'این فایل در دسترس نیست یا اجازهٔ دریافتش را ندارید.',response.status,typeof error?.code==='string'?error.code:'EXPORT_FAILED');
     }
     if(response.headers.get('Content-Type')?.split(';',1)[0].trim().toLowerCase()!=='text/csv'){
-      await response.body?.cancel();throw new ApiError('پاسخ خروجی CSV معتبر نیست؛ دوباره تلاش کنید.',response.status,'INVALID_RESPONSE');
+      await response.body?.cancel();throw new ApiError('فایل CSV درست دریافت نشد. دوباره تلاش کنید.',response.status,'INVALID_RESPONSE');
     }
     const data=await response.text();if(currentView(view))download('\uFEFF'+data.replace(/^\uFEFF/,''),'text/csv;charset=utf-8','havaas-responses.csv');
   }catch(error){
     if(!currentView(view))return;
     if(error instanceof ApiError){const failure=await accountError(error,view.userId,view.role);if(currentView(view))throw failure;return;}
-    throw new ApiError('دریافت خروجی ممکن نشد؛ دوباره تلاش کنید.',0,'NETWORK_ERROR',{cause:error});
+    throw new ApiError('فایل دریافت نشد. دوباره تلاش کنید.',0,'NETWORK_ERROR',{cause:error});
   }
 }
 app.addEventListener('submit',event=>{event.preventDefault();void submitForm(event.target).catch(showError);});
@@ -654,9 +654,9 @@ function refreshFailure(error,retry=null){
  if(error.code==='STALE_RESPONSE')return;
  if(error.status===401||error.code==='PASSWORD_CHANGE_REQUIRED')return showError(error);
  if(retry)pendingPanelRefresh={view:{version:viewVersion,userId:currentUser?.id,role:currentUser?.role},retry};
- notify('عملیات ثبت شد، ولی دریافت آخرین اطلاعات ممکن نشد.');
+ notify('تغییرات ذخیره شد، اما فهرست به‌روز نشد. برای دیدن آخرین اطلاعات دوباره تلاش کنید.');
  const node=document.querySelector('#account-status')||document.querySelector('#app-status');
- if(node&&!node.querySelector('[data-action=refresh-panel]'))node.insertAdjacentHTML('beforeend',' <button class="button subtle" data-action="refresh-panel">تلاش دوباره برای دریافت اطلاعات</button>');
+ if(node&&!node.querySelector('[data-action=refresh-panel]'))node.insertAdjacentHTML('beforeend',' <button class="button subtle" data-action="refresh-panel">دریافت دوبارهٔ اطلاعات</button>');
 }
 async function retryPanelRefresh(){
  const pending=pendingPanelRefresh;pendingPanelRefresh=null;if(pending&&currentView(pending.view))return pending.retry();
@@ -723,7 +723,7 @@ async function loadSessionDetails(details){
   clients.reportPage.selected={...clients.reportPage.selected,result:data.record.result};
   const holder=document.createElement('div');holder.innerHTML=reportsView(clients,reportState,currentUser);const fresh=holder.querySelector('.outcome-details');
   if(fresh)details.innerHTML=fresh.innerHTML;details.dataset.loaded='true';
- }catch(error){if(currentView(view)){if(error.status===401||error.status===403)return showError(error);details.innerHTML='<summary>جزئیات جلسه</summary><p role="alert">دریافت جزئیات ممکن نشد.</p><button class="button subtle" data-action="retry-details">تلاش دوباره</button>';}}
+ }catch(error){if(currentView(view)){if(error.status===401||error.status===403)return showError(error);details.innerHTML='<summary>جزئیات جلسه</summary><p role="alert">جزئیات جلسه دریافت نشد. دوباره تلاش کنید.</p><button class="button subtle" data-action="retry-details">تلاش دوباره</button>';}}
  finally{if(details.isConnected)details.removeAttribute('aria-busy');}
 }
 async function printReport(){
@@ -753,7 +753,7 @@ async function processForm(form){
   if(form.id==='login-form'){
     if(!api.csrfToken)await request('/auth/session');
     const auth=await request('/auth/login',{method:'POST',body:values});
-    if(pendingSave&&auth.user.id!==pendingSave.ownerId){await request('/auth/logout',{method:'POST'});await request('/auth/session');throw Error('برای ثبت نتیجه، با همان حساب اجراکننده وارد شوید.');}
+    if(pendingSave&&auth.user.id!==pendingSave.ownerId){await request('/auth/logout',{method:'POST'});await request('/auth/session');throw Error('برای ذخیرهٔ نتیجه، با همان حسابی وارد شوید که بازی را با آن انجام دادید.');}
     currentUser=auth.user;
     if(pendingSave){if(modal.open)modal.close();return persistPending();}
     if(inviteToken){inviteInfo=await request('/invitations/inspect',{method:'POST',body:{token:inviteToken}});return showLogin(inviteInfo);}
@@ -762,7 +762,7 @@ async function processForm(form){
   if(form.id==='accept-form'){
     const auth=await request('/invitations/accept',{method:'POST',body:{...values,token:inviteToken}});history.replaceState?.({},'',location.pathname);return openSignedInHome(auth);
   }
-  if(form.id==='password-form'){const wasForced=currentUser.passwordChangeRequired;const data=await request('/auth/change-password',{method:'POST',body:values});currentUser=data.user;form.reset?.();if(wasForced)return openSignedInHome(data);return notify('رمز تغییر کرد؛ نشست‌های دیگر نیاز به ورود دوباره دارند.');}
+  if(form.id==='password-form'){const wasForced=currentUser.passwordChangeRequired;const data=await request('/auth/change-password',{method:'POST',body:values});currentUser=data.user;form.reset?.();if(wasForced)return openSignedInHome(data);return notify('رمز تغییر کرد. اگر حواس در دستگاه دیگری باز است، باید آنجا هم دوباره وارد شوید.');}
   if(form.id==='registration-form'){
     const auth=await request('/public/registration/complete',{method:'POST',body:{token:registrationToken,username:values.username,password:values.password,email:values.email,profile:values}});history.replaceState?.({},'',location.pathname);return openSignedInHome(auth);
   }
@@ -778,7 +778,7 @@ async function processForm(form){
     const view={version:viewVersion,userId:currentUser.id,role:currentUser.role},preview=previewImport,data=await request('/users',{method:'POST',body:{...values,profile:values}});
     acknowledgeForm(form);if(!currentView(view))return false;if(!form.isConnected||!modal.open){scheduleAdminRefresh(view);return;}
     if(form.dataset.importSource&&preview&&preview===previewImport){const source=form.dataset.importSource;const choices=new Map([...document.querySelectorAll('.import-mapping')].map(row=>[row.dataset.source,row.querySelector('[name=targetId]').value]));if(data.profile&&!clients.profiles.some(p=>p.id===data.profile.id))clients.profiles.push(data.profile);preview.profiles.forEach(p=>p.targetId=p.sourceId===source?data.profile.id:choices.get(p.sourceId)||p.targetId);if(modal.open)modal.close();const target=document.querySelector('#import-preview');if(target)target.innerHTML=importPreviewView(preview,clients.profiles);return notify('کاربر ساخته شد؛ انتقال سوابق را تأیید کنید.');}
-    if(data.url){openModal('<h2 id="modal-title">دعوت ادمین</h2><div id="invitation-result"></div><button class="button subtle" data-action="close-modal">بستن</button>','invitation');showInvitation(data);}else{if(modal.open)modal.close();}notify('کاربر با موفقیت ساخته شد.');void refreshCreatedUsers();return;
+    if(data.url){openModal('<h2 id="modal-title">دعوت مدیر</h2><div id="invitation-result"></div><button class="button subtle" data-action="close-modal">بستن</button>','invitation');showInvitation(data);}else{if(modal.open)modal.close();}notify('کاربر با موفقیت ساخته شد.');void refreshCreatedUsers();return;
   }
   if(form.id==='edit-user-form'){const view={version:viewVersion,userId:currentUser.id,role:currentUser.role},body={username:values.username,...(form.dataset.role==='user'?{profile:values}:{name:values.name})};body.expectedRevision=Number(form.dataset.revision);if(body.profile)body.expectedProfileRevision=Number(form.dataset.profileRevision);const data=await request(`/users/${form.dataset.user}`,{method:'PATCH',body});acknowledgeForm(form,data);if(data.user.id===currentUser.id)currentUser=data.user;if(!currentView(view)||!form.isConnected)return false;notify('اطلاعات کاربر ذخیره شد.');try{await inspectUser(data.user.id);notify('اطلاعات کاربر ذخیره شد.');}catch(error){if(currentUser?.id===view.userId)refreshFailure(error);}return;}
   if(form.id==='report-link-form'){const childId=clients.activeId,version=viewVersion;const data=await request(`/children/${childId}/report-links`,{method:'POST',body:values});acknowledgeForm(form);if(version!==viewVersion||childId!==clients.activeId)return;showInvitation(data);form.hidden=true;document.querySelector('#invitation-result')?.insertAdjacentHTML('beforeend','<button class="button subtle" data-action="new-report-link">ساخت لینک جدید</button>');notify('لینک ساخته شد.');try{await refreshReportLinks({version:viewVersion,userId:currentUser.id,role:currentUser.role},childId);}catch(error){if(version===viewVersion)refreshFailure(error);}return;}
@@ -795,10 +795,10 @@ async function processForm(form){
   if(form.id!=='profile-form')return false;
   const validation=validateProfile(values);if(validation.error){document.querySelector('#profile-error').textContent=validation.error;return false;}
   const data=await request(editingProfile?`/children/${editingProfile}`:'/children',{method:editingProfile?'PATCH':'POST',body:{...validation.profile,expectedRevision:Number(form.dataset.revision||1),...(values.ownerUserId?{ownerUserId:values.ownerUserId}:{})}});
-  acknowledgeForm(form,data);clients.activeId=data.profile.id;notify('مشخصات در سرور مرکز ذخیره شد.');
+  acknowledgeForm(form,data);clients.activeId=data.profile.id;notify('مشخصات ذخیره شد.');
   try{
    await refreshClients();if(pendingStart)return continueAfterProfile();
-   if(inspectedUserId){await inspectUser(inspectedUserId);return notify('مشخصات اطلاعات کاربر ذخیره شد.');}return profiles(null,'مشخصات در سرور مرکز ذخیره شد.');
+   if(inspectedUserId){await inspectUser(inspectedUserId);return notify('مشخصات کاربر ذخیره شد.');}return profiles(null,'مشخصات ذخیره شد.');
   }catch(error){refreshFailure(error);}
 }
 app.addEventListener('change',event=>{void changeInput(event).catch(showError);});
@@ -903,7 +903,7 @@ async function handleAction(event) {
     try{
       const copied=await copyTextField(field);if(!card.isConnected)return;
       button.textContent=copied?'لینک کپی شد':'کپی لینک';
-      card.querySelector('[data-copy-status]').textContent=copied?'لینک با موفقیت کپی شد.':'کپی خودکار ممکن نشد؛ لینک انتخاب شده است. از گزینهٔ «کپی» مرورگر یا Ctrl+C استفاده کنید.';
+      card.querySelector('[data-copy-status]').textContent=copied?'لینک با موفقیت کپی شد.':'لینک انتخاب شده، ولی کپی نشد. از گزینهٔ «کپی» مرورگر یا کلیدهای Ctrl+C استفاده کنید.';
     }finally{button.disabled=false;}
     return;
   }
@@ -1033,7 +1033,7 @@ function clearPrivateData(){
 }
 function connectionError(error){
  route='connection-error';engine=null;if(modal.open)modal.close();document.title='تلاش دوباره برای اتصال — حواس';
- page(`<section class="surface empty-state"><h1>ارتباط با مرکز برقرار نشد</h1><p>${esc(error.message||'دریافت اطلاعات حساب ممکن نشد.')}</p><p>پس از برقراری ارتباط، بدون تکرار ثبت‌نام یا تعیین رمز ادامه دهید.</p><button class="button primary" data-action="retry-connect">تلاش دوباره</button></section>`,'auth-main');
+ page(`<section class="surface empty-state"><h1>ارتباط با مرکز برقرار نشد</h1><p>${esc(error.message||'اطلاعات حساب دریافت نشد.')}</p><p>وقتی اتصال برقرار شد، از همین‌جا ادامه بده. لازم نیست دوباره ثبت‌نام کنی یا رمز بسازی.</p><button class="button primary" data-action="retry-connect">تلاش دوباره</button></section>`,'auth-main');
 }
 async function openSignedInHome(auth){
  currentUser=auth.user;clearPrivateData();inviteToken=null;inviteInfo=null;registrationToken=null;
@@ -1089,7 +1089,7 @@ function showError(error){
     const form=document.querySelector('#edit-user-form')||document.querySelector('form#profile-form');
     let node=form&&!form.closest('[hidden]')?form.querySelector('#profile-error,#account-error'):null;
     if(node)node.textContent=error.message;else{notify(error.message);node=document.querySelector('#account-status')||document.querySelector('#app-status');}
-    node?.insertAdjacentHTML('beforeend','<button type="button" class="button subtle" data-action="reload-conflict">بارگیری نسخهٔ تازه</button>');return;
+    node?.insertAdjacentHTML('beforeend','<button type="button" class="button subtle" data-action="reload-conflict">دیدن آخرین اطلاعات</button>');return;
   }
   if(location.hash.startsWith('#report/'))return publicReportMessage('گزارش در دسترس نیست',error.message,true);
   if(error.code==='PASSWORD_CHANGE_REQUIRED'&&currentUser){currentUser.passwordChangeRequired=true;return forcedPassword();}
@@ -1097,7 +1097,7 @@ function showError(error){
   if(['connecting','connection-error'].includes(route))return connectionError(error);
   const candidates=[...(modal.open?modal.querySelectorAll('#account-error,#profile-error'):[]),...app.querySelectorAll('#account-error,#profile-error')];
   const node=candidates.find(field=>!field.closest('[hidden]'));
-  if(node)node.textContent=error.message||'عملیات انجام نشد.';else notify(error.message||'عملیات انجام نشد.');
+  if(node)node.textContent=error.message||'درخواست انجام نشد. دوباره تلاش کنید.';else notify(error.message||'درخواست انجام نشد. دوباره تلاش کنید.');
 }
 async function persistPending(){
   const pending=pendingSave;if(!pending||pending.saving)return;
@@ -1105,13 +1105,13 @@ async function persistPending(){
   try {
     data=await request(`/children/${pending.childId}/sessions/${pending.run.id}/complete`,{method:'POST',body:{result:pending.result,view:'panel'}});
   }catch(error){
-    pending.saving=false;const note=document.querySelector('.local-note');if(note)note.innerHTML=`<span>${icon('info')} نتیجه هنوز ثبت نشده: ${esc(error.message)} نتیجه تا بستن صفحه در حافظه می‌ماند.</span><button class="button subtle" data-action="retry-save">تلاش دوباره برای ثبت</button><button class="text-button" data-action="reauth">ورود دوباره با حساب اجراکننده</button>`;
+    pending.saving=false;const note=document.querySelector('.local-note');if(note)note.innerHTML=`<span>${icon('info')} نتیجه هنوز ذخیره نشده: ${esc(error.message)} تا وقتی این صفحه باز است، نتیجه نگه داشته می‌شود.</span><button class="button subtle" data-action="retry-save">تلاش دوباره برای ثبت</button><button class="text-button" data-action="reauth">ورود با حسابی که بازی را انجام داده</button>`;
     return;
   }
   // The completion acknowledgement is authoritative even if the following refresh fails.
   sessionRecordId=data.record.id;completedRecord=data.record;pendingSave=null;if(data.panelSummary)clients.panelSummary=data.panelSummary;
   const index=clients.records.findIndex(record=>record.id===data.record.id);if(index<0)clients.records.push(data.record);else clients.records[index]=data.record;
-  const note=document.querySelector('.local-note');if(note)note.innerHTML=`${icon('check')} نتیجه در سرور مرکز ذخیره شد.`;
+  const note=document.querySelector('.local-note');if(note)note.innerHTML=`${icon('check')} نتیجه ذخیره شد.`;
   renderResultActions();
   if(data.record.kind==='training'){
     const content=`بهترین امتیاز این سطح: <b>${fa(data.bestScore??Math.max(...comparableRecords(profileRecords(clients),data.record).map(r=>r.result.score)))} از ${fa(data.record.result.maxScore)}</b>`,best=document.querySelector('.best-score');
@@ -1121,7 +1121,7 @@ async function persistPending(){
   try{await refreshClients(view);}catch(error){
     if(!currentView(view))return;
     if(error.status===401||error.code==='PASSWORD_CHANGE_REQUIRED')return showError(error);
-    if(note?.isConnected)note.insertAdjacentHTML('beforeend','<span>دریافت آخرین تنظیمات ممکن نشد؛ نتیجهٔ شما ثبت شده است.</span>');
+    if(note?.isConnected)note.insertAdjacentHTML('beforeend','<span>نتیجه ذخیره شد، اما تنظیمات جدید دریافت نشد.</span>');
   }
 }
 async function account(){
@@ -1171,16 +1171,16 @@ window.addEventListener('resize',syncSidebarAccess);
 async function showAccountInvitation(raw){
  inviteToken=raw;inviteInfo=null;registrationToken=null;publicReportData=null;route='invitation';engine=null;if(modal.open)modal.close();document.title='پذیرش دعوت — حواس';page('<section class="surface empty-state"><h1>در حال بررسی لینک…</h1></section>','auth-main');const view=beginView();
  try{if(!/^[a-f0-9]{64}$/.test(raw))throw Error('لینک دعوت یا بازیابی کامل نیست.');const data=await viewRequest(view,'/invitations/inspect',{method:'POST',body:{token:raw}});if(!currentView(view))return;inviteInfo=data;showLogin(data);}
- catch(error){if(currentView(view))page(`<section class="surface empty-state"><h1>دعوت در دسترس نیست</h1><p>${esc(error.message)}</p><p>لینک کامل یا یک لینک تازه از ادمین دریافت کنید.</p></section>`,'auth-main');}
+ catch(error){if(currentView(view))page(`<section class="surface empty-state"><h1>دعوت در دسترس نیست</h1><p>${esc(error.message)}</p><p>از مدیر مرکز بخواهید لینک کامل یا یک لینک تازه برایتان بفرستد.</p></section>`,'auth-main');}
 }
 async function showRegistration(raw){
  registrationToken=raw;publicReportData=null;route='registration';engine=null;if(modal.open)modal.close();document.title='ثبت‌نام در حواس';page('<section class="surface dashboard-empty"><h1>در حال بررسی دعوت…</h1></section>','auth-main');const view=beginView();
  try{if(!/^[a-f0-9]{64}$/.test(raw))throw Error('لینک ثبت‌نام معتبر نیست.');await viewRequest(view,'/public/registration/inspect',{method:'POST',body:{token:raw}});if(currentView(view))page(registrationView(),'auth-main registration-main');}
- catch(error){if(currentView(view))page(`<section class="surface dashboard-empty"><h1>ثبت‌نام در دسترس نیست</h1><p>${esc(error.message)}</p><p>یک لینک تازه از ادمین دریافت کنید.</p></section>`,'auth-main');}
+ catch(error){if(currentView(view))page(`<section class="surface dashboard-empty"><h1>ثبت‌نام در دسترس نیست</h1><p>${esc(error.message)}</p><p>از مدیر مرکز یک لینک تازه بگیرید.</p></section>`,'auth-main');}
 }
 function showInvitation(data){
  const target=modal.open?modal.querySelector('#invitation-result'):document.querySelector('#invitation-result');if(!target)return;
- target.innerHTML=`<section class="surface invitation-card"><h2>لینک آماده است</h2><label>${data.expiresAt?'لینک یک‌بارمصرف':'لینک گزارش؛ دائمی تا لغو'}<input id="invitation-url" readonly dir="ltr" value="${esc(data.url)}"></label><button type="button" class="button subtle" data-action="copy-invitation">کپی لینک</button><p data-copy-status role="status" aria-live="polite" aria-atomic="true"></p><p>${data.expiresAt?'اعتبار تا '+new Intl.DateTimeFormat('fa-IR',{dateStyle:'medium',timeStyle:'short'}).format(new Date(data.expiresAt)):'این آدرس فقط همین‌بار نمایش داده می‌شود؛ آن را کپی و نگهداری کنید.'}</p></section>`;
+ target.innerHTML=`<section class="surface invitation-card"><h2>لینک آماده است</h2><label>${data.expiresAt?'لینک یک‌بارمصرف':'لینک گزارش (فعال تا زمان لغو)'}<input id="invitation-url" readonly dir="ltr" value="${esc(data.url)}"></label><button type="button" class="button subtle" data-action="copy-invitation">کپی لینک</button><p data-copy-status role="status" aria-live="polite" aria-atomic="true"></p><p>${data.expiresAt?'اعتبار تا '+new Intl.DateTimeFormat('fa-IR',{dateStyle:'medium',timeStyle:'short'}).format(new Date(data.expiresAt)):'این لینک فقط همین بار نمایش داده می‌شود. آن را کپی کنید و نگه دارید.'}</p></section>`;
 }
 function forcedPassword(){route='password';engine=null;setHash('#change-password');page(`<div class="page-title"><h1>خوش آمدید، ${esc(currentUser.name)}</h1><p>نام کاربری: <b dir="ltr">${esc(currentUser.username)}</b></p></div>${passwordView(currentUser,true)}`,'content-main auth-main');}
 async function adminPanel(){
@@ -1232,7 +1232,7 @@ function syncProfileChoice(preview=false){
  const form=document.querySelector('#admin-difficulty-form');if(!form)return;const custom=form.elements.level.value.startsWith('profile:');
  form.elements.mode.disabled=custom;if(custom)form.elements.mode.value='fixed';
  if(preview)void previewProfileChoice(form).catch(showError);
- const summary=document.querySelector('#policy-profile-summary');if(!custom&&preview)summary.textContent=`سطح پیش‌فرض ${LEVELS[form.elements.level.value].label}؛ با زمان‌بندی عمومی همین سطح اجرا می‌شود.`;if(custom){const profile=(clients.trainingProfiles||[]).find(profile=>profile.id===form.elements.level.value.slice(8));summary.textContent=`پروفایل ${profile?.name||'انتخاب‌شده'} به‌صورت ثابت اجرا می‌شود. تغییر پروفایل در تنظیمات کلی از جلسهٔ بعد اعمال خواهد شد.`;}
+ const summary=document.querySelector('#policy-profile-summary');if(!custom&&preview)summary.textContent=`سطح پیش‌فرض ${LEVELS[form.elements.level.value].label}؛ با زمان‌بندی عمومی همین سطح اجرا می‌شود.`;if(custom){const profile=(clients.trainingProfiles||[]).find(profile=>profile.id===form.elements.level.value.slice(8));summary.textContent=`پروفایل ${profile?.name||'انتخاب‌شده'} با سطح ثابت اجرا می‌شود. اگر پروفایل را در تنظیمات بازی‌ها تغییر دهید، از جلسهٔ بعد اعمال می‌شود.`;}
 }
 async function changePolicySelection(select){
  const form=select.form,previous=form.policySelection;if(!previous)return syncPolicyControls(select.id==='policy-game');
@@ -1287,7 +1287,7 @@ async function archiveTrainingProfile(button){
  const data=await viewRequest(view,`/admin/training-profiles/${encodeURIComponent(button.dataset.id)}`,{method:'PATCH',body:{archived:button.dataset.archived==='true',expectedRevision:Number(button.dataset.revision)}});
  if(!currentView(view)||!holder.isConnected||!data)return;
  const editor=holder.querySelector('#training-profile-form');if(editor?.dataset.profile===data.profile.id)editor.outerHTML=trainingProfileEditor(data.profile);
- await loadTrainingProfiles();navigationGuard.sync();notify(data.profile.archived?'پروفایل بایگانی شد؛ کاربران قبلی همچنان می‌توانند از آن استفاده کنند.':'پروفایل دوباره قابل انتخاب است.');
+ await loadTrainingProfiles();navigationGuard.sync();notify(data.profile.archived?'پروفایل بایگانی شد. کاربرانی که از قبل این پروفایل را دارند، همچنان از آن استفاده می‌کنند.':'پروفایل دوباره قابل انتخاب است.');
 }
 
 async function previewLegacy(readDocument){
@@ -1302,7 +1302,7 @@ async function previewLegacy(readDocument){
   }catch(error){
     if(!valid())return;
     if(error.status===401||error.code==='PASSWORD_CHANGE_REQUIRED')return showError(error);
-    container.innerHTML=`<div class="form-error" role="alert">${esc(error instanceof SyntaxError?'ساختار فایل JSON معتبر نیست.':error.message||'خواندن فایل ممکن نشد؛ دوباره تلاش کنید.')}</div>`;
+    container.innerHTML=`<div class="form-error" role="alert">${esc(error instanceof SyntaxError?'فایل JSON درست خوانده نشد. قالب فایل را بررسی کنید.':error.message||'فایل خوانده نشد. دوباره تلاش کنید.')}</div>`;
   }finally{if(importAttempt===attempt)importAttempt=null;}
 }
 async function loadImportTargets(search='',pageNumber=1,existingView=null){
@@ -1314,7 +1314,7 @@ async function loadImportTargets(search='',pageNumber=1,existingView=null){
  const choices=data.users.filter(u=>u.childId).map(u=>({id:u.childId,ownerUserId:u.id,firstName:u.name,lastName:''}));
  for(const profile of preview.profiles.filter(p=>p.targetId&&!choices.some(c=>c.id===p.targetId))){const known=clients.profiles.find(p=>p.id===profile.targetId);if(known)choices.push(known);else{const found=await read(`/children/${profile.targetId}`);if(!valid())return;if(found?.profile)choices.push(found.profile);}}
  clients.profiles=[...clients.profiles.filter(p=>p.id===clients.activeId),...choices.filter(p=>p.id!==clients.activeId)];preview.targetSearch=search;
- const filter=`<form id="import-target-filter" class="admin-filters"><label>جستجوی کاربر مقصد<input name="search" value="${esc(search)}"></label><button class="button subtle">جستجو</button><button type="button" class="button subtle" data-action="import-target-page" data-page="${data.pagination.page-1}" ${data.pagination.page<=1?'disabled':''}>قبلی</button><button type="button" class="button subtle" data-action="import-target-page" data-page="${data.pagination.page+1}" ${data.pagination.page>=data.pagination.pages?'disabled':''}>بعدی</button></form>`;
+ const filter=`<form id="import-target-filter" class="admin-filters"><label>جست‌وجوی کاربر برای انتقال سوابق<input name="search" value="${esc(search)}"></label><button class="button subtle">جست‌وجو</button><button type="button" class="button subtle" data-action="import-target-page" data-page="${data.pagination.page-1}" ${data.pagination.page<=1?'disabled':''}>قبلی</button><button type="button" class="button subtle" data-action="import-target-page" data-page="${data.pagination.page+1}" ${data.pagination.page>=data.pagination.pages?'disabled':''}>بعدی</button></form>`;
  const container=document.querySelector('#import-preview');if(container)container.innerHTML=filter+importPreviewView(preview,clients.profiles);
 }
 
@@ -1322,7 +1322,7 @@ async function commitLegacy(){
   if(!previewImport?.id)return;
   const view={version:viewVersion,userId:currentUser.id,role:currentUser.role},preview=previewImport;
   const mapping=[...document.querySelectorAll('.import-mapping')].map(row=>({sourceId:row.dataset.source,targetId:row.querySelector('[name="targetId"]').value||null,ownerUserId:null}));
-  if(mapping.some(m=>!m.targetId)){notify('کاربر مقصد را انتخاب کنید یا با همین مشخصات کاربر جدید بسازید.');return;}
+  if(mapping.some(m=>!m.targetId)){notify('کاربری را برای انتقال سوابق انتخاب کنید یا با این مشخصات یک حساب تازه بسازید.');return;}
   const data=await viewRequest(view,'/imports/commit',{method:'POST',body:{previewId:preview.id,mapping,requireUser:true}});if(!currentView(view)||preview!==previewImport)return;previewImport=null;document.querySelector('#import-preview').innerHTML=`<p class="status-message">${fa(data.importedRecords)} نتیجه منتقل شد.</p>`;try{if(!await refreshClients(view))return;await account();if(route==='account')notify(`${fa(data.importedRecords)} نتیجه منتقل شد.`);}catch(error){refreshFailure(error);}
 }
 window.addEventListener('beforeunload',event=>{if(pendingSave||navigationGuard.hasChanges()){event.preventDefault();event.returnValue='';}});

@@ -26,9 +26,9 @@ import {registerGameTimings,sessionTiming} from './game-timing.js';
 const PgStore=connectPg(session);
 const role=(req,roles)=>check(roles.includes(req.user.role),'اجازهٔ این عملیات را ندارید.',403,'FORBIDDEN');
 export async function childAccess(db,user,id,write=false){
-  uuid(id);if(write)check(user.role==='admin','این عملیات مخصوص ادمین است.',403,'FORBIDDEN');
+  uuid(id);if(write)check(user.role==='admin','فقط مدیر مرکز به این بخش دسترسی دارد.',403,'FORBIDDEN');
   const child=(await db.query("SELECT * FROM children WHERE id=$1 AND ($2='admin' OR owner_user_id=$3)",[id,user.role,user.id])).rows[0];
-  check(child,'اطلاعات کاربر یافت نشد یا دسترسی ندارید.',404,'NOT_FOUND');return child;
+  check(child,'مشخصات کاربر پیدا نشد یا به آن دسترسی ندارید.',404,'NOT_FOUND');return child;
 }
 export function profileDTO(child,user){const profile=user.role==='admin'?{...child.profile}:Object.fromEntries(['firstName','lastName','birthDate','grade','school'].map(key=>[key,child.profile[key]]));return {...profile,revision:child.revision,id:child.id,ownerUserId:child.owner_user_id,createdAt:child.created_at};}
 export function recordDTO(row,user){return {id:row.id,profileId:row.child_id,kind:row.kind,result:user.role==='admin'?row.result:reportResult(row.result),...(user.role==='admin'?{actorId:row.actor_id,legacyId:row.legacy_id}:{}),startedAt:row.started_at};}
@@ -72,7 +72,7 @@ export function createApp({pool,secret=process.env.SESSION_SECRET,production=pro
     if(ownerId)check((await pool.query("SELECT 1 FROM users WHERE id=$1 AND role='user'",[ownerId])).rowCount,'کاربر معتبر انتخاب کنید.');
     const child=await managedTransaction(pool,req,async db=>{
       const name=`${validation.profile.firstName} ${validation.profile.lastName}`;
-      if(ownerId)check(name.length>=2&&name.length<=120,'مجموع نام و نام خانوادگی باید ۲ تا ۱۲۰ نویسه باشد.');
+      if(ownerId)check(name.length>=2&&name.length<=120,'نام و نام خانوادگی روی هم باید بین ۲ تا ۱۲۰ کاراکتر باشند.');
       const created=(await db.query('INSERT INTO children(id,owner_user_id,profile) VALUES($1,$2,$3) RETURNING *',[randomUUID(),ownerId,validation.profile])).rows[0];
       if(ownerId)await db.query('UPDATE users SET name=$1 WHERE id=$2',[name,ownerId]);
       return created;
@@ -85,9 +85,9 @@ export function createApp({pool,secret=process.env.SESSION_SECRET,production=pro
       const child=(await db.query('SELECT * FROM children WHERE id=$1 FOR UPDATE',[req.params.id])).rows[0];
       guardRevision(req.body.expectedRevision,child.revision,{profile:profileDTO(child,req.user)});
       const validation=validateProfile({...child.profile,...req.body});check(!validation.error,validation.error);
-      check(!Object.hasOwn(req.body,'ownerUserId')||req.body.ownerUserId===child.owner_user_id,'اتصال اطلاعات کاربر از مسیر ایجاد حساب انجام می‌شود.');
+      check(!Object.hasOwn(req.body,'ownerUserId')||req.body.ownerUserId===child.owner_user_id,'برای وصل‌کردن مشخصات به کاربر، از بخش ساخت حساب استفاده کنید.');
       const result=(await db.query('UPDATE children SET profile=$1 WHERE id=$2 RETURNING *',[validation.profile,child.id])).rows[0];
-      if(child.owner_user_id){const name=`${validation.profile.firstName} ${validation.profile.lastName}`;check(name.length>=2&&name.length<=120,'مجموع نام و نام خانوادگی باید ۲ تا ۱۲۰ نویسه باشد.');await db.query('UPDATE users SET name=$1 WHERE id=$2',[name,child.owner_user_id]);}
+      if(child.owner_user_id){const name=`${validation.profile.firstName} ${validation.profile.lastName}`;check(name.length>=2&&name.length<=120,'نام و نام خانوادگی روی هم باید بین ۲ تا ۱۲۰ کاراکتر باشند.');await db.query('UPDATE users SET name=$1 WHERE id=$2',[name,child.owner_user_id]);}
       return result;
     });res.json({profile:profileDTO(updated,req.user)});
   });
@@ -160,6 +160,6 @@ export function createApp({pool,secret=process.env.SESSION_SECRET,production=pro
   registerImports(app,pool,{role,childAccess,profileDTO});
   app.use('/api',(_req,res)=>res.status(404).json({error:'مسیر پیدا نشد.',code:'NOT_FOUND'}));
   app.use('/assets',express.static(resolve(staticRoot,'assets')));app.use('/src',express.static(resolve(staticRoot,'src')));app.get(['/', '/index.html'],(_req,res)=>res.sendFile(resolve(staticRoot,'index.html')));
-  app.use((error,_req,res,_next)=>{const status=error.status||(error.code==='23505'?409:(error.type==='entity.too.large')?413:500);if(status>=500)console.error('Request failed:',error.code||error.name);res.status(status).json({error:status>=500?'خطای سرور؛ دوباره تلاش کنید.':error.code==='23505'?'نام کاربری، ایمیل یا اتصال اطلاعات کاربر تکراری است.':error.message,code:error.code||'SERVER_ERROR',...(error.details&&status<500?{details:error.details}:{})});});
+  app.use((error,_req,res,_next)=>{const status=error.status||(error.code==='23505'?409:(error.type==='entity.too.large')?413:500);if(status>=500)console.error('Request failed:',error.code||error.name);res.status(status).json({error:status>=500?'مشکلی در مرکز پیش آمده است. کمی بعد دوباره تلاش کنید.':error.code==='23505'?'این نام کاربری، ایمیل یا مشخصات قبلاً به یک حساب متصل شده است.':error.message,code:error.code||'SERVER_ERROR',...(error.details&&status<500?{details:error.details}:{})});});
   return app;
 }
