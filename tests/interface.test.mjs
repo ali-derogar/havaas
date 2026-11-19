@@ -151,7 +151,7 @@ test('interface: the seventh assessment updates its actions after save retry eve
   assert.equal(JSON.parse(ui.values.get(CLIENTS_KEY)).records.length,6);
   failSave=false;failRefresh=true;await ui.click('retry-save');await ui.advance(0);
   assert.equal(JSON.parse(ui.values.get(CLIENTS_KEY)).records.length,7);
-  assert.match(ui.document.querySelector('.local-note').textContent,/نتیجهٔ شما ثبت شده/);
+  assert.match(ui.document.querySelector('.local-note').textContent,/نتیجه ذخیره شد/);
   assert.equal(ui.document.querySelector('.result-actions [data-action="assessment-next"]'),null);
   assert.match(ui.document.querySelector('.result-actions [data-action="assessment"]').textContent,/جمع‌بندی ارزیابی هفت بازی/);
   assert.ok([...ui.document.querySelectorAll('.result-actions button')].every(button=>!button.disabled));
@@ -190,7 +190,7 @@ test('interface: pause, restart and visibility change keep the session responsiv
 });
 test('interface: denied localStorage does not interrupt a full game',async()=>{
   const ui=await fixture({blockedStorage:true});await ui.click('open','[data-game="ark"]');await ui.click('practice');await finishAdventure(ui,'ark',true,'easy');
-  await ui.click('detail');await ui.setPolicy('easy');await ui.click('main-game');await finishAdventure(ui,'ark',false,'easy');assert.ok(ui.document.querySelector('.local-note').textContent.includes('سرور مرکز'));assert.ok(ui.document.querySelector('.best-score').textContent.includes('۴ از ۴'));await ui.click('home');assert.equal(ui.document.querySelectorAll('.game-card').length,7);
+  await ui.click('detail');await ui.setPolicy('easy');await ui.click('main-game');await finishAdventure(ui,'ark',false,'easy');assert.ok(ui.document.querySelector('.local-note').textContent.includes('نتیجه ذخیره شد'));assert.ok(ui.document.querySelector('.best-score').textContent.includes('۴ از ۴'));await ui.click('home');assert.equal(ui.document.querySelectorAll('.game-card').length,7);
 });
 test('interface: pause and restart also work at a Stroop rule transition',async()=>{
   const ui=await fixture();await ui.click('open','[data-game="stroop"]');await ui.click('practice');await finishReaction(ui,true);await ui.click('main-game');
@@ -201,7 +201,7 @@ test('interface: pause and restart also work at a Stroop rule transition',async(
 });
 
 test('interface: an unassigned user cannot register or edit a clinical profile',async()=>{
- const ui=await fixture({withProfile:false});assert.ok(ui.document.querySelector('.profile-strip').textContent.includes('ادمین'));assert.equal(ui.document.querySelector('#profile-form'),null);assert.equal(ui.document.querySelector('[data-action="profiles"]'),null);
+ const ui=await fixture({withProfile:false});assert.ok(ui.document.querySelector('.profile-strip').textContent.includes('مدیر مرکز'));assert.equal(ui.document.querySelector('#profile-form'),null);assert.equal(ui.document.querySelector('[data-action="profiles"]'),null);
 });
 test('interface: the user report offers a narrative, chart and own history without raw exports or clinical editing',async()=>{
  const ui=await fixture();await ui.click('open','[data-game="ark"]');await ui.click('practice');await finishAdventure(ui,'ark',true,'easy');await ui.click('main-game');await finishAdventure(ui,'ark',false,'medium');

@@ -46,7 +46,7 @@ test('PWA relaunches offline without cached account data, serves cached audio ra
  await login(page);await ready(page);await context.setOffline(true);await page.reload({waitUntil:'domcontentloaded'});
  await expect(page.getByRole('heading',{name:'برای ادامه، دوباره وصل شو'})).toBeVisible();await expect(page.locator('.hero')).toHaveCount(0);await expect(page.locator('#login-form')).toHaveCount(0);
  expect(await page.locator('main>img').evaluate(image=>image.complete&&image.naturalWidth===192)).toBe(true);
- await page.locator('#retry-connection').click();await expect(page.locator('#connection-status')).toContainText('هنوز ارتباط');
+ await page.locator('#retry-connection').click();await expect(page.locator('#connection-status')).toContainText('هنوز وصل نشدیم');
  const audio=await page.evaluate(async()=>{
   const cache=await caches.open((await caches.keys()).find(name=>name.startsWith('havaas-static-'))),url=(await cache.keys()).find(request=>request.url.endsWith('.mp3')).url;
   const response=await fetch(url,{headers:{Range:'bytes=0-15'}});return {status:response.status,length:(await response.arrayBuffer()).byteLength,range:response.headers.get('Content-Range')};
@@ -70,11 +70,11 @@ test('PWA update cannot interrupt another window playing or awaiting a save, the
  try{
   await page.evaluate(()=>caches.open('another-app-cache'));await nextRelease(page);
   await expect(page.locator('#pwa-banner')).toBeHidden();await idle.goto('/');await expect(idle.locator('.hero')).toBeVisible();await ready(idle);
-  const update=idle.locator('[data-pwa-action=update]');await expect(update).toBeVisible();await update.click();await expect(idle.locator('#pwa-banner')).toContainText('ابتدا بازی');
+  const update=idle.locator('[data-pwa-action=update]');await expect(update).toBeVisible();await update.click();await expect(idle.locator('#pwa-banner')).toContainText('حواس در یک پنجرهٔ دیگه بازه');
   expect(await page.evaluate(()=>document.querySelector('#app').inert)).toBe(false);expect(await idle.evaluate(()=>document.querySelector('#app').inert)).toBe(false);await expect(page.locator('.play-panel')).toHaveAttribute('data-phase','playing');
   await page.route('**/api/children/*/sessions/*/complete',route=>route.abort('failed'));
   for(let n=0;n<5;n++){await advance(page,await trialMs(page));await expect(page.locator('.practice-review')).toBeVisible();await action(page,'continue-review').click();}
-  await expect(action(page,'retry-save')).toBeVisible();await update.click();await expect(idle.locator('#pwa-banner')).toContainText('ابتدا بازی');await expect(action(page,'retry-save')).toBeVisible();
+  await expect(action(page,'retry-save')).toBeVisible();await update.click();await expect(idle.locator('#pwa-banner')).toContainText('حواس در یک پنجرهٔ دیگه بازه');await expect(action(page,'retry-save')).toBeVisible();
   await page.unroute('**/api/children/*/sessions/*/complete');await action(page,'retry-save').click();await expect(page.locator('.local-note')).toContainText('ذخیره شد');await action(page,'home').click();await expect(page.locator('.hero')).toBeVisible();
   await Promise.all([page.waitForEvent('domcontentloaded'),idle.waitForEvent('domcontentloaded'),update.click()]);await expect(page.locator('.hero')).toBeVisible();await expect(idle.locator('.hero')).toBeVisible();
   const keys=await idle.evaluate(()=>caches.keys());expect(keys.filter(name=>name.startsWith('havaas-static-'))).toHaveLength(1);expect(keys).toContain('another-app-cache');
@@ -88,7 +88,7 @@ test('PWA update preserves an edited form after its field loses focus and allows
  const idle=await context.newPage();
  try{
   await nextRelease(page);
-  await idle.goto('/');await ready(idle);const update=idle.locator('[data-pwa-action=update]');await expect(update).toBeVisible();await update.click();await expect(idle.locator('#pwa-banner')).toContainText('ابتدا بازی');
+  await idle.goto('/');await ready(idle);const update=idle.locator('[data-pwa-action=update]');await expect(update).toBeVisible();await update.click();await expect(idle.locator('#pwa-banner')).toContainText('حواس در یک پنجرهٔ دیگه بازه');
   await expect(page.locator('#password-form [name=password]')).toHaveValue('unsaved-new-password');expect(await page.evaluate(()=>document.querySelector('#app').inert)).toBe(false);
   await page.locator('#password-form').evaluate(form=>form.reset());
   await Promise.all([page.waitForEvent('domcontentloaded'),idle.waitForEvent('domcontentloaded'),update.click()]);await expect(page.locator('#password-form')).toBeVisible();await expect(idle.locator('.hero')).toBeVisible();
@@ -103,7 +103,7 @@ test('PWA update cancels when a new playing window opens during the readiness ha
   await page.evaluate(()=>window.holdPwaReadiness=true);await page.locator('[data-pwa-action=update]').click();await expect.poll(()=>page.evaluate(()=>Boolean(window.heldPwaPort))).toBe(true);
   newcomer=await context.newPage();await newcomer.goto('/');await expect(newcomer.locator('.hero')).toBeVisible();await ready(newcomer);await newcomer.locator('[data-action=open][data-game=traffic]').first().click();await action(newcomer,'practice').click();await expect(newcomer.locator('.game-preparation')).toBeVisible();
   await page.evaluate(()=>{window.heldPwaPort.postMessage({ready:true});window.heldPwaPort.close();window.holdPwaReadiness=false;});
-  await expect(page.locator('#pwa-banner')).toContainText('ابتدا بازی');expect(await newcomer.evaluate(async()=>Boolean((await navigator.serviceWorker.getRegistration()).waiting))).toBe(true);await expect(newcomer.locator('.game-preparation')).toBeVisible();
+  await expect(page.locator('#pwa-banner')).toContainText('حواس در یک پنجرهٔ دیگه بازه');expect(await newcomer.evaluate(async()=>Boolean((await navigator.serviceWorker.getRegistration()).waiting))).toBe(true);await expect(newcomer.locator('.game-preparation')).toBeVisible();
  }finally{await newcomer?.close();}
 });
 

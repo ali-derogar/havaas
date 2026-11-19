@@ -75,5 +75,5 @@ test('proposal: hunting families, unknown legacy conditions, versions and feedba
 });
 test('proposal: displayed active duration rounds over a minute boundary correctly',()=>{
   const r=record('minute',{durationMs:59999});const {document}=parseHTML(reportsView(client([r]),{tab:'therapist',recordId:r.id}));
-  const active=[...document.querySelectorAll('.report-metrics>div')].find(el=>el.querySelector('span').textContent==='زمان فعال');assert.equal(active.querySelector('b').textContent,'۱ دقیقه و ۰ ثانیه');
+  const active=[...document.querySelectorAll('.report-metrics>div')].find(el=>el.querySelector('span').textContent==='زمان بازی');assert.equal(active.querySelector('b').textContent,'۱ دقیقه و ۰ ثانیه');
 });
