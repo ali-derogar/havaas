@@ -4,6 +4,10 @@ import {profileFamilies,profileSettingKey} from './training-profiles.js';
 import {variantLabel} from './client-ui.js';
 import {escapeHTML as esc} from './core/clients.js';
 
+export function gameSettingsView(){
+ return `<div class="dashboard-heading"><div><span class="section-kicker">مدیریت تمرین</span><h1>تنظیمات بازی‌ها</h1><p>سطح و زمان‌بندی هفت بازی را در پروفایل‌های تمرین تنظیم کنید.</p></div><button class="button subtle" data-action="admin-users">تنظیم تمرین کاربران</button></div>${trainingProfilesShell()}<div id="account-status" class="status-message" role="status" hidden></div>`;
+}
+
 export function trainingProfilesShell(){
  return '<section class="surface training-profiles" id="training-profiles"><h2>پروفایل‌های تمرین</h2><p>یک مجموعهٔ نام‌دار برای هفت بازی بسازید و در تنظیمات تمرین کاربران انتخاب کنید. سن در نام پروفایل، راهنمای انتخاب شماست.</p><div id="training-profile-list"><p>در حال دریافت پروفایل‌ها…</p></div><p class="form-error" id="training-profile-list-error" role="alert"></p><button type="button" class="text-button" data-action="reload-training-profiles">دریافت آخرین پروفایل‌ها</button><div id="training-profile-editor"></div></section>';
 }

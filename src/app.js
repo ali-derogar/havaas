@@ -1,10 +1,10 @@
 import {createFormTracker} from './pwa-forms.js';
 import {profileFamilies,profileEntry,validateProfileSettings} from './training-profiles.js';
-import {trainingProfilesList,trainingProfileEditor,profileAssignmentOptions,profileAssignmentSummary} from './training-profile-ui.js';
+import {gameSettingsView,trainingProfilesList,trainingProfileEditor,profileAssignmentOptions,profileAssignmentSummary} from './training-profile-ui.js';
 import {timingIdentity,defaultTiming,TIMING_VARIANTS,timingFields,timingPath} from './game-timing.js';
 import {createNavigationGuard,handleTabKey} from './navigation-guard.js';
 import {createHistoryNavigation} from './history-navigation.js';
-import {auditView} from './audit-ui.js';
+import {auditView,syncAuditDate} from './audit-ui.js';
 import { ApiClient,ApiError } from './api.js';
 import {setupPwa} from './pwa.js';
 import {syncBirthDate} from './birth-date.js';
@@ -87,7 +87,7 @@ function cardDuration(game) {
 function header() {
  if(publicReportData||!currentUser||guestScreen())return `<header class="site-header"><div class="header-inner"><span class="brand">${logo()} حواس</span><span>${publicReportData?'گزارش خانواده':'همراه رشد و توجه'}</span></div></header>`;
  if(currentUser.passwordChangeRequired)return `<header class="site-header"><div class="header-inner"><span class="brand">${logo()} حواس</span><button class="text-button" data-action="logout">خروج</button></div></header>`;
- if(currentUser.role==='admin')return adminShell(currentUser,route==='admin'?'overview':route==='invitations'?'invitations':route==='account'?'settings':route==='audit'?'audit':'users');
+ if(currentUser.role==='admin')return adminShell(currentUser,route==='admin'?'overview':route==='invitations'?'invitations':route==='account'?'settings':route==='audit'?'audit':route==='game-settings'?'game-settings':'users');
  const nav=[['home','home','خانه'],['games','grid','بازی‌ها'],['dashboard','activity','پیشرفت من'],['account','user','حساب']];
  return `<header class="site-header client-header"><div class="header-inner"><a class="brand" href="#app" data-action="home">${logo()}<span>حواس<small>ماجراجویی‌های ذهنی</small></span></a><nav aria-label="منوی اصلی">${nav.map(([action,symbol,label])=>`<button class="nav-link ${route==='home'&&action==='home'||route==='reports'&&action==='dashboard'||route==='account'&&action==='account'?'active':''}" data-action="${action}">${icon(symbol)}${label}</button>`).join('')}</nav><div class="header-end"><button class="profile-button" data-action="account">${esc(currentUser.name)}</button><button class="icon-button sound-button" data-action="sound" aria-label="${progress.sound?'خاموش‌کردن صدا و راهنمای گویا':'روشن‌کردن صدا و راهنمای گویا'}" aria-pressed="${progress.sound}">${icon(progress.sound?'sound':'mute')}</button></div></div></header><nav class="client-bottom-nav" aria-label="منوی موبایل">${nav.map(([action,symbol,label])=>`<button data-action="${action}" class="${route==='home'&&action==='home'||route==='reports'&&action==='dashboard'||route==='account'&&action==='account'?'active':''}">${icon(symbol)}<span>${label}</span></button>`).join('')}</nav>`;
 }
@@ -808,6 +808,7 @@ async function refreshFilteredReport(){
 async function changeInput(event){
   if(event.target.id==='policy-level'){syncProfileChoice(true);return;}
   if(event.target.matches('[data-birth-part]'))return syncBirthDate(event.target.closest('[data-birth-date]'));
+  if(event.target.matches('[data-audit-date-part]'))return syncAuditDate(event.target.closest('[data-audit-date]'));
   if(['new-user-role','new-user-method','new-user-child'].includes(event.target.id))return syncCreateControls();
   if(['policy-game','policy-variant'].includes(event.target.id))return changePolicySelection(event.target);
   if(event.target.id==='import-file'){const file=event.target.files?.[0];if(file)return previewLegacy(async()=>JSON.parse(await file.text()));}
@@ -826,7 +827,10 @@ async function handleAction(event) {
   const button = event.target.closest('[data-action]'); if(!button||button.disabled) return;
   const action=button.dataset.action;
   if(button.tagName==='A')event.preventDefault();
-  const leaving=['home','admin','admin-users','admin-invitations','admin-audit','account','profiles','assessment','assessment-next','assess-game','assessment-train','open','inspect-user','review-profile','select-profile','logout','new-user','new-registration','create-mode','close-modal','games','refresh-panel','dashboard','report-links','edit-profile','unresolved-page'];
+  if(action==='clear-audit-date'){
+    const field=button.closest('[data-audit-date]');field.querySelectorAll('select').forEach(select=>select.value='');syncAuditDate(field);field.querySelector('select').focus();return;
+  }
+  const leaving=['home','admin','admin-users','admin-game-settings','admin-invitations','admin-audit','account','profiles','assessment','assessment-next','assess-game','assessment-train','open','inspect-user','review-profile','select-profile','logout','new-user','new-registration','create-mode','close-modal','games','refresh-panel','dashboard','report-links','edit-profile','unresolved-page'];
   if(leaving.includes(action)&&!await navigationGuard.allow(submitForm)){if(button.tagName==='A')event.preventDefault();return;}
   if(action==='toggle-password'){const input=button.closest('.input-shell')?.querySelector('input');if(input){const show=input.type==='password';input.type=show?'text':'password';button.setAttribute('aria-pressed',String(show));button.setAttribute('aria-label',show?'پنهان‌کردن رمز':'نمایش رمز');button.innerHTML=icon(show?'eye-off':'eye');}return;}
   if(action==='listen-guide'){
@@ -846,6 +850,7 @@ async function handleAction(event) {
   if(button.tagName==='A')event.preventDefault();
   if(action==='admin-menu')return toggleAdminMenu();
   if(action==='admin-users')return adminUsers();
+  if(action==='admin-game-settings')return gameSettings();
   if(action==='admin-invitations')return adminInvitations();
   if(action==='admin-audit')return showAudit(false);
   if(action==='audit-page'){auditState.page=Number(button.dataset.page);return showAudit();}
@@ -1049,7 +1054,7 @@ async function navigate(){
  }
  publicReportData=null;
  if(!currentUser)return showLogin();if(currentUser.passwordChangeRequired)return forcedPassword();
- if(currentUser.role==='admin'){const member=id.match(/^admin\/users?\/([a-f0-9-]{36})$/);if(member)return inspectUser(member[1]);if(['profiles','admin/users'].includes(id))return adminUsers();if(id==='admin/invitations')return adminInvitations();if(['account','admin/settings'].includes(id))return account();if(id==='report-links')return reportLinks();if(id==='reports')return dashboard();if(id==='admin/audit')return showAudit(false);return adminPanel();}
+ if(currentUser.role==='admin'){const member=id.match(/^admin\/users?\/([a-f0-9-]{36})$/);if(member)return inspectUser(member[1]);if(['profiles','admin/users'].includes(id))return adminUsers();if(id==='admin/invitations')return adminInvitations();if(id==='admin/game-settings')return gameSettings();if(['account','admin/settings'].includes(id))return account();if(id==='report-links')return reportLinks();if(id==='reports')return dashboard();if(id==='admin/audit')return showAudit(false);return adminPanel();}
  if(!clients.activeId){const view=beginView();if(!await refreshClients(view))return;}
  inspectedUserId=null;
  if(id==='assessment')return assessment();if(id==='reports')return dashboard();if(id==='account')return account();if(id==='report-links')return reportLinks();if(Object.hasOwn(GAME_MAP,id))return detail(id,false);return home();
@@ -1112,6 +1117,11 @@ async function account(){
  if(currentUser.role==='admin'){const data=await viewRequest(view,`/children?view=panel&owner=unassigned&page=${unresolvedPage}`);if(!currentView(view))return;unresolvedProfiles=data.profiles;unresolvedPage=data.pagination.page;unresolvedPages=data.pagination.pages;}
  guideState=null;engine=null;route='account';setHash(currentUser.role==='admin'?'#admin/settings':'#account');if(modal.open)modal.close();page(accountView(currentUser,unresolvedProfiles),'content-main account-main');if(unresolvedPages>1)document.querySelector('.import-section')?.insertAdjacentHTML('beforeend',`<div class="pagination"><button class="button subtle" data-action="unresolved-page" data-page="${unresolvedPage-1}" ${unresolvedPage<=1?'disabled':''}>قبلی</button><button class="button subtle" data-action="unresolved-page" data-page="${unresolvedPage+1}" ${unresolvedPage>=unresolvedPages?'disabled':''}>بعدی</button></div>`);
  if(currentUser.role==='admin')await loadTrainingProfiles();
+}
+async function gameSettings(){
+ if(currentUser?.role!=='admin')return home();if(currentUser.passwordChangeRequired)return forcedPassword();
+ beginView();inspectedUserId=null;guideState=null;engine=null;route='game-settings';setHash('#admin/game-settings');if(modal.open)modal.close();document.title='تنظیمات بازی‌ها — حواس';
+ page(gameSettingsView(),'content-main admin-main');await loadTrainingProfiles();
 }
 async function adminUsers(){
  if(currentUser?.role!=='admin')return home();const view=beginView(),query=new URLSearchParams({...adminState,pageSize:20});const data=await viewRequest(view,`/users?${query}`);if(!currentView(view))return;

@@ -15,11 +15,63 @@ test.beforeAll(async()=>{
 });
 test.afterAll(async()=>{await admin?.dispose();});
 async function login(page,isAdmin=true){await page.goto('/');await page.locator('#login-form [name=identifier]').fill(isAdmin?seed.users.admin.username:player.username);await page.locator('#login-form [name=password]').fill(seed.password);await page.locator('#login-form button[type=submit]').click();await expect(page.locator(isAdmin?'.admin-stats':'.hero')).toBeVisible();}
-async function settings(page){await page.locator('.admin-sidebar [data-action=account]').click();await expect(page.locator(`[data-training-profile="${a.id}"]`)).toBeVisible();}
+async function settings(page){await page.locator('.admin-sidebar [data-action=admin-game-settings]').click();await expect(page.locator(`[data-training-profile="${a.id}"]`)).toBeVisible();}
 async function inspect(page){await page.goto(`/#admin/user/${player.id}`);await page.locator('[data-action=user-tab][data-tab=difficulty]').click();await expect(page.locator('#policy-level')).toBeVisible();}
 async function saveAssignment(page){const done=page.waitForResponse(response=>response.url().endsWith('/difficulty')&&response.request().method()==='PATCH');await page.locator('#admin-difficulty-form button[type=submit]').click();expect((await done).status()).toBe(200);await expect(page.locator('#account-status')).toContainText('ذخیره شد');}
 const advance=(page,ms)=>page.evaluate(ms=>window.advanceProfileGame(ms),ms);
 async function patchProfile(id,data){const result=await(await admin.get(`/api/admin/training-profiles/${id}`)).json();const response=await admin.patch(`/api/admin/training-profiles/${id}`,{headers:{'X-CSRF-Token':csrf},data:{...data,expectedRevision:result.profile.revision}});expect(response.status()).toBe(200);return (await response.json()).profile;}
+
+test('game settings are directly accessible from the admin menu, URL and mobile menu',async({page})=>{
+ await login(page);
+ const menu=page.locator('.admin-sidebar [data-action=admin-game-settings]');
+ await expect(menu).toHaveText('تنظیمات بازی‌ها');
+ await settings(page);
+ await expect(page).toHaveURL(/#admin\/game-settings$/);
+ await expect(page.locator('h1')).toHaveText('تنظیمات بازی‌ها');
+ await expect(menu).toHaveAttribute('aria-current','page');
+ await expect(page.locator('#password-form')).toHaveCount(0);
+ await expect(page.locator('[data-training-profile^="builtin:"]')).toHaveCount(3);
+ await page.reload();
+ await expect(page.locator(`[data-training-profile="${a.id}"]`)).toBeVisible();
+ await page.locator('[data-action=admin-users]').filter({hasText:'تنظیم تمرین کاربران'}).click();
+ await expect(page.locator('.members-table')).toBeVisible();
+ await page.goBack();
+ await expect(page.locator('h1')).toHaveText('تنظیمات بازی‌ها');
+ await page.setViewportSize({width:360,height:780});
+ await page.locator('.menu-toggle').click();
+ await expect(menu).toBeInViewport();
+ await menu.click();
+ await expect(page.locator('.menu-toggle')).toHaveAttribute('aria-expanded','false');
+ await expect(page.locator('#training-profile-list')).toBeVisible();
+ expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
+});
+
+test('game settings navigation protects unsaved profile and account edits',async({page})=>{
+ await login(page);
+ await page.locator('.admin-sidebar [data-action=account]').click();
+ await page.locator('#password-form [name=password]').fill('Unsaved-profile-navigation-2026!');
+ await page.locator('.admin-sidebar [data-action=admin-game-settings]').click();
+ await expect(page.locator('.navigation-confirm')).toBeVisible();
+ await page.locator('[data-guard=stay]').click();
+ await expect(page.locator('#password-form [name=password]')).toHaveValue('Unsaved-profile-navigation-2026!');
+ await page.locator('.admin-sidebar [data-action=admin-game-settings]').click();
+ await page.locator('[data-guard=discard]').click();
+ await expect(page.locator(`[data-training-profile="${a.id}"]`)).toBeVisible();
+ await page.locator(`[data-training-profile="${a.id}"] [data-action=edit-training-profile]`).click();
+ await page.locator('#training-profile-form [name=name]').fill('پیش‌نویس تنظیمات بازی');
+ await page.locator('.admin-sidebar [data-action=admin-users]').click();
+ await expect(page.locator('.navigation-confirm')).toBeVisible();
+ await page.locator('[data-guard=stay]').click();
+ await expect(page.locator('#training-profile-form [name=name]')).toHaveValue('پیش‌نویس تنظیمات بازی');
+});
+
+test('game settings are restricted to administrators',async({page})=>{
+ await login(page,false);
+ await expect(page.locator('[data-action=admin-game-settings]')).toHaveCount(0);
+ await page.goto('/#admin/game-settings');
+ await expect(page.locator('.client-welcome')).toBeVisible();
+ await expect(page.locator('#training-profiles')).toHaveCount(0);
+});
 
 test('profile editor copies a complete seven-game bundle and preserves edits between game sections',async({page})=>{
  await login(page);await settings(page);await page.locator(`[data-training-profile="${a.id}"] [data-action=copy-training-profile]`).click();const form=page.locator('#training-profile-form');await form.locator('[name=name]').fill('سخت کودکان تا ۸ سال');

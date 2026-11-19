@@ -70,6 +70,53 @@ test('panels: session history and raw outcomes load on demand, with independent 
  const link=await(await guest.post(`/api/children/${child.id}/report-links`,{headers,data:{label:'گزارش صفحه‌بندی‌شده'}})).json();const family=await browser.newContext(),parent=await family.newPage();try{await parent.goto(link.url);await expect(parent.locator('.session-history tbody tr')).toHaveCount(20);await parent.locator('[data-action=report-page][data-page="2"]').click();await expect(parent.locator('.session-history tbody tr')).toHaveCount(6);await expect(parent.locator('.outcome-details')).toHaveCount(0);await parent.evaluate(()=>{window.print=()=>{const overlay=document.querySelector('#report-print-overlay');window.printCapture={rows:overlay.querySelectorAll('.session-history tbody tr').length,raw:overlay.querySelectorAll('.outcome-details').length,paginationVisible:[...overlay.querySelectorAll('.pagination')].some(el=>getComputedStyle(el).display!=='none')};};});await parent.emulateMedia({media:'print'});await parent.locator('[data-action=print-report]').evaluate(button=>button.click());await expect.poll(()=>parent.evaluate(()=>window.printCapture?.rows)).toBe(26);expect(await parent.evaluate(()=>window.printCapture.raw)).toBe(0);expect(await parent.evaluate(()=>window.printCapture.paginationVisible)).toBe(false);await expect(parent.locator('#report-print-overlay')).toHaveCount(0);}finally{await family.close();}
 });
 
+test('panels: audit date filters use Jalali dates with leap-day validation and optional clearing',async({page})=>{
+ await login(page);
+ await page.locator('.admin-sidebar [data-action=admin-audit]').click();
+ const form=page.locator('#audit-filter-form');
+ const dateField=name=>form.locator('[data-audit-date]').filter({has:page.locator(`[name=${name}]`)});
+ const selectDate=async(name,year,month,day)=>{
+  const field=dateField(name);
+  await field.locator('[data-audit-date-part=year]').selectOption(String(year));
+  await field.locator('[data-audit-date-part=month]').selectOption(String(month));
+  await field.locator('[data-audit-date-part=day]').selectOption(String(day));
+ };
+ await expect(form.locator('input[type=date]')).toHaveCount(0);
+ await selectDate('from',1403,12,30);
+ await selectDate('to',1404,1,1);
+ const filtered=page.waitForResponse(response=>{
+  const url=new URL(response.url());
+  return url.pathname==='/api/admin/audit-events'&&url.searchParams.get('from')==='2025-03-20'&&url.searchParams.get('to')==='2025-03-21';
+ });
+ await form.locator('button[type=submit]').click();
+ expect((await filtered).status()).toBe(200);
+ await expect(dateField('from').locator('[data-audit-date-part=year]')).toHaveValue('1403');
+ await expect(dateField('from').locator('[data-audit-date-part=day]')).toHaveValue('30');
+ await expect(dateField('to').locator('[data-audit-date-part=month]')).toHaveValue('1');
+ await dateField('from').locator('[data-audit-date-part=year]').selectOption('1404');
+ await expect(dateField('from').locator('[data-audit-date-part=day] option[value="30"]')).toHaveCount(0);
+ await expect(dateField('from').locator('[data-audit-date-error]')).toBeVisible();
+ expect(await form.evaluate(element=>element.checkValidity())).toBe(false);
+ await expect(form.locator('[name=from]')).toHaveValue('');
+ await dateField('from').locator('[data-audit-date-part=day]').selectOption('29');
+ await expect(form.locator('[name=from]')).toHaveValue('2026-03-20');
+ for(const name of ['from','to'])await dateField(name).locator('[data-action=clear-audit-date]').click();
+ expect(await form.evaluate(element=>element.checkValidity())).toBe(true);
+ const cleared=page.waitForResponse(response=>{
+  const url=new URL(response.url());
+  return url.pathname==='/api/admin/audit-events'&&!url.searchParams.get('from')&&!url.searchParams.get('to');
+ });
+ await form.locator('button[type=submit]').click();
+ expect((await cleared).status()).toBe(200);
+ await expect(form.locator('[name=from]')).toHaveValue('');
+ await expect(form.locator('[name=to]')).toHaveValue('');
+ await page.goto('/#admin/user/'+account.id);
+ await tab(page,'audit').click();
+ await expect(page.locator('#user-audit [data-audit-date]')).toHaveCount(2);
+ await page.setViewportSize({width:360,height:780});
+ expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
+});
+
 test('panels: audit history is available per user and globally with no clinical value copied',async({page})=>{
  const data=await current();expect((await admin.patch('/api/users/'+account.id,{headers:{'X-CSRF-Token':csrf},data:{expectedRevision:data.user.revision,expectedProfileRevision:data.profile.revision,profile:{...data.profile,concerns:'secret-audit-value'}}})).ok()).toBe(true);
  await inspect(page);await tab(page,'audit').click();await expect(page.locator('#user-audit')).toContainText('یادداشت بالینی');await expect(page.locator('#user-audit')).not.toContainText('secret-audit-value');await page.locator('.admin-sidebar [data-action=admin-audit]').click();await expect(page.locator('h1')).toHaveText('تاریخچهٔ مدیریت');await page.locator('[name=actorSearch]').fill(account.username);await page.locator('#audit-filter-form button[type=submit]').click();await expect(page.locator(`[name=actorId] option[value="${account.id}"]`)).toHaveCount(1);await page.locator('[name=actorId]').selectOption(account.id);await page.locator('#audit-filter-form button[type=submit]').click();await expect(page.locator('#audit-filter-form')).toBeVisible();await page.setViewportSize({width:360,height:780});await expect(page.locator('.admin-sidebar')).not.toBeInViewport();expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);await page.screenshot({path:'.local/verification/panels-audit-mobile.png',fullPage:true});
