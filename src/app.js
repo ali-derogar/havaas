@@ -1,4 +1,6 @@
 import {createFormTracker} from './pwa-forms.js';
+import {PlatformMotion,platformTheme} from './platform-motion.js';
+import {sectionArt} from './platform-art.js';
 import {profileFamilies,profileEntry,validateProfileSettings} from './training-profiles.js';
 import {gameSettingsView,trainingProfilesList,trainingProfileEditor,profileAssignmentOptions,profileAssignmentSummary} from './training-profile-ui.js';
 import {timingIdentity,defaultTiming,TIMING_VARIANTS,timingFields,timingPath} from './game-timing.js';
@@ -49,6 +51,7 @@ const app = document.querySelector('#app');
 const modal = document.querySelector('#modal');
 const announcer = document.querySelector('#announcer');
 const playMotion=new PlayMotion({document});
+const platformMotion=new PlatformMotion({document});
 const progress = readProgress();
 const guidance=new GuidancePlayer({onState:(state,key)=>{
   document.querySelectorAll('[data-action=listen-guide]').forEach(button=>{const active=state==='playing'&&(button.dataset.guide===key||button.dataset.guide==='current');button.setAttribute('aria-pressed',String(active));button.classList.toggle('listening',active);});
@@ -94,6 +97,7 @@ function header() {
 const footer = () => `<footer class="site-footer"><span>${logo()} حواس؛ جایی برای بازی و کشف</span><span>با سرعت خودت، به سبک خودت ${icon('spark')}</span></footer>`;
 function page(content, className = '') {
   navigationGuard.stash();
+  platformMotion.reset();
   if(!modal.open)modal.replaceChildren();
   playMotion.reset();
   guidance.stop();
@@ -103,8 +107,16 @@ function page(content, className = '') {
   cancelAnimationFrame(frame);
   document.body.dataset.screen=route;reactionPointerInput=false;
   document.body.dataset.panel=currentUser?.role==='admin'&&!publicReportData&&!guestScreen()&&!currentUser.passwordChangeRequired?'admin':currentUser&&!publicReportData&&!guestScreen()?'client':'guest';
+  const theme=platformTheme(route,document.body.dataset.panel);
+  if(theme)document.body.dataset.platformTheme=theme;
+  else delete document.body.dataset.platformTheme;
   document.body.classList.remove('admin-menu-open');
   app.innerHTML = `${header()}<main id="main" class="${className}" tabindex="-1">${route==='result'?guideControl(guidanceKey(sessionOptions||gameOptions())):''}${content}</main>${footer()}`;
+  if(theme){
+    app.querySelectorAll('.client-welcome,.client-quick-stats,.game-card,.routine-card,.little-note,.page-title,.assessment-step,.account-grid>.surface,.admin-stats>.surface,.dashboard-charts>.surface').forEach(node=>node.setAttribute('data-reveal',''));
+    app.querySelectorAll('.empty-state,.dashboard-empty').forEach(node=>node.insertAdjacentHTML('afterbegin',sectionArt('pause')));
+    platformMotion.sync(app);
+  }
   syncSidebarAccess();
   queueMicrotask(()=>navigationGuard.sync());
   window.scrollTo({ top: 0, behavior: 'instant' });
@@ -147,8 +159,8 @@ function gameCards() {
   const shown = GAMES.filter(game => filter === 'all' || game.tags.includes(filter));
   return shown.map((game, index) => {
     const records = profileRecords(clients).filter(item => item.kind === 'training' && item.result.gameId === game.id);
-    return `<button class="game-card" data-action="open" data-game="${game.id}" style="--card-color:${game.color};--card-accent:${game.accent};--card-index:${index}"><div class="card-picture"><span class="card-number">${fa(GAMES.indexOf(game) + 1).padStart(2, '۰')}</span>${gameArtwork(game.id,{lazy:true})}${(clients.panelSummary?.games.find(g=>g.id===game.id)?.count??records.length) ? `<span class="played-badge">${icon('check')} بازی کردی</span>` : ''}</div><div class="card-content"><span class="skill-label">${game.skill}</span><h3>${game.title}</h3><p>${game.subtitle}</p><div class="card-bottom"><span>${icon('clock')} ${cardDuration(game)}</span><span class="card-arrow" aria-hidden="true">${icon('arrow')}</span></div></div></button>`;
-  }).join('') + (filter === 'all' ? `<div class="routine-card"><span class="routine-flower">✳</span><span class="section-kicker">یک یادآوری کوچولو</span><h3>هر روز،<br>چند دقیقه برای ذهنت.</h3><p>یک بازی رو انتخاب کن.<br>شاید امروز رکورد تازه‌ای بزنی!</p><button class="text-button" data-action="about">راهنمای شروع ${icon('arrow')}</button><span class="routine-dots">● ● ●</span></div>` : '');
+    return `<button class="game-card" data-reveal data-action="open" data-game="${game.id}" style="--card-color:${game.color};--card-accent:${game.accent};--card-index:${index}"><div class="card-picture"><span class="card-number">${fa(GAMES.indexOf(game) + 1).padStart(2, '۰')}</span>${gameArtwork(game.id,{lazy:true})}${(clients.panelSummary?.games.find(g=>g.id===game.id)?.count??records.length) ? `<span class="played-badge">${icon('check')} بازی کردی</span>` : ''}</div><div class="card-content"><span class="skill-label">${game.skill}</span><h3>${game.title}</h3><p>${game.subtitle}</p><div class="card-bottom"><span>${icon('clock')} ${cardDuration(game)}</span><span class="card-arrow" aria-hidden="true">${icon('arrow')}</span></div></div></button>`;
+  }).join('') + (filter === 'all' ? `<div class="routine-card"><span class="routine-flower">✳</span><span class="section-kicker">یک یادآوری کوچولو</span><h3>هر روز، <br>چند دقیقه برای ذهنت.</h3><p>یک بازی رو انتخاب کن. <br>شاید امروز رکورد تازه‌ای بزنی!</p><button class="text-button" data-action="about">راهنمای شروع ${icon('arrow')}</button><span class="routine-dots">● ● ●</span></div>` : '');
 }
 
 function lessonContent() {
@@ -933,7 +945,7 @@ async function handleAction(event) {
   if(action==='sound') {guidance.stop();progress.sound=!progress.sound;writeProgress(progress);syncSoundControls();tone(true);return;}
   if(action==='open') return detail(button.dataset.game);
   if(action==='detail') return detail(selectedGame);
-  if(action==='filter') { filter=button.dataset.filter; document.querySelectorAll('.filter').forEach(node=>{ const selected=node.dataset.filter===filter; node.classList.toggle('selected',selected);node.setAttribute('aria-pressed',String(selected)); }); document.querySelector('#game-grid').innerHTML=gameCards(); return; }
+  if(action==='filter') { filter=button.dataset.filter; document.querySelectorAll('.filter').forEach(node=>{ const selected=node.dataset.filter===filter; node.classList.toggle('selected',selected);node.setAttribute('aria-pressed',String(selected)); }); document.querySelector('#game-grid').innerHTML=gameCards(); platformMotion.sync(app); return; }
   if(action==='level'&&LEVELS[button.dataset.level]) { if(guideState||currentUser.role!=='admin')return;selectedLevel=button.dataset.level;if(clients.activeId){await request(`/children/${clients.activeId}/difficulty`,{method:'PATCH',body:{...gameOptions(),mode:'fixed',level:selectedLevel}});}return detail(selectedGame,false); }
   if(action==='theme'&&THEMES[button.dataset.theme]) { selectedTheme=button.dataset.theme; document.querySelectorAll('[data-action="theme"]').forEach(node=>{ const selected=node.dataset.theme===selectedTheme;node.classList.toggle('selected',selected);node.setAttribute('aria-pressed',String(selected)); }); return detail(selectedGame,false); }
   if(action==='hunt-mode'&&['standard','divided'].includes(button.dataset.mode)) { selectedHuntMode=button.dataset.mode;document.querySelectorAll('.hunt-mode').forEach(node=>{const selected=node.dataset.mode===selectedHuntMode;node.classList.toggle('selected',selected);node.setAttribute('aria-pressed',String(selected));});return detail(selectedGame,false); }
