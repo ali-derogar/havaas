@@ -45,6 +45,7 @@ body[data-screen=offline] .theme-switcher {display:flex;justify-content:flex-end
     --theme-text:#edf4f5;--theme-muted:#b3c2c9;--theme-line:#3b4c57;
     --theme-link:#8fdfd0;--theme-soft:#203d3c;--theme-focus:#c8a5f0;
     --theme-success:#a8e6c3;--theme-error:#ffb3b8;--theme-warning:#f3d18f;
+    --theme-success-bg:#203c33;--theme-warning-bg:#443723;--theme-error-bg:#42282f;
   }
   :root[data-color-scheme=dark] body,
   :root[data-color-scheme=dark] body[data-screen] {
@@ -179,6 +180,86 @@ body[data-screen=offline] .theme-switcher {display:flex;justify-content:flex-end
   :root[data-color-scheme=dark] body[data-screen=play] .play-panel .game-countdown {background:var(--theme-surface);}
   :root[data-color-scheme=dark] body[data-screen=play] .play-panel[data-phase=ready]>.arena {background:var(--theme-surface);}
   :root[data-color-scheme=dark] body[data-screen=play] .play-panel[data-phase=countdown]>.arena {background:var(--theme-surface);}
+
+  /* Pair text and surfaces for the complete component, including nested and
+     expanded states. The light exercise paper and canonical stimuli stay local. */
+  :root[data-color-scheme=dark] body:not([data-screen=play]) :is(h1,h2,h3,h4) {color:var(--theme-text);}
+  :root[data-color-scheme=dark] body :is(.surface p,.surface li,.surface small,.breadcrumb,.breadcrumb button,.eyebrow,.session-summary span,.intro-art-note,.recap-intro,.recap-more,.best-score,.local-note,.result-formula,.report-sheet td small,.assessment-readonly span) {color:var(--theme-muted);}
+  :root[data-color-scheme=dark] body .auth-note {color:var(--theme-muted)!important;}
+  :root[data-color-scheme=dark] body .start-row>span {color:var(--theme-muted);}
+  :root[data-color-scheme=dark] body .page-title>.section-kicker {background:var(--theme-soft);color:var(--theme-link);border-color:var(--theme-line);}
+  :root[data-color-scheme=dark] body .filter.selected>span {background:var(--theme-bg);color:var(--theme-text);}
+  :root[data-color-scheme=dark] body :is(table th,table td) {border-color:var(--theme-line);color:var(--theme-text);}
+  :root[data-color-scheme=dark] body table th {background:var(--theme-raised);color:var(--theme-muted);}
+  :root[data-color-scheme=dark] body table tbody>tr {background:var(--theme-surface);border-color:var(--theme-line);}
+  :root[data-color-scheme=dark] body table tbody>tr.selected-row {background:var(--theme-raised);}
+
+  /* Introduction, choices, untimed teaching and result recaps. */
+  :root[data-color-scheme=dark] body :is(.intro-art,.recap-step,.practice-review,.stroop-scorecard,.rule-score) {background:var(--theme-surface);border-color:var(--theme-line);color:var(--theme-text);box-shadow:none;}
+  :root[data-color-scheme=dark] body :is(.lesson-box,.client-welcome,.client-quick-stats,.routine-card,.little-note) {box-shadow:0 4px 16px #0002;}
+  :root[data-color-scheme=dark] body :is(.intro-art .training-cover,.session-summary) {border-color:var(--theme-line);}
+  :root[data-color-scheme=dark] body :is(.session-summary b,.lesson-box h3,.practice-review h2,.memory-question) {color:var(--theme-text);}
+  :root[data-color-scheme=dark] body :is(.rules p,.practice-review>p,.practice-review>small,.review-comparison small,.memory-example-distance,.rule-score>span) {color:var(--theme-muted);}
+  :root[data-color-scheme=dark] body .rules li>span {background:var(--theme-raised);color:var(--theme-text);}
+  :root[data-color-scheme=dark] body :is(.theme-button,.level-button) {background:var(--theme-surface);color:var(--theme-text);border-color:var(--theme-line);box-shadow:none;}
+  :root[data-color-scheme=dark] body :is(.theme-button,.level-button):hover:not(:disabled) {background:var(--theme-raised);border-color:#658e96;}
+  :root[data-color-scheme=dark] body :is(.theme-button.selected,.level-button.selected) {background:var(--theme-soft);color:var(--theme-link);border-color:#658e96;box-shadow:inset 0 0 0 1px #658e96;}
+  :root[data-color-scheme=dark] body :is(.theme-button.selected,.level-button.selected):hover:not(:disabled) {background:#294b47;}
+  :root[data-color-scheme=dark] body .level-button small {color:var(--theme-muted);}
+  :root[data-color-scheme=dark] body .level-button:disabled {opacity:1;color:var(--theme-muted);background:var(--theme-bg);}
+  :root[data-color-scheme=dark] body .level-button.selected:disabled {background:var(--theme-soft);color:var(--theme-link);}
+  :root[data-color-scheme=dark] body .level-bars i {background:var(--theme-line);}
+  :root[data-color-scheme=dark] body .level-bars i.lit {background:var(--theme-link);}
+  :root[data-color-scheme=dark] body .lesson-yes {background:#147a74;border-color:#369b91;color:#fff;}
+  :root[data-color-scheme=dark] body .lesson-answers .wait-button {background:var(--theme-warning-bg);border-color:#997b46;color:var(--theme-warning);}
+  :root[data-color-scheme=dark] body .lesson-feedback.good {color:var(--theme-success);}
+  :root[data-color-scheme=dark] body .lesson-feedback.wrong {color:var(--theme-warning);}
+  :root[data-color-scheme=dark] body .lesson-feedback p {color:inherit;}
+  :root[data-color-scheme=dark] body :is(.lesson-expected.do-cue,.review-decision.do-cue) {color:var(--theme-success);}
+  :root[data-color-scheme=dark] body :is(.lesson-expected.wait-cue,.review-decision.wait-cue) {color:var(--theme-warning);}
+  :root[data-color-scheme=dark] body :is(.lesson-token small,.memory-token>small) {color:#46566e;}
+  :root[data-color-scheme=dark] body .memory-lesson-path>span {background:var(--theme-raised);border-color:var(--theme-line);color:var(--theme-muted);}
+  :root[data-color-scheme=dark] body .memory-lesson-path>span.current {background:var(--theme-soft);border-color:#658e96;color:var(--theme-link);}
+  :root[data-color-scheme=dark] body .memory-lesson-path>span.seen {background:var(--theme-success-bg);border-color:#416c54;color:var(--theme-success);}
+  :root[data-color-scheme=dark] body .review-badge {background:var(--theme-success-bg);color:var(--theme-success);}
+  :root[data-color-scheme=dark] body .practice-review.retry .review-badge {background:var(--theme-warning-bg);color:var(--theme-warning);}
+
+  /* Rule strips and reference checklists are controls, not scored fields. */
+  :root[data-color-scheme=dark] body[data-screen=play] .instruction-strip b {color:var(--theme-text);}
+  :root[data-color-scheme=dark] body :is(.memory-rule-distance,.hunt-preparation-targets) {background:var(--theme-raised);border-color:var(--theme-line);color:var(--theme-text);}
+  :root[data-color-scheme=dark] body :is(.memory-rule-distance>b,.memory-rule-distance>small,.hunt-preparation-targets .hunt-target-copy>b,.hunt-preparation-targets .hunt-target-copy>small) {color:var(--theme-text);}
+  :root[data-color-scheme=dark] body .stroop-rule-picture {background:var(--theme-raised);border-color:var(--theme-line);color:var(--theme-text);}
+  :root[data-color-scheme=dark] body .rule-channel {color:var(--theme-text);}
+  :root[data-color-scheme=dark] body .rule-picture-arrow {color:var(--theme-muted);}
+  :root[data-color-scheme=dark] body .traffic-rule-picture>span {background:var(--theme-raised);border-color:var(--theme-line);}
+  :root[data-color-scheme=dark] body .traffic-rule-picture .traffic-go,
+  :root[data-color-scheme=dark] body .traffic-rule-picture .traffic-go>b {color:var(--theme-success);}
+  :root[data-color-scheme=dark] body .traffic-rule-picture .traffic-wait,
+  :root[data-color-scheme=dark] body .traffic-rule-picture .traffic-wait>b {color:var(--theme-error);}
+  :root[data-color-scheme=dark] body[data-screen=play] .play-panel :is(.mission-need,.need-audio) {background:var(--theme-raised);border-color:var(--theme-line);color:var(--theme-text);}
+  :root[data-color-scheme=dark] body[data-screen=play] .play-panel :is(.need-copy,.need-state,.mission-story>summary) {color:var(--theme-muted);}
+  :root[data-color-scheme=dark] body[data-screen=play] .play-panel .need-state {background:var(--theme-bg);}
+  :root[data-color-scheme=dark] body[data-screen=play] .play-panel :is(.mission-need.packed,.need-audio.listening,.ark-mission-count,.space-mission-count) {background:var(--theme-success-bg);border-color:#416c54;color:var(--theme-success);}
+  :root[data-color-scheme=dark] body[data-screen=play] .play-panel .mission-need.packed>.need-state {background:var(--theme-success-bg);color:var(--theme-success);}
+  :root[data-color-scheme=dark] body[data-screen=play] .play-panel :is(.hunt-trail>span,.studio-phase-path,.studio-phase-path>span,.memory-status>.memory-sealed-slot) {background:var(--theme-raised);border-color:var(--theme-line);color:var(--theme-muted);box-shadow:none;}
+  :root[data-color-scheme=dark] body[data-screen=play] .play-panel :is(.hunt-trail>.block-active,.studio-phase-path>span[aria-current],.memory-status>.comparison-slot) {background:var(--theme-soft);border-color:#658e96;color:var(--theme-link);}
+  :root[data-color-scheme=dark] body[data-screen=play] .play-panel :is(.hunt-trail>.block-done,.studio-phase-path>span.passed) {background:var(--theme-success-bg);border-color:#416c54;color:var(--theme-success);}
+  /* Dark lettering stays on the retained, illustrated light exercise fields. */
+  :root[data-color-scheme=dark] body[data-screen=play] .play-panel :is(.hunt-field-heading,.hunt-field-heading>small,.traffic-world .stage-caption,.traffic-trip-note,.memory-trail-caption,.memory-station-footer,.studio-stage-heading,.studio-stage-heading>small,.studio-stage-note) {color:#46566e;}
+  :root[data-color-scheme=dark] body[data-screen=play] .play-panel[data-game=ark] .scene-heading>span {color:#46566e;}
+  :root[data-color-scheme=dark] body[data-screen=play] .ark-shore-sign>span {color:#225166;}
+  :root[data-color-scheme=dark] body[data-screen=play] .play-panel[data-game=space] .scene-heading>span {color:#e3eef8;}
+
+  /* Search paper remains light; the surrounding workspace uses the app palette. */
+  :root[data-color-scheme=dark] body[data-screen=play] .play-panel[data-game=search]>.arena {background:var(--theme-surface);}
+  :root[data-color-scheme=dark] body[data-screen=play] .play-panel[data-game=search] :is(.search-workspace-heading,.clue-preview,.search-board-meta) {background:var(--theme-surface);border-color:var(--theme-line);box-shadow:none;}
+  :root[data-color-scheme=dark] body[data-screen=play] .play-panel[data-game=search] :is(.search-workspace-heading strong,.clue-preview>.section-kicker,.preview-countdown) {color:var(--theme-text);}
+  :root[data-color-scheme=dark] body[data-screen=play] .play-panel[data-game=search] :is(.search-workspace-heading small,.search-preview-reminder,.search-tip,.search-memory-note>span,.search-memory-note small) {color:var(--theme-muted);}
+  :root[data-color-scheme=dark] body[data-screen=play] .play-panel[data-game=search] :is(.search-phase-label,.search-sample-number,.search-rounds>span,.target-status) {background:var(--theme-raised);border-color:var(--theme-line);color:var(--theme-muted);box-shadow:none;}
+  :root[data-color-scheme=dark] body[data-screen=play] .play-panel[data-game=search] .target-status>b {color:var(--theme-muted);}
+  :root[data-color-scheme=dark] body[data-screen=play] .play-panel[data-game=search] .search-rounds>.round-current {background:var(--theme-soft);border-color:#658e96;color:var(--theme-link);}
+  :root[data-color-scheme=dark] body[data-screen=play] .play-panel[data-game=search] :is(.search-rounds>.round-done,.target-status.discovered) {background:var(--theme-success-bg);border-color:#416c54;color:var(--theme-success);}
+  :root[data-color-scheme=dark] body[data-screen=play] .play-panel[data-game=search] .search-rounds>.round-retry {background:var(--theme-warning-bg);border-color:#997b46;color:var(--theme-warning);}
 
   :root[data-color-scheme=dark] body[data-screen=offline] main {background:var(--theme-surface);border-color:var(--theme-line);}
   :root[data-color-scheme=dark] body[data-screen=offline] h1 {color:var(--theme-text);}

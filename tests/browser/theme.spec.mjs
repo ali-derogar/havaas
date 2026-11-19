@@ -152,6 +152,9 @@ test('all seven games retain their scored fields and state when the chrome chang
     await expect(field).toBeVisible();
     await field.scrollIntoViewIfNeeded();
     const clip = await field.boundingBox();
+    // The preview's rounded transparent corners belong to the workspace. Keep
+    // the comparison on the opaque paper and the complete canonical stimulus.
+    if (game === 'search') {clip.x += 12;clip.y += 12;clip.width -= 24;clip.height -= 24;}
     // Adventure controls overlay the bottom of the object field and change color.
     if (['ark', 'space'].includes(game)) {
       const controls = await page.locator('.play-controls').boundingBox();
