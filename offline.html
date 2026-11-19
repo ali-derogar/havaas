@@ -4,14 +4,17 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <meta name="theme-color" content="#284e40" />
+    <script src="/src/theme.js"></script>
     <title>اتصال دوباره — حواس</title>
     <link rel="manifest" href="/manifest.webmanifest" />
     <link rel="icon" href="/assets/favicon.svg" type="image/svg+xml" />
     <link rel="stylesheet" href="/src/offline.css" />
+    <link rel="stylesheet" href="/src/theme.css" />
     <script src="/src/offline.js" defer></script>
   </head>
-  <body>
+  <body data-screen="offline">
     <main>
+      <label class="theme-switcher"><span>ظاهر</span><select data-theme-select aria-label="حالت نمایش"><option value="system">سیستم</option><option value="light">روشن</option><option value="dark">تاریک</option></select></label>
       <img src="/assets/icons/icon-192.png" width="80" height="80" alt="حواس" />
       <div class="offline-scene" aria-hidden="true"><svg class="explorer-compass" viewBox="0 0 180 200" fill="none" aria-hidden="true">
   <ellipse cx="90" cy="182" rx="53" ry="9" fill="#33366d" opacity=".12"/>
