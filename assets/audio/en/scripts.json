@@ -1,66 +1,100 @@
 {
-  "generator": "Microsoft Edge neural en via edge-tts 7.3.1",
+  "generator": "User-provided recordings, locally aligned to scripts and split with FFmpeg",
   "locale": "en",
-  "revision": 2,
-  "voice": "en-US-JennyNeural",
-  "rate": "-4%",
-  "pitch": "+0Hz",
-  "rates": {
-    "hunt": "-4%",
-    "hunt-dual": "-4%",
-    "hunt-moving": "-4%",
-    "hunt-moving-dual": "-4%",
-    "traffic": "-4%",
-    "traffic-signs": "-4%",
-    "search": "-4%",
-    "search-dual": "-4%",
-    "nback-1": "-4%",
-    "nback-2": "-4%",
-    "nback-3": "-4%",
-    "stroop-0": "-4%",
-    "stroop-1": "-4%",
-    "stroop-2": "-4%",
-    "stroop-3": "-4%",
-    "ark": "-4%",
-    "space": "-4%",
-    "correct": "+0%",
-    "retry": "+0%",
-    "water": "-2%",
-    "food": "-2%",
-    "medkit": "-2%",
-    "vest": "-2%",
-    "flashlight": "-2%",
-    "compass": "-2%",
-    "oxygen": "-2%",
-    "suit": "-2%",
-    "fuel": "-2%",
-    "helmet": "-2%",
-    "map": "-2%",
-    "not-needed": "-2%",
-    "hunt-flex": "-4%",
-    "hunt-flex-dual": "-4%",
-    "hunt-moving-flex": "-4%",
-    "hunt-moving-flex-dual": "-4%",
-    "traffic-route": "-4%",
-    "traffic-signs-route": "-4%",
-    "stroop-0-blue": "-4%",
-    "stroop-1-blue": "-4%",
-    "stroop-2-blue": "-4%",
-    "stroop-3-blue": "-4%",
-    "stroop-0-green": "-4%",
-    "stroop-1-green": "-4%",
-    "stroop-2-green": "-4%",
-    "stroop-3-green": "-4%",
-    "stroop-0-red": "-4%",
-    "stroop-1-red": "-4%",
-    "stroop-2-red": "-4%",
-    "stroop-3-red": "-4%",
-    "stroop-0-yellow": "-4%",
-    "stroop-1-yellow": "-4%",
-    "stroop-2-yellow": "-4%",
-    "stroop-3-yellow": "-4%"
+  "revision": 3,
+  "voice": "user-provided-recordings",
+  "encoding": "MP3, mono, 44.1 kHz, 128 kbps",
+  "sourceFiles": {
+    "1.mp3": {
+      "sha256": "09febad1739703866802c4053c8e1003a6718df6c9e75b92ef20115b9ee1c447",
+      "duration": 57.887347,
+      "clips": [
+        "hunt-flex-dual",
+        "hunt-moving-flex",
+        "traffic-signs-route",
+        "space",
+        "traffic",
+        "nback-3"
+      ]
+    },
+    "2.mp3": {
+      "sha256": "6d9dc6aa91215490f165502b544f6970479c79cc4b64dab58fa8c51f937569c2",
+      "duration": 56.52898,
+      "clips": [
+        "hunt",
+        "hunt-dual",
+        "hunt-moving",
+        "traffic-signs",
+        "nback-1",
+        "traffic-route",
+        "search-dual"
+      ]
+    },
+    "3.mp3": {
+      "sha256": "d20ea5208aeaf5e8e9b8ed353a51cbc4f75ac3439fc77cc5ff9ba9401733bc4b",
+      "duration": 56.11102,
+      "clips": [
+        "hunt-flex",
+        "hunt-moving-flex-dual",
+        "hunt-moving-dual",
+        "stroop-3-green",
+        "search",
+        "stroop-3-blue",
+        "stroop-3"
+      ]
+    },
+    "4.mp3": {
+      "sha256": "9a2aa253ec86f4ee07b7c6496edb173635e43b6d52a62ce3f6de563de5854330",
+      "duration": 57.469388,
+      "clips": [
+        "ark",
+        "nback-2",
+        "stroop-3-yellow",
+        "stroop-1-green",
+        "stroop-1-red",
+        "stroop-1-yellow",
+        "stroop-1",
+        "stroop-3-red"
+      ]
+    },
+    "5.mp3": {
+      "sha256": "14e8dd46f7961f9b5db764f7e25593cfae1cb2f354280095c774683f13b18f43",
+      "duration": 56.267755,
+      "clips": [
+        "stroop-1-blue",
+        "stroop-2-blue",
+        "stroop-2",
+        "stroop-2-yellow",
+        "not-needed",
+        "retry",
+        "stroop-0-blue",
+        "stroop-0-green",
+        "stroop-0-red",
+        "stroop-0",
+        "stroop-0-yellow"
+      ]
+    },
+    "6.mp3": {
+      "sha256": "d45ff964dc85cb4c933ffe2706a5652edda1f2c80b21b9fcb268e5dbb0496369",
+      "duration": 52.349388,
+      "clips": [
+        "stroop-2-green",
+        "stroop-2-red",
+        "water",
+        "food",
+        "medkit",
+        "vest",
+        "flashlight",
+        "compass",
+        "oxygen",
+        "suit",
+        "fuel",
+        "helmet",
+        "map",
+        "correct"
+      ]
+    }
   },
-  "encoding": "MP3, mono, 24 kHz, 48 kbps",
   "scripts": {
     "hunt": "Look at the sample. Only the blue shape without a mark is the target. Tap matching shapes and leave the others.",
     "hunt-dual": "Look at both samples. Blue and red shapes without a mark are both targets. Tap either one and leave the others.",
@@ -115,5 +149,537 @@
     "stroop-1-yellow": "Look at the ink color. Tap only when the ink is yellow. Ignore what the word says.",
     "stroop-2-yellow": "Read the word. Tap only when it says yellow. Ignore the ink color.",
     "stroop-3-yellow": "Both the word and the ink color matter. Tap only when the word yellow is written in yellow ink."
+  },
+  "clips": {
+    "hunt-flex-dual": {
+      "sourceFile": "1.mp3",
+      "sourceStart": 0,
+      "sourceEnd": 8.587065,
+      "duration": 8.587075,
+      "alignmentCoverage": 1.0,
+      "rms": 0.056418,
+      "clippedSampleFraction": 0.0,
+      "sha256": "32414320b7ceac0a8d3f8435a4f787327f27ffeedde201806e1c8be68378ea19"
+    },
+    "hunt-moving-flex": {
+      "sourceFile": "1.mp3",
+      "sourceStart": 8.587065,
+      "sourceEnd": 17.9943,
+      "duration": 9.407234,
+      "alignmentCoverage": 1.0,
+      "rms": 0.056691,
+      "clippedSampleFraction": 0.0,
+      "sha256": "90caaad34e3abcc12938ddd1da49954a44c6ca5ddfdc552e514dc6a5cc2dec30"
+    },
+    "traffic-signs-route": {
+      "sourceFile": "1.mp3",
+      "sourceStart": 17.9943,
+      "sourceEnd": 29.17585,
+      "duration": 11.181542,
+      "alignmentCoverage": 1.0,
+      "rms": 0.057665,
+      "clippedSampleFraction": 0.0,
+      "sha256": "dd14dfd507a630fc31e193f08c0cb8c50d154adcb598c0c14b9ef4f35ac3a41c"
+    },
+    "space": {
+      "sourceFile": "1.mp3",
+      "sourceStart": 29.17585,
+      "sourceEnd": 38.9124,
+      "duration": 9.736553,
+      "alignmentCoverage": 1.0,
+      "rms": 0.05731,
+      "clippedSampleFraction": 0.0,
+      "sha256": "2493e2d674bbd2d2afd5448849fb3c7f7eaca7cf5a6d757601c3ae1cf1c9cc41"
+    },
+    "traffic": {
+      "sourceFile": "1.mp3",
+      "sourceStart": 38.9124,
+      "sourceEnd": 48.27475,
+      "duration": 9.362358,
+      "alignmentCoverage": 1.0,
+      "rms": 0.056375,
+      "clippedSampleFraction": 0.0,
+      "sha256": "21eb9f5f157d75e6f7df9971cca7ca2c3ea340979cbf1a2e86c94ab65e6d9d32"
+    },
+    "nback-3": {
+      "sourceFile": "1.mp3",
+      "sourceStart": 48.27475,
+      "sourceEnd": 57.84,
+      "duration": 9.565261,
+      "alignmentCoverage": 1.0,
+      "rms": 0.053011,
+      "clippedSampleFraction": 0.0,
+      "sha256": "ff9639d87cf8e9ec7ad438fbb666290b7f3f6c0f181f0aa5c98b9c93aa861de7"
+    },
+    "hunt": {
+      "sourceFile": "2.mp3",
+      "sourceStart": 0,
+      "sourceEnd": 7.62178,
+      "duration": 7.621769,
+      "alignmentCoverage": 1.0,
+      "rms": 0.060463,
+      "clippedSampleFraction": 0.0,
+      "sha256": "f0c3148412e4f559334363a9c0706c4c0d36089d066cdf7de44a16128227f07a"
+    },
+    "hunt-dual": {
+      "sourceFile": "2.mp3",
+      "sourceStart": 7.62178,
+      "sourceEnd": 16.06235,
+      "duration": 8.440567,
+      "alignmentCoverage": 1.0,
+      "rms": 0.057553,
+      "clippedSampleFraction": 0.0,
+      "sha256": "b2473af3c1de31f59f6cb14ccc41b02ce18926102d7447489f05b9124cdac623"
+    },
+    "hunt-moving": {
+      "sourceFile": "2.mp3",
+      "sourceStart": 16.06235,
+      "sourceEnd": 22.7449,
+      "duration": 6.68254,
+      "alignmentCoverage": 1.0,
+      "rms": 0.057206,
+      "clippedSampleFraction": 0.0,
+      "sha256": "d769d8cde6d8204a6a5212a2057d2cbdcc7a85e828986d6a6ea5900d1e2d4a93"
+    },
+    "traffic-signs": {
+      "sourceFile": "2.mp3",
+      "sourceStart": 22.7449,
+      "sourceEnd": 29.61045,
+      "duration": 6.865556,
+      "alignmentCoverage": 1.0,
+      "rms": 0.059265,
+      "clippedSampleFraction": 0.0,
+      "sha256": "84f42cd110e4151d03a60e5c8e0b7c32e7f046aa2dddeee9728cd621b6ea81e6"
+    },
+    "nback-1": {
+      "sourceFile": "2.mp3",
+      "sourceStart": 29.61045,
+      "sourceEnd": 37.70305,
+      "duration": 8.092608,
+      "alignmentCoverage": 1.0,
+      "rms": 0.054642,
+      "clippedSampleFraction": 0.0,
+      "sha256": "1dd0565093ba773b61942800082b748634a18d4446f76d881e40d37c7f7afbed"
+    },
+    "traffic-route": {
+      "sourceFile": "2.mp3",
+      "sourceStart": 37.70305,
+      "sourceEnd": 47.8261,
+      "duration": 10.123061,
+      "alignmentCoverage": 1.0,
+      "rms": 0.053935,
+      "clippedSampleFraction": 0.0,
+      "sha256": "33aae6738a0023544f64573ee3bfe9dcb6785bd6e016c292c0290676a71602ca"
+    },
+    "search-dual": {
+      "sourceFile": "2.mp3",
+      "sourceStart": 47.8261,
+      "sourceEnd": 56.48,
+      "duration": 8.6539,
+      "alignmentCoverage": 1.0,
+      "rms": 0.053168,
+      "clippedSampleFraction": 0.0,
+      "sha256": "3e07f59139d6f357634c5b8708448eec350d32f95da74afebad7abf17b961c4b"
+    },
+    "hunt-flex": {
+      "sourceFile": "3.mp3",
+      "sourceStart": 0,
+      "sourceEnd": 11.22025,
+      "duration": 11.220249,
+      "alignmentCoverage": 1.0,
+      "rms": 0.057073,
+      "clippedSampleFraction": 0.0,
+      "sha256": "1b909732ed7e8ad9e7911eb28611671d7aa26ebc01bd1e80ae58197eef214d55"
+    },
+    "hunt-moving-flex-dual": {
+      "sourceFile": "3.mp3",
+      "sourceStart": 11.22025,
+      "sourceEnd": 19.69285,
+      "duration": 8.472608,
+      "alignmentCoverage": 1.0,
+      "rms": 0.05637,
+      "clippedSampleFraction": 0.0,
+      "sha256": "400d14558665bb7482c686a3cc7dcddc53d786330febd93810e3477120202ffa"
+    },
+    "hunt-moving-dual": {
+      "sourceFile": "3.mp3",
+      "sourceStart": 19.69285,
+      "sourceEnd": 28.0298,
+      "duration": 8.336939,
+      "alignmentCoverage": 1.0,
+      "rms": 0.05815,
+      "clippedSampleFraction": 0.0,
+      "sha256": "248c9f253c3bd8ed12187bbf417dd3792d78a9e1655ad668019589e4ed630c88"
+    },
+    "stroop-3-green": {
+      "sourceFile": "3.mp3",
+      "sourceStart": 28.0298,
+      "sourceEnd": 34.9213,
+      "duration": 6.891497,
+      "alignmentCoverage": 1.0,
+      "rms": 0.059358,
+      "clippedSampleFraction": 0.0,
+      "sha256": "209ce349fed02a1651ba44196f74403b4e0d898553db691d07e8167e52927b6a"
+    },
+    "search": {
+      "sourceFile": "3.mp3",
+      "sourceStart": 34.9213,
+      "sourceEnd": 42.67185,
+      "duration": 7.750544,
+      "alignmentCoverage": 1.0,
+      "rms": 0.054479,
+      "clippedSampleFraction": 0.0,
+      "sha256": "a381b95ba721406763df805e199a9f5fc816c5193a05e3136507469bc64cbf9c"
+    },
+    "stroop-3-blue": {
+      "sourceFile": "3.mp3",
+      "sourceStart": 42.67185,
+      "sourceEnd": 49.4118,
+      "duration": 6.740658,
+      "alignmentCoverage": 1.0,
+      "rms": 0.056764,
+      "clippedSampleFraction": 0.0,
+      "sha256": "cf86964b8a9da9da4886b4ac923a68631babdd5975701e25d170490c0c63d9a8"
+    },
+    "stroop-3": {
+      "sourceFile": "3.mp3",
+      "sourceStart": 49.4118,
+      "sourceEnd": 56.08,
+      "duration": 6.668209,
+      "alignmentCoverage": 1.0,
+      "rms": 0.056685,
+      "clippedSampleFraction": 0.0,
+      "sha256": "08a57a3e75af8c507d063566a177bf380081b08f562fc2e58d03d7f024354c5d"
+    },
+    "ark": {
+      "sourceFile": "4.mp3",
+      "sourceStart": 0,
+      "sourceEnd": 9.59798,
+      "duration": 9.597982,
+      "alignmentCoverage": 1.0,
+      "rms": 0.057699,
+      "clippedSampleFraction": 0.0,
+      "sha256": "1650460a5a84796c2e9bd6f1ae488891e608c7ead4b8200ada7e4d03887974a0"
+    },
+    "nback-2": {
+      "sourceFile": "4.mp3",
+      "sourceStart": 9.59798,
+      "sourceEnd": 19.648,
+      "duration": 10.050023,
+      "alignmentCoverage": 1.0,
+      "rms": 0.052763,
+      "clippedSampleFraction": 0.0,
+      "sha256": "5159f837494c008b28fa538e10a6c709d54b81393d8ec4eb1443127b292ff99b"
+    },
+    "stroop-3-yellow": {
+      "sourceFile": "4.mp3",
+      "sourceStart": 19.648,
+      "sourceEnd": 26.6383,
+      "duration": 6.990295,
+      "alignmentCoverage": 1.0,
+      "rms": 0.062553,
+      "clippedSampleFraction": 0.0,
+      "sha256": "f2f2a6adbe97bac55aa1503925871a355f9d1592ea56ab78c515be1e7676c6ab"
+    },
+    "stroop-1-green": {
+      "sourceFile": "4.mp3",
+      "sourceStart": 26.6383,
+      "sourceEnd": 32.7936,
+      "duration": 6.155306,
+      "alignmentCoverage": 1.0,
+      "rms": 0.055785,
+      "clippedSampleFraction": 0.0,
+      "sha256": "e2d7a81a9bdad883555c443c9e928279e699cc792de3675364d0709212276f22"
+    },
+    "stroop-1-red": {
+      "sourceFile": "4.mp3",
+      "sourceStart": 32.7936,
+      "sourceEnd": 38.80495,
+      "duration": 6.011361,
+      "alignmentCoverage": 1.0,
+      "rms": 0.053429,
+      "clippedSampleFraction": 0.0,
+      "sha256": "0803a6bb9f4a0a4a547c47c3e2fcaae3fe5cda26062d9da80fe44efceb757c88"
+    },
+    "stroop-1-yellow": {
+      "sourceFile": "4.mp3",
+      "sourceStart": 38.80495,
+      "sourceEnd": 44.8108,
+      "duration": 6.00585,
+      "alignmentCoverage": 1.0,
+      "rms": 0.052694,
+      "clippedSampleFraction": 0.0,
+      "sha256": "a97bda8d12adbbbd2d6502d9d48fb834696ee79a226882b172c24687fd4c31b0"
+    },
+    "stroop-1": {
+      "sourceFile": "4.mp3",
+      "sourceStart": 44.8108,
+      "sourceEnd": 50.49695,
+      "duration": 5.686145,
+      "alignmentCoverage": 1.0,
+      "rms": 0.052323,
+      "clippedSampleFraction": 0.0,
+      "sha256": "0e9545406b021a6db0ea554149d9d1d27eab904ea6324a800b7b0afd8009516e"
+    },
+    "stroop-3-red": {
+      "sourceFile": "4.mp3",
+      "sourceStart": 50.49695,
+      "sourceEnd": 57.44,
+      "duration": 6.943039,
+      "alignmentCoverage": 1.0,
+      "rms": 0.056445,
+      "clippedSampleFraction": 0.0,
+      "sha256": "c7c3fcd3e171ac7036995c8af31895fb91041ff1140085d2a1a8ec4a21c39d7f"
+    },
+    "stroop-1-blue": {
+      "sourceFile": "5.mp3",
+      "sourceStart": 0,
+      "sourceEnd": 6.301315,
+      "duration": 6.301315,
+      "alignmentCoverage": 1.0,
+      "rms": 0.056572,
+      "clippedSampleFraction": 0.0,
+      "sha256": "fc855705c2149910e854bb97ce9ed449e4156e97c4b8518411d994f1c5b5d128"
+    },
+    "stroop-2-blue": {
+      "sourceFile": "5.mp3",
+      "sourceStart": 6.301315,
+      "sourceEnd": 11.84595,
+      "duration": 5.544626,
+      "alignmentCoverage": 1.0,
+      "rms": 0.055982,
+      "clippedSampleFraction": 0.0,
+      "sha256": "f3a63cf70849cdfbc024cc889d07a7e6f203daf3aef27620d85bc70f8229e129"
+    },
+    "stroop-2": {
+      "sourceFile": "5.mp3",
+      "sourceStart": 11.84595,
+      "sourceEnd": 17.36385,
+      "duration": 5.517891,
+      "alignmentCoverage": 1.0,
+      "rms": 0.053724,
+      "clippedSampleFraction": 0.0,
+      "sha256": "d34da7449c8054a36d1b3cd6d75722919d4e0e76ccf7f901f80506eb1079c7d0"
+    },
+    "stroop-2-yellow": {
+      "sourceFile": "5.mp3",
+      "sourceStart": 17.36385,
+      "sourceEnd": 22.89085,
+      "duration": 5.527007,
+      "alignmentCoverage": 1.0,
+      "rms": 0.052289,
+      "clippedSampleFraction": 0.0,
+      "sha256": "5e6b36d480fee2870b2b3377baa2ec86455d3bb6d1cbb9aca3c74ef2fbcf1495"
+    },
+    "not-needed": {
+      "sourceFile": "5.mp3",
+      "sourceStart": 22.89085,
+      "sourceEnd": 27.7256,
+      "duration": 4.834717,
+      "alignmentCoverage": 1.0,
+      "rms": 0.056122,
+      "clippedSampleFraction": 0.0,
+      "sha256": "93987cc68395e27d72ac98b801c6748257fc2ca8ca665ee54c1bc4bb1b146a52"
+    },
+    "retry": {
+      "sourceFile": "5.mp3",
+      "sourceStart": 27.7256,
+      "sourceEnd": 33.3518,
+      "duration": 5.62619,
+      "alignmentCoverage": 1.0,
+      "rms": 0.055236,
+      "clippedSampleFraction": 0.0,
+      "sha256": "b289e43acafc6f84ff32ac4a36c3ef1afab01b127f1d60c04e9b2eb62b65114c"
+    },
+    "stroop-0-blue": {
+      "sourceFile": "5.mp3",
+      "sourceStart": 33.3518,
+      "sourceEnd": 37.8779,
+      "duration": 4.5261,
+      "alignmentCoverage": 1.0,
+      "rms": 0.05585,
+      "clippedSampleFraction": 0.0,
+      "sha256": "3f599405a87d562af8ad234923e3317588196519dad83aa04277a2b0d3dab1dd"
+    },
+    "stroop-0-green": {
+      "sourceFile": "5.mp3",
+      "sourceStart": 37.8779,
+      "sourceEnd": 42.61915,
+      "duration": 4.741247,
+      "alignmentCoverage": 1.0,
+      "rms": 0.054271,
+      "clippedSampleFraction": 0.0,
+      "sha256": "ed42f9588b0afe3404ea32aa54e24f93bea5364e2cace951a28c5809e063a837"
+    },
+    "stroop-0-red": {
+      "sourceFile": "5.mp3",
+      "sourceStart": 42.61915,
+      "sourceEnd": 47.17205,
+      "duration": 4.552902,
+      "alignmentCoverage": 1.0,
+      "rms": 0.05303,
+      "clippedSampleFraction": 0.0,
+      "sha256": "68f0d25620cb0e54ab9941c7e92f27e5ef016775020501048588e9456d25c95f"
+    },
+    "stroop-0": {
+      "sourceFile": "5.mp3",
+      "sourceStart": 47.17205,
+      "sourceEnd": 51.7321,
+      "duration": 4.560045,
+      "alignmentCoverage": 1.0,
+      "rms": 0.054826,
+      "clippedSampleFraction": 0.0,
+      "sha256": "f8773f019146dc6e5b7d5f9824fef7cb566ff0ed030b117e83a2c078e1c9fd95"
+    },
+    "stroop-0-yellow": {
+      "sourceFile": "5.mp3",
+      "sourceStart": 51.7321,
+      "sourceEnd": 56.24,
+      "duration": 4.507891,
+      "alignmentCoverage": 1.0,
+      "rms": 0.052246,
+      "clippedSampleFraction": 0.0,
+      "sha256": "80e19bfa9e4213684a2d753851191b5a0b3aad92f85f34d6c6071e171f15ac09"
+    },
+    "stroop-2-green": {
+      "sourceFile": "6.mp3",
+      "sourceStart": 0,
+      "sourceEnd": 5.704725,
+      "duration": 5.704717,
+      "alignmentCoverage": 1.0,
+      "rms": 0.057612,
+      "clippedSampleFraction": 0.0,
+      "sha256": "f6f8a6ff553cf9f414363063270e92641f8f0e2968f49544b218ff39556e6382"
+    },
+    "stroop-2-red": {
+      "sourceFile": "6.mp3",
+      "sourceStart": 5.704725,
+      "sourceEnd": 11.6569,
+      "duration": 5.952177,
+      "alignmentCoverage": 1.0,
+      "rms": 0.054052,
+      "clippedSampleFraction": 0.0,
+      "sha256": "03cadb207ea0d7bb2f182b3ba24a99b6f7d988aaf6fecf03438579b276318024"
+    },
+    "water": {
+      "sourceFile": "6.mp3",
+      "sourceStart": 11.6569,
+      "sourceEnd": 15.02455,
+      "duration": 3.367642,
+      "alignmentCoverage": 1.0,
+      "rms": 0.06185,
+      "clippedSampleFraction": 0.0,
+      "sha256": "e156bf63febe59f82970ab3884aa4f587afa53c17cf132b961dd88f3898325be"
+    },
+    "food": {
+      "sourceFile": "6.mp3",
+      "sourceStart": 15.02455,
+      "sourceEnd": 17.9324,
+      "duration": 2.907846,
+      "alignmentCoverage": 1.0,
+      "rms": 0.057678,
+      "clippedSampleFraction": 0.0,
+      "sha256": "edce84ac60043db32afc0b2901bc680b78f8dfe126e16756aae1c5e9a04bc364"
+    },
+    "medkit": {
+      "sourceFile": "6.mp3",
+      "sourceStart": 17.9324,
+      "sourceEnd": 21.34335,
+      "duration": 3.410952,
+      "alignmentCoverage": 1.0,
+      "rms": 0.05664,
+      "clippedSampleFraction": 0.0,
+      "sha256": "d7296ec2e797c1f8395666a85576f20c135c0eae378f14327af7dd56a3417c8e"
+    },
+    "vest": {
+      "sourceFile": "6.mp3",
+      "sourceStart": 21.34335,
+      "sourceEnd": 24.74955,
+      "duration": 3.40619,
+      "alignmentCoverage": 1.0,
+      "rms": 0.05693,
+      "clippedSampleFraction": 0.0,
+      "sha256": "58b71e8917caba1e1b9989565af26caf1a7c50887586077effc08a9a7ae8527e"
+    },
+    "flashlight": {
+      "sourceFile": "6.mp3",
+      "sourceStart": 24.74955,
+      "sourceEnd": 27.7115,
+      "duration": 2.96195,
+      "alignmentCoverage": 1.0,
+      "rms": 0.055921,
+      "clippedSampleFraction": 0.0,
+      "sha256": "41f48bef90b32f3c1b1a078e1275a1f4323dc8704b3d09d8ce443ed2054bcb45"
+    },
+    "compass": {
+      "sourceFile": "6.mp3",
+      "sourceStart": 27.7115,
+      "sourceEnd": 31.5499,
+      "duration": 3.83839,
+      "alignmentCoverage": 1.0,
+      "rms": 0.055733,
+      "clippedSampleFraction": 0.0,
+      "sha256": "a716e71609a80eca8f917ce077c3de972a21e6778253de7ce4601a0c98cbe73f"
+    },
+    "oxygen": {
+      "sourceFile": "6.mp3",
+      "sourceStart": 31.5499,
+      "sourceEnd": 36.0276,
+      "duration": 4.47771,
+      "alignmentCoverage": 1.0,
+      "rms": 0.056536,
+      "clippedSampleFraction": 0.0,
+      "sha256": "1a554e6dd6430b93bf5d9cde8861425325e9d9c06b64402c30360733a5e1e2f5"
+    },
+    "suit": {
+      "sourceFile": "6.mp3",
+      "sourceStart": 36.0276,
+      "sourceEnd": 39.7984,
+      "duration": 3.770794,
+      "alignmentCoverage": 1.0,
+      "rms": 0.05643,
+      "clippedSampleFraction": 0.0,
+      "sha256": "62699f87b7943b1f96328d64e0f6b5236e93ff284f24ca754e61e21c15635909"
+    },
+    "fuel": {
+      "sourceFile": "6.mp3",
+      "sourceStart": 39.7984,
+      "sourceEnd": 42.625,
+      "duration": 2.826599,
+      "alignmentCoverage": 1.0,
+      "rms": 0.052732,
+      "clippedSampleFraction": 0.0,
+      "sha256": "6b6e62ba4943dd52f869100a5d9b161f3a55f6cd5b8a47163b0a4342bf7dc879"
+    },
+    "helmet": {
+      "sourceFile": "6.mp3",
+      "sourceStart": 42.625,
+      "sourceEnd": 45.21725,
+      "duration": 2.592245,
+      "alignmentCoverage": 1.0,
+      "rms": 0.0539,
+      "clippedSampleFraction": 0.0,
+      "sha256": "8aaf072d1941573b6cb015e8b417040bfb97625d2efa3a8a6edeeb6674dde08f"
+    },
+    "map": {
+      "sourceFile": "6.mp3",
+      "sourceStart": 45.21725,
+      "sourceEnd": 48.07635,
+      "duration": 2.859093,
+      "alignmentCoverage": 1.0,
+      "rms": 0.054023,
+      "clippedSampleFraction": 0.0,
+      "sha256": "bc3cc2699df144894821529d2b2331c3bcc90a95a2854a64392c5461cfc83a72"
+    },
+    "correct": {
+      "sourceFile": "6.mp3",
+      "sourceStart": 48.07635,
+      "sourceEnd": 52.32,
+      "duration": 4.243651,
+      "alignmentCoverage": 1.0,
+      "rms": 0.060658,
+      "clippedSampleFraction": 0.0,
+      "sha256": "db663f83603074857907bd87fc13665b7d784e7ab6b3d6c20673505218128350"
+    }
   }
 }
