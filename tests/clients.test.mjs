@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { activeProfile, addRecord, CLIENTS_KEY, deleteProfile, escapeHTML, latestBaseline, profileRecords, readClients, validateProfile, writeClients } from '../src/core/clients.js';
 import { comparableRecords, observations, performanceOf, progressText, recommendLevel, needsMorePractice } from '../src/core/reports.js';
 
-const result = overrides => ({ gameId:'traffic',level:'easy',variant:'standard',score:30,maxScore:30,hits:30,correctResponses:150,correctRejections:120,omissions:0,falseSelections:0,meanReactionMs:320,longestStreak:150,durationMs:150000,completed:true,finishedAt:'2026-10-27T10:00:00Z',outcomes:[],...overrides });
+const result = overrides => ({ experienceVersion:4,locale:'fa',timing:{visibleMs:800,intervalMs:1500},gameId:'traffic',level:'easy',variant:'standard',score:30,maxScore:30,hits:30,correctResponses:150,correctRejections:120,omissions:0,falseSelections:0,meanReactionMs:320,longestStreak:150,durationMs:150000,completed:true,finishedAt:'2026-10-27T10:00:00Z',outcomes:[],...overrides });
 const clients = () => ({version:1,activeId:'a',profiles:[{id:'a',firstName:'سارا',lastName:'الف'},{id:'b',firstName:'علی',lastName:'ب'}],records:[]});
 test('profile validation requires proposal fields, rejects invalid dates, and preserves optional concerns',()=>{
   const input={firstName:' سارا ',lastName:'احمدی',birthDate:'2016-01-01',grade:'پایهٔ ۳',school:'امید',concerns:''};

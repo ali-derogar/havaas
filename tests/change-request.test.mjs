@@ -25,9 +25,9 @@ test('new reaction exposure and response windows gradually change at every diffi
 test('the server owns experience versions, accepts old runs, and rejects shortened or out-of-window new runs',()=>{
  for(const gameId of ['hunt','traffic','nback','stroop','search','ark','space'])for(const level of Object.keys(LEVELS)){
   const settings={...normalizeSettings({gameId,theme:'bird',experienceVersion:1,pacedRounds:true}),seed:42,level};
-  assert.equal(settings.experienceVersion,3);if(gameId==='search')assert.equal(settings.pacedRounds,false);
+  assert.equal(settings.experienceVersion,4);if(gameId==='search')assert.equal(settings.pacedRounds,false);
   const run={id:'current',kind:'training',settings},payload=playSession(run);
-  const result=canonicalResult(run,{...payload,experienceVersion:999});assert.equal(result.experienceVersion,3);assert.equal(summaryResult(result).experienceVersion,3);
+  const result=canonicalResult(run,{...payload,experienceVersion:999});assert.equal(result.experienceVersion,4);assert.equal(summaryResult(result).experienceVersion,4);
   if(['hunt','traffic','nback','stroop'].includes(gameId)){
    assert.throws(()=>canonicalResult(run,{...payload,durationMs:payload.durationMs-10}));
    const forged=structuredClone(payload);forged.outcomes.find(o=>o.response).reactionMs=reactionTiming(settings).intervalMs;assert.throws(()=>canonicalResult(run,forged));
@@ -51,9 +51,9 @@ test('Stroop notices advance automatically after three unpaused seconds and neve
  }
  assert.equal(notices,3);assert.equal(s.outcomes.length,150);assert.equal(s.result.hits,30);assert.equal(s.result.durationMs,225000);
 });
-test('main hunting crosses every block without a gate or review',()=>{
+test('legacy main hunting crosses every block without a gate or review',()=>{
  for(const theme of ['star','bird']){
-  let now=0;const s=FACTORIES.hunt({theme,reviewEnabled:true,now:()=>now,random:seededRandom(42)});
+  let now=0;const s=FACTORIES.hunt({theme,experienceVersion:3,reviewEnabled:true,now:()=>now,random:seededRandom(42)});
   while(!s.done){now+=100;if(s.current.target)s.respond();now+=s.intervalMs-100;s.tick();assert.equal(s.gate,false);assert.equal(s.review,null);}
   assert.equal(s.result.hits,30);assert.equal(s.outcomes.length,150);
  }

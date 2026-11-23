@@ -79,7 +79,7 @@ test('saved revision-five seeds still reconstruct the original fields and are co
 test('each spoken instruction has a local audio file and a matching visual preparation',async()=>{
  for(const key of Object.keys(GUIDANCE)){const data=await readFile(new URL(`../assets/audio/${key}.mp3`,import.meta.url));assert.ok(data.length>1000,key);}
  const cases=[{gameId:'hunt',theme:'bird',targetCount:2},{gameId:'search',targetCount:2},{gameId:'nback',level:'hard'},{gameId:'traffic',trafficMode:'signs'},{gameId:'stroop',phase:3}];
- assert.deepEqual(cases.map(guidanceKey),['hunt-moving-dual','search-dual','nback-3','traffic-signs','stroop-3']);
+ assert.deepEqual(cases.map(guidanceKey),['hunt-moving-flex-dual','search-dual','nback-3','traffic-signs-route','stroop-3-yellow']);
  for(const gameId of ['hunt','traffic','nback','stroop','ark','space','search']){
   const s=FACTORIES[gameId]({level:'easy',practice:true,random:seededRandom(42)});assert.match(preparationView(s),/data-action="listen-guide"/);assert.match(preparationView(s),/companion-guide/);
  }

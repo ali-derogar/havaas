@@ -1,3 +1,4 @@
+import {t as uiText} from './i18n.js';
 import {GAMES,GAME_PROTOCOLS,LEVELS} from './config.js';
 import {TIMING_VARIANTS,defaultTiming,validateTiming} from './game-timing.js';
 
@@ -9,12 +10,12 @@ export function createProfileSettings(level='easy'){
 }
 export function validateProfileSettings(settings){
  const catalog=profileCatalog();
- if(!Array.isArray(settings)||settings.length!==catalog.length)throw Error('تنظیمات همهٔ بازی‌ها و حالت‌ها را کامل کنید.');
+ if(!Array.isArray(settings)||settings.length!==catalog.length)throw Error(uiText('تنظیمات همهٔ بازی‌ها و حالت‌ها را کامل کنید.'));
  return catalog.map(key=>{
   const matches=settings.filter(entry=>entry&&entry.gameId===key.gameId&&entry.variant===key.variant);
-  if(matches.length!==1)throw Error('بازی یا حالت تکراری یا ناقص است.');
+  if(matches.length!==1)throw Error(uiText('بازی یا حالت تکراری یا ناقص است.'));
   const entry=matches[0],families=profileFamilies(key.gameId);
-  if(entry.protocolVersion!==key.protocolVersion||!Object.hasOwn(LEVELS,entry.level)||!entry.timings||typeof entry.timings!=='object'||Object.keys(entry.timings).length!==families.length)throw Error('سطح، نسخهٔ بازی یا گروه زمان‌بندی معتبر نیست.');
+  if(entry.protocolVersion!==key.protocolVersion||!Object.hasOwn(LEVELS,entry.level)||!entry.timings||typeof entry.timings!=='object'||Object.keys(entry.timings).length!==families.length)throw Error(uiText('سطح، نسخهٔ بازی یا گروه زمان‌بندی معتبر نیست.'));
   return {...key,level:entry.level,timings:Object.fromEntries(families.map(family=>[family,validateTiming(key.gameId,entry.timings[family])]))};
  });
 }

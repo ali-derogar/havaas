@@ -45,7 +45,7 @@ test('all thirty correct signals reach the finish line once; red responses never
   let now=0;const session=FACTORIES.traffic({trafficMode,level:'hard',random:seededRandom(21),now:()=>now});let previous=0;
   while(!session.done){now+=100;if(session.current.target)session.respond();assert.ok(trafficProgress(session)>=previous);previous=trafficProgress(session);now+=900;session.tick();assert.ok(trafficProgress(session)>=previous);previous=trafficProgress(session);}
   assert.equal(previous,1);assert.equal(session.metrics.hits,30);assert.equal(session.result.outcomes.length,150);
-  const {document}=parseHTML(trafficRoad(session)),car=document.querySelector('.road-car');assert.equal(car.getAttribute('transform'),'translate(375 0)');assert.ok(document.querySelector('.road-destination.arrived'));
+  const {document}=parseHTML(trafficRoad(session)),car=document.querySelector('.road-car');assert.equal(car.getAttribute('transform'),'translate(562.5 0)');assert.ok(document.querySelector('.road-destination.arrived'));
   const wrong=FACTORIES.traffic({trafficMode,random:seededRandom(42),now:()=>0});wrong.index=wrong.trials.findIndex(trial=>!trial.target);wrong.respond();assert.equal(trafficProgress(wrong),0);
  }
 });

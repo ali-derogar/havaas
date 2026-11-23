@@ -1,3 +1,4 @@
+import {lt,t as uiText} from './i18n.js';
 // Keep route geometry independent of the response engine and its random stream.
 export const TRAFFIC_TRAVEL=375;
 const svg=(body,box,cls)=>`<svg class="${cls}" viewBox="${box}" xmlns="http://www.w3.org/2000/svg" fill="none" aria-hidden="true">${body}</svg>`;
@@ -18,25 +19,27 @@ export function trafficCarBody(){
  </g>`;
 }
 
-export function trafficRoadArt(progress=0){
+export function trafficRoadArt(progress=0,{routeVersion=0,practice=false}={}){
+ const travel=routeVersion?TRAFFIC_TRAVEL*1.5:TRAFFIC_TRAVEL,extra=travel-TRAFFIC_TRAVEL,width=620+extra;
  const position=Math.max(0,Math.min(1,progress));
- return `<svg class="traffic-road traffic-journey-art" viewBox="0 0 620 300" xmlns="http://www.w3.org/2000/svg" fill="none" data-progress="${position}" aria-label="مسیر ماشین تا پرچم مقصد"><image href="/assets/worlds/rainbow-town.svg" width="620" height="300" preserveAspectRatio="xMidYMid slice"/>
+ return lt`<svg class="traffic-road traffic-journey-art" viewBox="0 0 ${width} 300" data-travel="${travel}" xmlns="http://www.w3.org/2000/svg" fill="none" data-progress="${position}" aria-label="مسیر ماشین تا پرچم مقصد"><image href="/assets/worlds/rainbow-town.svg" width="${width}" height="300" preserveAspectRatio="xMidYMid slice"/>
   <g class="town-cloud-drift" fill="#ffffffb0" transform="translate(0 0)"><path d="M195 43q-8-12 7-16 4-16 19-9 16-10 25 7 16-1 18 18z"/></g>
-  <g transform="translate(0 175)"><path d="M0 29h620v69H0z" fill="#526b83"/><path d="M0 29h620M0 98h620" stroke="#eef6de" stroke-width="4"/><path d="M0 63h620" stroke="#f6efcb" stroke-width="3" stroke-dasharray="25 18"/>
-   <path d="M0 20h620m-620 87h620" stroke="#9fc6ab" stroke-width="5"/>
-   <g class="road-destination ${position===1?'arrived':''}"><path d="M510 31h10v65h-10z" fill="#fff5cf"/><path d="M510 31h5v8h-5zm5 8h5v8h-5zm-5 8h5v8h-5zm5 8h5v8h-5zm-5 8h5v8h-5zm5 8h5v8h-5zm-5 8h5v8h-5zm5 8h5v8h-5z" fill="#344963"/>
+  <g transform="translate(0 175)"><path d="M0 29h${width}v69H0z" fill="#526b83"/><path d="M0 29h${width}M0 98h${width}" stroke="#eef6de" stroke-width="4"/><path d="M0 63h${width}" stroke="#f6efcb" stroke-width="3" stroke-dasharray="25 18"/>
+   <path d="M0 20h${width}m-${width} 87h${width}" stroke="#9fc6ab" stroke-width="5"/>
+   ${routeVersion?(practice?[.5]:[8/30,16/30,24/30]).map(point=>`<g class="road-bump" transform="translate(${144+travel*point} 0)"><path d="M-17 93q17-26 34 0z" fill="#e5b745" stroke="#354d60" stroke-width="2"/><path d="m-8 89 6-7m4 7 6-7" stroke="#354d60" stroke-width="3"/></g>`).join(''):''}
+   <g transform="translate(${extra} 0)" class="road-destination ${position===1?'arrived':''}"><path d="M510 31h10v65h-10z" fill="#fff5cf"/><path d="M510 31h5v8h-5zm5 8h5v8h-5zm-5 8h5v8h-5zm5 8h5v8h-5zm-5 8h5v8h-5zm5 8h5v8h-5zm-5 8h5v8h-5zm5 8h5v8h-5z" fill="#344963"/>
     <path d="M548-14v98" stroke="#355b6e" stroke-width="3"/><path class="destination-pennant" d="M550-14h38v27h-38z" fill="#ffdc68" stroke="#d1a645" stroke-width="1.5"/><path d="M551-13h9v9h-9zm18 0h9v9h-9zm-9 9h9v9h-9zm18 0h9v9h-9zm-27 9h9v7h-9zm18 0h9v7h-9z" fill="#3c6075"/>
     <g class="destination-star" transform="translate(570 -34)"><path d="m0-12 4 8 9 1-7 6 2 9-8-4-8 4 2-9-7-6 9-1z" fill="#ffda53" stroke="#d5a736" stroke-width="1.5"/></g>
    </g>
-   <g class="road-car" transform="translate(${TRAFFIC_TRAVEL*position} 0)">${trafficCarBody()}</g>
+   <g class="road-car" transform="translate(${travel*position} 0)">${trafficCarBody()}</g>
   </g></svg>`;
 }
 
 export function trafficCover({lazy=false}={}){
- return `<div class="illustrated-cover training-cover illustrated-traffic traffic-cover" data-game="traffic"><img src="/assets/worlds/rainbow-town.svg" alt="" aria-hidden="true" loading="${lazy?'lazy':'eager'}" decoding="async">${svg(`<path d="M0 149h340v43H0z" fill="#5c7890"/><path d="M0 169h340" stroke="#fff4d3" stroke-width="2" stroke-dasharray="17 12"/><g transform="translate(14 56) scale(1.45)">${trafficCarBody()}</g><g transform="translate(266 33)"><path d="M0 84v49" stroke="#4c7585" stroke-width="6"/><rect x="-22" width="44" height="89" rx="15" fill="#32516c" stroke="#759ba7" stroke-width="2"/><circle cy="18" r="11" fill="#607689"/><circle cy="44" r="11" fill="#607689"/><circle cy="69" r="11" fill="#40d29e"/><path d="m-5 69 4 4 7-9" stroke="#c4ffec" stroke-width="2"/></g>`,'0 0 340 200','traffic-cover-art')}<span class="traffic-cover-label" aria-hidden="true">با دقت، تا مقصد</span></div>`;
+ return lt`<div class="illustrated-cover training-cover illustrated-traffic traffic-cover" data-game="traffic"><img src="/assets/worlds/rainbow-town.svg" alt="" aria-hidden="true" loading="${lazy?'lazy':'eager'}" decoding="async">${svg(`<path d="M0 149h340v43H0z" fill="#5c7890"/><path d="M0 169h340" stroke="#fff4d3" stroke-width="2" stroke-dasharray="17 12"/><g transform="translate(14 56) scale(1.45)">${trafficCarBody()}</g><g transform="translate(266 33)"><path d="M0 84v49" stroke="#4c7585" stroke-width="6"/><rect x="-22" width="44" height="89" rx="15" fill="#32516c" stroke="#759ba7" stroke-width="2"/><circle cy="18" r="11" fill="#607689"/><circle cy="44" r="11" fill="#607689"/><circle cy="69" r="11" fill="#40d29e"/><path d="m-5 69 4 4 7-9" stroke="#c4ffec" stroke-width="2"/></g>`,'0 0 340 200','traffic-cover-art')}<span class="traffic-cover-label" aria-hidden="true">با دقت، تا مقصد</span></div>`;
 }
 
-export function trafficOutcome(progress){
+export function trafficOutcome(progress,session={}){
  const arrived=progress>=1;
- return `<div class="traffic-outcome ${arrived?'arrived':'journey-ended'}">${trafficRoadArt(progress)}${arrived?'<span class="traffic-arrival-badge" aria-label="به مقصد رسیدی">★</span>':''}</div>`;
+ return `<div class="traffic-outcome ${arrived?'arrived':'journey-ended'}">${trafficRoadArt(progress,{routeVersion:session.trafficRouteVersion,practice:session.practice})}${arrived?uiText('<span class="traffic-arrival-badge" aria-label="به مقصد رسیدی">★</span>'):''}</div>`;
 }

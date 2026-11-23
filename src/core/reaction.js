@@ -1,3 +1,4 @@
+import {t as uiText} from '../i18n.js';
 import { Session, ActiveClock } from './session.js';
 import { RULE_NOTICE_MS } from '../config.js';
 
@@ -25,7 +26,7 @@ export class ReactionSession extends Session {
     const old = this.current;
     if (old.scored !== false) this.record(old.target, !!this.response, this.response?.reactionMs ?? null, { phase: old.phase, stimulus: old.stimulus, ...(this.response ? { selectedTarget: this.response.selectedTarget, selectedStimulus: this.response.selectedStimulus } : {}) });
     if (old.scored !== false && !this.response) {
-      this.feedback = old.target ? 'هدف از دست رفت؛ در نوبت بعد با دقت نگاه کن.' : 'آفرین! به محرک غیرهدف پاسخ ندادی.';
+      this.feedback = old.target ? uiText('هدف از دست رفت؛ در نوبت بعد با دقت نگاه کن.') : uiText('آفرین! به محرک غیرهدف پاسخ ندادی.');
       this.feedbackKind = old.target ? 'wrong' : 'good';
     }
     if (old.scored !== false && this.reviewEnabled) {
@@ -38,9 +39,10 @@ export class ReactionSession extends Session {
     if(this.index>=this.trials.length){this.finish();return;}
     this.onset=this.clock.elapsed;
     if(old.phase!==this.current.phase){
-      if(this.experienceVersion>=2&&!this.practice&&this.gameId==='hunt')return;
+      this.onPhaseChange?.(this.current.phase);
+      if(this.experienceVersion>=2&&this.experienceVersion<4&&!this.practice&&this.gameId==='hunt')return;
       this.gate=true;this.clock.pause();
-      if(this.experienceVersion>=2&&!this.practice&&this.gameId==='stroop')this.transitionClock=new ActiveClock(this.clock.now);
+      if(!this.practice&&((this.experienceVersion>=2&&this.gameId==='stroop')||(this.experienceVersion>=4&&this.gameId==='hunt')))this.transitionClock=new ActiveClock(this.clock.now);
     }
   }
   continueReview(){if(!this.review)return;this.review=null;this.clock.resume();this.advanceTrial();}
@@ -51,7 +53,7 @@ export class ReactionSession extends Session {
     if (this.response || this.current.scored === false) return null;
     this.response = { reactionMs: this.clock.elapsed - this.onset, selectedTarget, selectedStimulus };
     const correct = this.current.target && selectedTarget;
-    this.feedback = correct ? 'آفرین، درست بود!' : 'این یکی هدف نبود؛ با دقت ادامه بده.';
+    this.feedback = correct ? uiText('آفرین، درست بود!') : uiText('این یکی هدف نبود؛ با دقت ادامه بده.');
     this.feedbackKind = correct ? 'good' : 'wrong';
     return correct;
   }

@@ -5,7 +5,7 @@ import {clientWelcome,adminOverview,adminUsersView,userDetailsView,registrationV
 import {GAMES,GAME_PROTOCOLS} from '../src/config.js';
 const profile={id:'client',ownerUserId:'user',firstName:'سارا',lastName:'آزمون',birthDate:'2016-01-01',grade:'پایهٔ ۳',school:'امید',concerns:'clinical-secret'};
 const user={id:'user',name:'سارا آزمون',username:'sara',role:'user',active:true,sessionCount:0};
-const baseline=game=>({id:game.id,profileId:profile.id,kind:'baseline',result:{gameId:game.id,level:'easy',variant:'standard',protocolVersion:GAME_PROTOCOLS[game.id],finishedAt:'2026-01-01T12:00:00Z',completed:true}});
+const baseline=game=>({id:game.id,profileId:profile.id,kind:'baseline',result:{experienceVersion:4,locale:'fa',gameId:game.id,level:'easy',variant:'standard',protocolVersion:GAME_PROTOCOLS[game.id],finishedAt:'2026-01-01T12:00:00Z',completed:true}});
 const dom=html=>parseHTML(html).document;
 test('client dashboard continues the first unfinished assessment and never renders clinical notes',()=>{
  const html=clientWelcome({activeId:profile.id,profiles:[profile],records:GAMES.slice(0,3).map(baseline)},user),document=dom(html);

@@ -1,6 +1,6 @@
 {
   "generator": "FFmpeg segmentation of user-provided recordings",
-  "revision": 3,
+  "revision": 4,
   "voice": "user-provided-recordings",
   "encoding": "MP3, mono, 44.1 kHz, 128 kbps",
   "recordings": {
@@ -213,6 +213,140 @@
     "fuel": "سفینه برای حرکت، سوخت لازم داره.",
     "helmet": "کلاه فضایی، از سرمون محافظت می‌کنه.",
     "map": "با نقشهٔ فضایی، مسیر سفر رو پیدا می‌کنیم.",
-    "not-needed": "این وسیله برای سفرمون لازم نیست. دیدیش؟ دست نگه دار."
+    "not-needed": "این وسیله برای سفرمون لازم نیست. دیدیش؟ دست نگه دار.",
+    "hunt-flex": "نمونهٔ هدف را نگاه کن. فقط شکل و رنگی را بزن که دقیقاً مثل نمونه است. در هر بخش، رنگ هدف عوض می‌شود؛ نمونهٔ تازه را خوب ببین.",
+    "hunt-flex-dual": "هر دو نمونه هدف هستند. به رنگ و علامت هر دو دقت کن. در شروع بخش بعد، دو نمونهٔ تازه را نگاه کن.",
+    "hunt-moving-flex": "نمونه را نگاه کن. شکل و رنگ هدف را بین شکل‌های متحرک پیدا کن و قبل از رفتنش بزن. در بخش بعد رنگ هدف عوض می‌شود.",
+    "hunt-moving-flex-dual": "هر دو نمونه را بین شکل‌های متحرک پیدا کن. قبل از رفتنشان بزن. در هر بخش رنگ نمونه‌ها عوض می‌شود.",
+    "traffic-route": "سبز شد؟ حرکت کن. قرمز شد؟ صبر کن و هیچ دکمه‌ای نزن. روی دست‌انداز توقف کن؛ برای حرکت دوباره، به سبز بعدی پاسخ بده.",
+    "traffic-signs-route": "فلش یک‌طرفه را دیدی؟ حرکت کن. ورود ممنوع را دیدی؟ صبر کن. روی دست‌انداز بایست و برای حرکت دوباره منتظر فلش تازه باش.",
+    "stroop-0-blue": "دنبال دایرهٔ آبی بگرد. فقط اگر دایره آبی بود، بزن.",
+    "stroop-1-blue": "فقط رنگ نوشته مهم است. اگر رنگ نوشته آبی بود، بزن. معنی کلمه مهم نیست.",
+    "stroop-2-blue": "فقط خود کلمه مهم است. اگر کلمهٔ آبی را دیدی، بزن. رنگ نوشته مهم نیست.",
+    "stroop-3-blue": "هم رنگ و هم کلمه مهم است. فقط اگر کلمهٔ آبی با رنگ آبی نوشته شده بود، بزن.",
+    "stroop-0-green": "دنبال دایرهٔ سبز بگرد. فقط اگر دایره سبز بود، بزن.",
+    "stroop-1-green": "فقط رنگ نوشته مهم است. اگر رنگ نوشته سبز بود، بزن. معنی کلمه مهم نیست.",
+    "stroop-2-green": "فقط خود کلمه مهم است. اگر کلمهٔ سبز را دیدی، بزن. رنگ نوشته مهم نیست.",
+    "stroop-3-green": "هم رنگ و هم کلمه مهم است. فقط اگر کلمهٔ سبز با رنگ سبز نوشته شده بود، بزن.",
+    "stroop-0-red": "دنبال دایرهٔ قرمز بگرد. فقط اگر دایره قرمز بود، بزن.",
+    "stroop-1-red": "فقط رنگ نوشته مهم است. اگر رنگ نوشته قرمز بود، بزن. معنی کلمه مهم نیست.",
+    "stroop-2-red": "فقط خود کلمه مهم است. اگر کلمهٔ قرمز را دیدی، بزن. رنگ نوشته مهم نیست.",
+    "stroop-3-red": "هم رنگ و هم کلمه مهم است. فقط اگر کلمهٔ قرمز با رنگ قرمز نوشته شده بود، بزن.",
+    "stroop-0-yellow": "دنبال دایرهٔ زرد بگرد. فقط اگر دایره زرد بود، بزن.",
+    "stroop-1-yellow": "فقط رنگ نوشته مهم است. اگر رنگ نوشته زرد بود، بزن. معنی کلمه مهم نیست.",
+    "stroop-2-yellow": "فقط خود کلمه مهم است. اگر کلمهٔ زرد را دیدی، بزن. رنگ نوشته مهم نیست.",
+    "stroop-3-yellow": "هم رنگ و هم کلمه مهم است. فقط اگر کلمهٔ زرد با رنگ زرد نوشته شده بود، بزن."
+  },
+  "generated": {
+    "hunt-flex": {
+      "voice": "fa-IR-DilaraNeural",
+      "locale": "fa",
+      "encoding": "MP3, mono, 24 kHz, 48 kbps"
+    },
+    "hunt-flex-dual": {
+      "voice": "fa-IR-DilaraNeural",
+      "locale": "fa",
+      "encoding": "MP3, mono, 24 kHz, 48 kbps"
+    },
+    "hunt-moving-flex": {
+      "voice": "fa-IR-DilaraNeural",
+      "locale": "fa",
+      "encoding": "MP3, mono, 24 kHz, 48 kbps"
+    },
+    "hunt-moving-flex-dual": {
+      "voice": "fa-IR-DilaraNeural",
+      "locale": "fa",
+      "encoding": "MP3, mono, 24 kHz, 48 kbps"
+    },
+    "traffic-route": {
+      "voice": "fa-IR-DilaraNeural",
+      "locale": "fa",
+      "encoding": "MP3, mono, 24 kHz, 48 kbps"
+    },
+    "traffic-signs-route": {
+      "voice": "fa-IR-DilaraNeural",
+      "locale": "fa",
+      "encoding": "MP3, mono, 24 kHz, 48 kbps"
+    },
+    "stroop-0-blue": {
+      "voice": "fa-IR-DilaraNeural",
+      "locale": "fa",
+      "encoding": "MP3, mono, 24 kHz, 48 kbps"
+    },
+    "stroop-1-blue": {
+      "voice": "fa-IR-DilaraNeural",
+      "locale": "fa",
+      "encoding": "MP3, mono, 24 kHz, 48 kbps"
+    },
+    "stroop-2-blue": {
+      "voice": "fa-IR-DilaraNeural",
+      "locale": "fa",
+      "encoding": "MP3, mono, 24 kHz, 48 kbps"
+    },
+    "stroop-3-blue": {
+      "voice": "fa-IR-DilaraNeural",
+      "locale": "fa",
+      "encoding": "MP3, mono, 24 kHz, 48 kbps"
+    },
+    "stroop-0-green": {
+      "voice": "fa-IR-DilaraNeural",
+      "locale": "fa",
+      "encoding": "MP3, mono, 24 kHz, 48 kbps"
+    },
+    "stroop-1-green": {
+      "voice": "fa-IR-DilaraNeural",
+      "locale": "fa",
+      "encoding": "MP3, mono, 24 kHz, 48 kbps"
+    },
+    "stroop-2-green": {
+      "voice": "fa-IR-DilaraNeural",
+      "locale": "fa",
+      "encoding": "MP3, mono, 24 kHz, 48 kbps"
+    },
+    "stroop-3-green": {
+      "voice": "fa-IR-DilaraNeural",
+      "locale": "fa",
+      "encoding": "MP3, mono, 24 kHz, 48 kbps"
+    },
+    "stroop-0-red": {
+      "voice": "fa-IR-DilaraNeural",
+      "locale": "fa",
+      "encoding": "MP3, mono, 24 kHz, 48 kbps"
+    },
+    "stroop-1-red": {
+      "voice": "fa-IR-DilaraNeural",
+      "locale": "fa",
+      "encoding": "MP3, mono, 24 kHz, 48 kbps"
+    },
+    "stroop-2-red": {
+      "voice": "fa-IR-DilaraNeural",
+      "locale": "fa",
+      "encoding": "MP3, mono, 24 kHz, 48 kbps"
+    },
+    "stroop-3-red": {
+      "voice": "fa-IR-DilaraNeural",
+      "locale": "fa",
+      "encoding": "MP3, mono, 24 kHz, 48 kbps"
+    },
+    "stroop-0-yellow": {
+      "voice": "fa-IR-DilaraNeural",
+      "locale": "fa",
+      "encoding": "MP3, mono, 24 kHz, 48 kbps"
+    },
+    "stroop-1-yellow": {
+      "voice": "fa-IR-DilaraNeural",
+      "locale": "fa",
+      "encoding": "MP3, mono, 24 kHz, 48 kbps"
+    },
+    "stroop-2-yellow": {
+      "voice": "fa-IR-DilaraNeural",
+      "locale": "fa",
+      "encoding": "MP3, mono, 24 kHz, 48 kbps"
+    },
+    "stroop-3-yellow": {
+      "voice": "fa-IR-DilaraNeural",
+      "locale": "fa",
+      "encoding": "MP3, mono, 24 kHz, 48 kbps"
+    }
   }
 }

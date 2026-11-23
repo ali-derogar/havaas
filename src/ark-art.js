@@ -1,3 +1,4 @@
+import {lt} from './i18n.js';
 // Original, resolution-independent artwork for the Hope Shore adventure.
 // Keep this module free of game state: illustration must never consume the game RNG.
 const svg = (body, box, cls) => `<svg class="${cls}" viewBox="${box}" xmlns="http://www.w3.org/2000/svg" fill="none" aria-hidden="true">${body}</svg>`;
@@ -47,7 +48,7 @@ export function arkAtmosphere() {
 }
 
 export function arkCover({lazy=false}={}) {
-  return `<div class="illustrated-cover training-cover illustrated-ark ark-cover" data-game="ark"><img src="/assets/worlds/hope-shore.svg" alt="" aria-hidden="true" loading="${lazy?'lazy':'eager'}" decoding="async">${arkAtmosphere()}<span class="ark-cover-boat">${arkBoatArt()}</span><span class="ark-cover-label" aria-hidden="true">ساحل امید</span></div>`;
+  return lt`<div class="illustrated-cover training-cover illustrated-ark ark-cover" data-game="ark"><img src="/assets/worlds/hope-shore.svg" alt="" aria-hidden="true" loading="${lazy?'lazy':'eager'}" decoding="async">${arkAtmosphere()}<span class="ark-cover-boat">${arkBoatArt()}</span><span class="ark-cover-label" aria-hidden="true">ساحل امید</span></div>`;
 }
 
 export function arkOutcomeArt(completed) {

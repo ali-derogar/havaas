@@ -1,3 +1,5 @@
+import {colorName} from './i18n.js';
+import {t as uiText} from './i18n.js';
 import { COLORS, COLOR_NAMES } from './config.js';
 import { arkBoatArt, arkOutcomeArt } from './ark-art.js';
 import { spaceShipArt, spaceOutcomeArt } from './space-art.js';
@@ -61,7 +63,7 @@ export function huntBackground(kind,theme='star') {
 export function symbol(stimulus, cls = '') {
   const { shape = 'star', color = 'blue', detail = 0, word } = stimulus;
   const fill = COLORS[color] || color;
-  if (shape === 'word') return `<span class="word-stimulus ${cls}" style="color:${fill}">${COLOR_NAMES[word]}</span>`;
+  if (shape === 'word') return `<span class="word-stimulus ${cls}" style="color:${fill}">${colorName(word,stimulus.locale)}</span>`;
   if (shape.startsWith('digit-')) return svg(`<text x="32" y="48" text-anchor="middle" font-size="48" font-weight="750" fill="${fill}">${shape.slice(6)}</text>`, '0 0 64 64', `symbol ${cls}`);
   if (shape.startsWith('toy-')) { const toy=memoryToyBody(shape.slice(4));return toy?svg(toy,'0 0 64 64',`symbol ${cls}`):equipment(shape.slice(4)).replace(/class="equipment[^"]*"/, `class="symbol ${cls}"`); }
   if (shape.startsWith('letter-')) {
@@ -97,6 +99,7 @@ export function symbol(stimulus, cls = '') {
       body+=`<path class="shape-attachment" d="${bottom?'M27 52v15h10V52':'M13 26H-3v12h16'}" fill="${fill}" stroke="${ink}" stroke-width="2" stroke-linejoin="round"/>`;
     }
   }
+  if(shape==='butterfly')body=`<g class="butterfly-orientation" transform="rotate(90 32 32)">${body}</g>`;
   return svg(body, detail>=4?'-8 -8 80 80':'0 0 64 64', `symbol ${cls}`);
 }
 
@@ -171,7 +174,7 @@ export function art(id, cls = '') {
     traffic: '<path d="M32 161h255" stroke="#c79782"/><path d="M153 118v43" stroke-width="10"/><rect x="120" y="13" width="66" height="113" rx="21" fill="#40584d"/><circle cx="153" cy="39" r="16" fill="#c77865"/><circle cx="153" cy="70" r="16" fill="#d5b468"/><circle cx="153" cy="101" r="16" fill="#b5d494"/><path d="m146 101 5 5 9-10" stroke="#496447" stroke-width="3"/><path d="M212 81h34v44h-34z" fill="#f6eddb"/><path d="m220 98 7-7 8 7m-8-7v25"/><path d="M229 125v34"/><path d="M63 109v50m-14-36 14-14 14 14" stroke="#8aab88" stroke-width="4"/>',
     search: '<rect x="63" y="22" width="161" height="124" rx="17" fill="#f7f2df"/><g fill="#b0c6c4"><rect x="78" y="38" width="26" height="26" rx="6"/><rect x="115" y="38" width="26" height="26" rx="6"/><rect x="152" y="38" width="26" height="26" rx="6"/><rect x="78" y="76" width="26" height="26" rx="6"/><rect x="115" y="76" width="26" height="26" rx="6"/><rect x="78" y="113" width="26" height="19" rx="5"/></g><circle cx="195" cy="104" r="43" fill="#dce9e2" fill-opacity=".9"/><circle cx="195" cy="104" r="34" stroke="#779c98" stroke-width="3"/><path d="m225 135 30 29" stroke-width="18"/><path d="m184 104 8 8 15-17" stroke="#739b78" stroke-width="5"/>',
     nback: '<g transform="rotate(-13 104 90)"><rect x="49" y="35" width="82" height="111" rx="12" fill="#c8cdb4"/><circle cx="90" cy="88" r="20" fill="#f5edcf"/></g><g transform="rotate(6 158 88)"><rect x="112" y="22" width="82" height="111" rx="12" fill="#f6e9ce"/><path d="m153 48 8 17 19 3-14 13 3 19-16-8-17 8 4-19-14-13 19-3z" fill="#d7b26c"/></g><g transform="rotate(19 211 100)"><rect x="178" y="45" width="82" height="111" rx="12" fill="#b6cdd0"/><circle cx="219" cy="98" r="20" fill="#f1edda"/></g><path d="M112 163q43 15 76 0m-9-4 9 4-5 9" stroke="#998161" stroke-width="2"/>',
-    stroop: '<g transform="rotate(-9 120 70)"><rect x="54" y="24" width="133" height="62" rx="14" fill="#eddbb2"/><text x="120" y="65" text-anchor="middle" fill="#6d9a83" stroke="none" font-size="30" font-weight="800">قرمز</text></g><g transform="rotate(8 196 117)"><rect x="131" y="82" width="133" height="62" rx="14" fill="#c7d6be"/><text x="196" y="123" text-anchor="middle" fill="#c67d77" stroke="none" font-size="30" font-weight="800">آبی</text></g><circle cx="77" cy="124" r="22" fill="#c0b2cd"/><path d="m68 124 6 6 12-13" stroke="#fff6e4" stroke-width="4"/><path d="m250 31 3 8 8 3-8 3-3 8-3-8-8-3 8-3z" fill="#e4bc6a" stroke="none"/>',
+    stroop: uiText('<g transform="rotate(-9 120 70)"><rect x="54" y="24" width="133" height="62" rx="14" fill="#eddbb2"/><text x="120" y="65" text-anchor="middle" fill="#6d9a83" stroke="none" font-size="30" font-weight="800">قرمز</text></g><g transform="rotate(8 196 117)"><rect x="131" y="82" width="133" height="62" rx="14" fill="#c7d6be"/><text x="196" y="123" text-anchor="middle" fill="#c67d77" stroke="none" font-size="30" font-weight="800">آبی</text></g><circle cx="77" cy="124" r="22" fill="#c0b2cd"/><path d="m68 124 6 6 12-13" stroke="#fff6e4" stroke-width="4"/><path d="m250 31 3 8 8 3-8 3-3 8-3-8-8-3 8-3z" fill="#e4bc6a" stroke="none"/>'),
   };
   return svg(`<g stroke="${ink}" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">${bodies[id] || bodies.hunt}</g>`, '0 0 320 180', `game-art ${cls}`);
 }

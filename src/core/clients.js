@@ -1,3 +1,5 @@
+import {t as uiText} from '../i18n.js';
+import {compatibleBaseline} from '../stimulus-plan.js';
 import { GAME_MAP, GAME_PROTOCOLS, LEVELS } from '../config.js';
 
 export const CLIENTS_KEY = 'havaas:clients:v1';
@@ -28,24 +30,25 @@ export function writeClients(clients, storage) {
 export const activeProfile = clients => clients.profiles.find(p => p.id === clients.activeId) ?? null;
 export const profileRecords = (clients, id = clients.activeId) => clients.records.filter(r => r.profileId === id);
 export const variantOf = result => result.variant || 'standard';
-export function latestBaseline(clients, gameId, variant = 'standard', level = null) {
+export function latestBaseline(clients, gameId, variant = 'standard', level = null, options={}) {
+  const compatible=result=>compatibleBaseline(result,{...options,gameId,locale:options.locale||clients.locale||'fa'});
   if(clients.panelSummary){
-    if(variant==='standard'&&level==='easy')return clients.panelSummary.assessmentSteps.find(s=>s.gameId===gameId)?.baseline||null;
-    return clients.panelSummary.baselines.find(r=>r.result.gameId===gameId&&variantOf(r.result)===variant&&(!level||r.result.level===level))?.result||null;
+    if(variant==='standard'&&level==='easy'){const baseline=clients.panelSummary.assessmentSteps.find(s=>s.gameId===gameId)?.baseline;return compatible(baseline)?baseline:null;}
+    return clients.panelSummary.baselines.find(r=>compatible(r.result)&&r.result.gameId===gameId&&variantOf(r.result)===variant&&(!level||r.result.level===level))?.result||null;
   }
-  return profileRecords(clients).filter(r => r.kind === 'baseline' && (!level || r.result.level === level) && r.result.gameId === gameId && (r.result.protocolVersion || 2) === GAME_PROTOCOLS[gameId] && variantOf(r.result) === variant).at(-1)?.result ?? null;
+  return profileRecords(clients).filter(r => r.kind === 'baseline' && compatible(r.result) && (!level || r.result.level === level) && r.result.gameId === gameId && (r.result.protocolVersion || 2) === GAME_PROTOCOLS[gameId] && variantOf(r.result) === variant).at(-1)?.result ?? null;
 }
 export function validateProfile(input, today = new Date()) {
   const keys=['firstName','lastName','birthDate','grade','school','concerns'];
-  if(!input||typeof input!=='object'||Array.isArray(input))return {error:'مشخصات درست دریافت نشد. دوباره تلاش کنید.'};
-  if(keys.some(key=>input[key]!==undefined&&input[key]!==null&&typeof input[key]!=='string'))return {error:'نام، تاریخ و سایر مشخصات باید به‌صورت متن وارد شوند.'};
+  if(!input||typeof input!=='object'||Array.isArray(input))return {error:uiText('مشخصات درست دریافت نشد. دوباره تلاش کنید.')};
+  if(keys.some(key=>input[key]!==undefined&&input[key]!==null&&typeof input[key]!=='string'))return {error:uiText('نام، تاریخ و سایر مشخصات باید به‌صورت متن وارد شوند.')};
   const profile = Object.fromEntries(keys.map(key => [key, (input[key] ?? '').trim()]));
-  if(Object.values(profile).some(value=>!isValidText(value)))return {error:'بخشی از مشخصات قابل خواندن نیست. متن آن بخش را دوباره وارد کنید.'};
-  if (!profile.firstName || !profile.lastName || !profile.birthDate || !profile.grade || !profile.school) return { error: 'نام، نام خانوادگی، تاریخ تولد، پایه و مدرسه را کامل کنید.' };
-  if (Object.values(profile).some(value => value.length > 500)) return { error: 'هر بخش می‌تواند حداکثر ۵۰۰ کاراکتر داشته باشد.' };
+  if(Object.values(profile).some(value=>!isValidText(value)))return {error:uiText('بخشی از مشخصات قابل خواندن نیست. متن آن بخش را دوباره وارد کنید.')};
+  if (!profile.firstName || !profile.lastName || !profile.birthDate || !profile.grade || !profile.school) return { error: uiText('نام، نام خانوادگی، تاریخ تولد، پایه و مدرسه را کامل کنید.') };
+  if (Object.values(profile).some(value => value.length > 500)) return { error: uiText('هر بخش می‌تواند حداکثر ۵۰۰ کاراکتر داشته باشد.') };
   const birthday = new Date(`${profile.birthDate}T12:00:00Z`);
   const todayDate = [today.getFullYear(), String(today.getMonth()+1).padStart(2,'0'), String(today.getDate()).padStart(2,'0')].join('-');
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(profile.birthDate) || !Number.isFinite(birthday.getTime()) || birthday.toISOString().slice(0,10) !== profile.birthDate || profile.birthDate > todayDate || birthday.getUTCFullYear() < today.getFullYear() - 100) return { error: 'تاریخ تولد را درست انتخاب کنید؛ تاریخ آینده یا بیش از صد سال قبل قابل قبول نیست.' };
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(profile.birthDate) || !Number.isFinite(birthday.getTime()) || birthday.toISOString().slice(0,10) !== profile.birthDate || profile.birthDate > todayDate || birthday.getUTCFullYear() < today.getFullYear() - 100) return { error: uiText('تاریخ تولد را درست انتخاب کنید؛ تاریخ آینده یا بیش از صد سال قبل قابل قبول نیست.') };
   return { profile };
 }
 export function addRecord(clients, result, kind) {

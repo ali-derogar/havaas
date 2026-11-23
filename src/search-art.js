@@ -1,3 +1,4 @@
+import {lt} from './i18n.js';
 // Original artwork for the clue workshop. Scored stimuli stay in visuals.symbol.
 const svg=(body,box,cls)=>`<svg class="${cls}" viewBox="${box}" xmlns="http://www.w3.org/2000/svg" fill="none" aria-hidden="true">${body}</svg>`;
 
@@ -6,7 +7,7 @@ export function searchLensArt(){
 }
 
 export function searchCover({lazy=false}={}){
- return `<div class="illustrated-cover training-cover illustrated-search search-cover" data-game="search"><img src="/assets/worlds/clue-workshop.svg" alt="" aria-hidden="true" loading="${lazy?'lazy':'eager'}" decoding="async"><span class="search-cover-lens">${searchLensArt()}</span><span class="search-cover-label" aria-hidden="true">کارگاه سرنخ<small>خوب ببین، دقیق پیدا کن</small></span></div>`;
+ return lt`<div class="illustrated-cover training-cover illustrated-search search-cover" data-game="search"><img src="/assets/worlds/clue-workshop.svg" alt="" aria-hidden="true" loading="${lazy?'lazy':'eager'}" decoding="async"><span class="search-cover-lens">${searchLensArt()}</span><span class="search-cover-label" aria-hidden="true">کارگاه سرنخ<small>خوب ببین، دقیق پیدا کن</small></span></div>`;
 }
 
 export function searchMemorySeal(){

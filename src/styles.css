@@ -164,3 +164,12 @@ dialog{max-height:calc(100dvh - 28px);overflow-y:auto;overscroll-behavior:contai
 
 .navigation-confirm{max-width:540px;width:calc(100% - 32px);padding:26px;border:1px solid var(--line);border-radius:16px;color:var(--ink)}.navigation-confirm p{line-height:2;margin:14px 0}.navigation-confirm::backdrop{background:#20354b80}#report-print-overlay{display:none}
 @media print{body.printing-report #app,body.printing-report #modal,body.printing-report .pwa-banner{display:none!important}body.printing-report #report-print-overlay{display:block!important}.navigation-confirm,.pagination,#report-client-filter{display:none!important}}
+
+/* Language follows layout, while game coordinates keep their physical direction. */
+.language-switcher{flex-shrink:0}.header-end{flex-wrap:wrap}
+html[dir=ltr] .site-header,html[dir=ltr] main,html[dir=ltr] .modal{direction:ltr}
+html[dir=ltr] input[type=email],html[dir=ltr] input[type=password]{text-align:left}
+html[dir=ltr] .traffic-signal-area{direction:ltr}
+html[dir=ltr] .rule-picture-arrow{transform:scaleX(-1)}
+
+.admin-identity{flex-wrap:wrap}.admin-identity .language-switcher{order:-1}

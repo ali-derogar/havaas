@@ -8,5 +8,6 @@ export function registerPwa(app,root){
   res.set({'Cache-Control':'no-cache','Service-Worker-Allowed':'/'}).type('application/javascript').send(script);
  });
  app.get('/manifest.webmanifest',(_req,res)=>res.set('Cache-Control','no-cache').type('application/manifest+json').sendFile(resolve(root,'manifest.webmanifest')));
+ app.get('/manifest.en.webmanifest',(_req,res)=>res.set('Cache-Control','no-cache').type('application/manifest+json').sendFile(resolve(root,'manifest.en.webmanifest')));
  app.get('/offline.html',(_req,res)=>res.set('Cache-Control','no-cache').sendFile(resolve(root,'offline.html')));
 }

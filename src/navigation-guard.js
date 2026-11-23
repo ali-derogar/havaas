@@ -1,3 +1,4 @@
+import {lt,t as uiText} from './i18n.js';
 const guardedIds=new Set(['edit-user-form','profile-form','admin-difficulty-form','training-profile-form','create-user-form','report-link-form','registration-link-form','invitation-form','password-form','registration-form']);
 const fields=form=>[...form.querySelectorAll('input,textarea,select')];
 const fieldKey=(node,index)=>node.name||node.getAttribute('data-birth-part')||String(index);
@@ -29,7 +30,7 @@ export function createNavigationGuard({document,tracker,identity,prepareDraft=()
   sync();const changed=forms().filter(form=>form.dataset.waiting==='true'&&form.dataset.acknowledged!=='true'||dirty(form));if(!changed.length)return Promise.resolve(true);
   const waiting=changed.some(form=>form.dataset.waiting==='true'),previous=document.activeElement,dialog=document.createElement('dialog');
   dialog.className='navigation-confirm';dialog.setAttribute('aria-labelledby','navigation-confirm-title');
-  dialog.innerHTML=`<h2 id="navigation-confirm-title">${waiting?'در حال ثبت اطلاعات':'تغییرات ذخیره نشده‌اند'}</h2><p>${waiting?'اطلاعات در حال ذخیره‌شدن است؛ کمی صبر کنید.':'تغییراتتان هنوز ذخیره نشده. می‌خواهید آن‌ها را ذخیره کنید یا بدون ذخیره ادامه دهید؟'}</p><p class="form-error" role="alert"></p><div class="modal-buttons"><button class="button primary" data-guard="stay" autofocus>ماندن در این صفحه</button>${waiting?'':'<button class="button subtle" data-guard="save">ذخیره و ادامه</button><button class="text-button danger" data-guard="discard">ادامه بدون ذخیره</button>'}</div>`;
+  dialog.innerHTML=lt`<h2 id="navigation-confirm-title">${waiting?uiText('در حال ثبت اطلاعات'):uiText('تغییرات ذخیره نشده‌اند')}</h2><p>${waiting?uiText('اطلاعات در حال ذخیره‌شدن است؛ کمی صبر کنید.'):uiText('تغییراتتان هنوز ذخیره نشده. می‌خواهید آن‌ها را ذخیره کنید یا بدون ذخیره ادامه دهید؟')}</p><p class="form-error" role="alert"></p><div class="modal-buttons"><button class="button primary" data-guard="stay" autofocus>ماندن در این صفحه</button>${waiting?'':uiText('<button class="button subtle" data-guard="save">ذخیره و ادامه</button><button class="text-button danger" data-guard="discard">ادامه بدون ذخیره</button>')}</div>`;
   document.body.append(dialog);
   asking=new Promise(resolve=>{
    let settled=false;

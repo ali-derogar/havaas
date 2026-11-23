@@ -1,14 +1,15 @@
+import {localized} from './i18n.js';
 /** @typedef {'easy'|'medium'|'hard'} Difficulty */
 /** @typedef {{id:string,title:string,subtitle:string,kind:'reaction'|'adventure'|'search',tags:string[],description:string,rules:string[],color:string,accent:string,time:string}} GameConfig */
 /** @typedef {{version:1,experienceVersion:number,protocolVersion:number,gameId:string,level:Difficulty,variant:string,score:number,maxScore:number,hits:number,correctResponses:number,correctRejections:number,omissions:number,falseSelections:number,meanReactionMs:number|null,reactionMeasure:'stimulus-onset'|'search-onset'|'decision-interval',longestStreak:number,durationMs:number,completed:boolean,finishedAt:string,outcomes:Array<{number:number,target:boolean,response:boolean,correct:boolean,reactionMs:number|null,atMs:number}>}} SessionResult */
 
-export const LEVELS = {
+export const LEVELS = localized({
   easy: { label: 'آسان', caption: 'با خیال راحت شروع کن', visibleMs: 300, items: 16, required: 4, seconds: 60, obstacles: 2, searchSeconds: 30, n: 1 },
   medium: { label: 'متوسط', caption: 'یک چالش حسابی', visibleMs: 200, items: 24, required: 5, seconds: 45, obstacles: 3, searchSeconds: 20, n: 2 },
   hard: { label: 'سخت', caption: 'آمادهٔ تمرکز بیشتر؟', visibleMs: 100, items: 36, required: 6, seconds: 30, obstacles: 4, searchSeconds: 15, n: 3 },
-};
-export const PRESENTATION_VERSION = 8;
-export const EXPERIENCE_VERSION = 3;
+});
+export const PRESENTATION_VERSION = 9;
+export const EXPERIENCE_VERSION = 4;
 export const RULE_NOTICE_MS = 3000;
 export const REACTION_TIMING = {easy:{visibleMs:800,intervalMs:1500},medium:{visibleMs:500,intervalMs:1200},hard:{visibleMs:300,intervalMs:1000}};
 export const MOVING_REACTION_TIMING = {easy:{visibleMs:2000,intervalMs:2500},medium:{visibleMs:1400,intervalMs:1800},hard:{visibleMs:900,intervalMs:1200}};
@@ -33,12 +34,12 @@ export function reactionTiming({gameId,level='easy',theme='star',stimulusVersion
   if(experienceVersion>=2)return {...(moving?MOVING_REACTION_TIMING:REACTION_TIMING)[level]};
   return moving?{...HUNT_MOTION_TIMING[level]}:{visibleMs:LEVELS[level].visibleMs,intervalMs:PROTOCOL.intervalMs};
 }
-export const THEMES = { star: 'ستاره‌ها', shape: 'شکل‌ها', fish: 'ماهی‌ها', butterfly: 'پروانه‌ها', bird: 'پرنده‌ها' };
+export const THEMES = localized({ star: 'ستاره‌ها', shape: 'شکل‌ها', fish: 'ماهی‌ها', butterfly: 'پروانه‌ها', bird: 'پرنده‌ها' });
 export const COLORS = { blue: '#176fe5', green: '#0ba867', red: '#ed3545', yellow: '#dc9b00', purple: '#9846da', pink: '#e94c98' };
-export const COLOR_NAMES = { blue: 'آبی', green: 'سبز', red: 'قرمز', yellow: 'زرد', purple: 'بنفش', pink: 'صورتی' };
+export const COLOR_NAMES = localized({ blue: 'آبی', green: 'سبز', red: 'قرمز', yellow: 'زرد', purple: 'بنفش', pink: 'صورتی' });
 
 /** @type {GameConfig[]} */
-export const GAMES = [
+export const GAMES = localized([
   { id: 'hunt', title: 'شکار هدفمند', subtitle: 'چشم‌هات رو تیز کن!', kind: 'reaction', tags: ['attention', 'speed'], skill: 'توجه پایدار و تقسیم‌شده', color: '#e9f0db', accent: '#79a91e', time: '۲٫۵ دقیقه', description: 'بین شکل‌های رنگارنگ، فقط هدف خودت رو شکار کن. به چشم‌هات اعتماد کن و به‌موقع واکنش نشون بده!', rules: ['اول نمونهٔ هدف رو خوب نگاه کن. در حالت دوهدفه، هر دو نمونه هدف هستن.', 'هر وقت هدف رو دیدی، روی خودش بزن؛ دکمهٔ «بزن» یا کلید فاصله هم تا شروع نوبت بعد فعاله.', 'در هر نوبت چند شکل با هم دیده می‌شن؛ فقط هدف رو انتخاب کن. روی شکل‌های شبیه به هدف نزن.'] },
   { id: 'ark', title: 'کشتی نوح', subtitle: 'برای یک سفر مهم آماده شو', kind: 'adventure', tags: ['attention', 'speed'], skill: 'توجه و تصمیم‌گیری', color: '#f4edda', accent: '#bc921b', time: '۳۰ تا ۶۰ ثانیه', description: 'کشتی منتظر توئه! بین وسایل ساحل، چیزهایی رو پیدا کن که برای زنده‌موندن و یک سفر طولانی لازم داری.', rules: ['وسایل ضروری مثل آب، غذا و کمک‌های اولیه رو پیدا کن.', 'روی هر وسیلهٔ لازم بزن تا وارد کوله‌ات بشه؛ وسیلهٔ اشتباه ۲ ثانیه از زمانت کم می‌کنه.', 'وقتی کوله کامل شد، قبل از تمام‌شدن زمان سوار کشتی شو.'] },
   { id: 'space', title: 'سفینهٔ فضایی', subtitle: 'مقصد بعدی: ستاره‌ها', kind: 'adventure', tags: ['attention', 'speed'], skill: 'توجه و حل مسئله', color: '#deeff0', accent: '#288b98', time: '۳۰ تا ۶۰ ثانیه', description: 'فرمانده، وقت پروازه! تجهیزات لازم رو پیدا کن، موانع رو کنار بزن و سفینه‌ات رو برای سفر آماده کن.', rules: ['وسایل سفر فضایی مثل اکسیژن، لباس فضایی و سوخت رو جمع کن.', 'روی مانع بزن تا کنار بره؛ بعد وسیلهٔ زیرش رو بردار.', 'انتخاب اشتباه ۲ ثانیه جریمه داره. کوله رو کامل کن و دکمهٔ پرتاب رو بزن.'] },
@@ -46,6 +47,6 @@ export const GAMES = [
   { id: 'search', title: 'بگرد و پیدا کن', subtitle: 'یک کارآگاه با حافظهٔ خوب', kind: 'search', tags: ['memory', 'attention'], skill: 'حافظهٔ کوتاه‌مدت', color: '#e0ecf1', accent: '#438dae', time: '۱۰ دور کوتاه', description: 'شکل رو به خاطر بسپار و بعد بین یک عالمه شکل شبیه به هم پیداش کن. جزئیات کوچیک، سرنخ‌های بزرگن!', rules: ['دو ثانیه به شکل نمونه نگاه کن و جزئیاتش رو به خاطر بسپار.', 'بعد از پنهان‌شدن نمونه، همون شکل رو بین گزینه‌ها پیدا کن.', 'هر کشف درست یک امتیاز داره. برای هر دور زمان محدودی داری.'] },
   { id: 'nback', title: 'حواستو جمع کن', subtitle: 'چند قدم قبل رو یادت هست؟', kind: 'reaction', tags: ['memory', 'speed'], skill: 'حافظهٔ فعال', color: '#ece4f1', accent: '#8761a7', time: 'حدود ۲٫۵ دقیقه', description: 'شکل‌ها یکی‌یکی میان و می‌رن. یادت می‌مونه چند شکل قبل چی دیدی؟ حالا نوبت حافظهٔ توئه!', rules: ['در سطح آسان، شکل فعلی رو با یک شکل قبل مقایسه کن.', 'در متوسط دو شکل قبل و در سخت سه شکل قبل رو به خاطر بیار.', 'فقط وقتی دو شکل کاملاً یکسان هستن، دکمهٔ «بزن» رو انتخاب کن.'] },
   { id: 'stroop', title: 'بازی رنگ و کلمه', subtitle: 'استروپ؛ به قانون دقت کن', kind: 'reaction', tags: ['attention'], skill: 'توجه انتخابی و مهار پاسخ', color: '#f1e2e9', accent: '#b95380', time: 'حدود ۲٫۵ دقیقه', description: 'گاهی چیزی که می‌خونی با رنگی که می‌بینی فرق داره! در چهار مرحله، قانون رو دنبال کن و زردها رو پیدا کن.', rules: ['مرحلهٔ اول: فقط دایره‌های زرد رو انتخاب کن.', 'مرحلهٔ دوم: رنگ نوشته باید زرد باشه؛ مرحلهٔ سوم: خود کلمه باید «زرد» باشه.', 'مرحلهٔ آخر: فقط کلمهٔ «زرد» که با رنگ زرد نوشته شده هدفه.'] },
-];
+]);
 export const GAME_PROTOCOLS = Object.fromEntries(GAMES.map(game=>[game.id,game.id==='hunt'?3:2]));
 export const GAME_MAP = Object.fromEntries(GAMES.map(game => [game.id, game]));

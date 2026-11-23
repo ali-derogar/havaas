@@ -1,16 +1,18 @@
+import {t as uiText} from '../i18n.js';
 import { Session } from '../core/session.js';
 import { pick, shuffle } from '../core/random.js';
 import { LEVELS, LEGACY_ITEM_COUNTS, PRESENTATION_VERSION, PROTOCOL } from '../config.js';
 
 export const searchVariant = ({ material, layout, targetCount } = {}) => [material === 'letters' ? 'letters' : '', layout === 'scattered' ? 'scattered' : '', targetCount === 2 ? 'dual' : ''].filter(Boolean).join('-') || 'standard';
 const sameStimulus = (a, b) => a.shape === b.shape && a.color === b.color && a.detail === b.detail;
-export function generateSearch(level, random = Math.random, layout = 'grid', material = 'shapes', targetCount = 1, stimulusVersion = PRESENTATION_VERSION) {
+export function generateSearch(level, random = Math.random, layout = 'grid', material = 'shapes', targetCount = 1, stimulusVersion = PRESENTATION_VERSION, targetColor=null) {
   const shapes = material === 'letters' ? ['letter-F','letter-E','letter-P','letter-R','letter-L'] : ['star', 'circle', 'diamond', 'square', 'triangle'];
   const colors = ['blue', 'green', 'purple', 'pink'];
   const revised=stimulusVersion>=6,rich=stimulusVersion>=8,letter=material==='letters';
   const details=letter?(rich?[0,1,2,3,4,5,6]:[0,1,2,3]):rich?[0,1,2,3,4,5,6,7,8,9,10,11]:revised?[0,1,2,3,4,5,6,7]:[0,1,2,3];
   const targetDetails=letter?(level==='easy'?[1]:rich&&level==='hard'?[4,5,6]:[1,2,3]):level==='easy'?[1,2]:level==='medium'?[1,2,3,4,5]:rich?[4,5,6,7,8,9,10,11]:[4,5,6,7];
   const target = { shape: pick(shapes, random), color: pick(colors, random), detail: revised?pick(targetDetails,random):level === 'easy' ? 0 : Math.floor(random() * 4) };
+  if(colors.includes(targetColor))target.color=targetColor;
   const targets = [target];
   if (targetCount === 2) targets.push(level === 'hard' ? { ...target, detail: revised?pick(targetDetails.filter(detail=>detail!==target.detail),random):(target.detail + 1 + Math.floor(random() * 3)) % 4 } : {
     shape: level === 'medium' ? target.shape : pick(shapes.filter(shape=>shape!==target.shape), random),
@@ -47,9 +49,9 @@ export class SearchSession extends Session {
   get remainingMs() { return Math.max(0, this.deadline - this.clock.elapsed); }
   newRound() {
     const paused=this.clock.paused;this.clock.pause();
-    this.current = generateSearch(this.level, this.random, this.layout, this.material, this.targetCount, this.stimulusVersion);
+    this.current = generateSearch(this.level, this.random, this.layout, this.material, this.targetCount, this.stimulusVersion,this.stimulusPlan?.colorsByPhase[this.index]?.[0]);
     this.roundTargets[this.index]=this.current.targets.map(target=>({...target}));
-    this.rejected = new Set(); this.found = new Set();this.feedback='نمونهٔ تازه را به خاطر بسپار.';this.feedbackKind='';
+    this.rejected = new Set(); this.found = new Set();this.feedback=uiText('نمونهٔ تازه را به خاطر بسپار.');this.feedbackKind='';
     this.revealAt = this.clock.elapsed + this.timing.previewMs;
     this.deadline = this.revealAt + this.timing.searchMs;
     if(!paused)this.clock.resume();
@@ -68,7 +70,7 @@ export class SearchSession extends Session {
   tick() {
     if (this.done || this.paused || this.clock.elapsed < this.deadline) return;
     for (const [index,stimulus] of this.current.choices.entries()) if (stimulus.target && !this.found.has(index)) this.record(true, false, null, { round: this.index + 1, stimulus, choiceIndex:index });
-    this.feedback = 'وقت این دور تموم شد؛ نمونهٔ بعدی رو به خاطر بسپار.'; this.feedbackKind = 'wrong'; this.next();
+    this.feedback = uiText('وقت این دور تموم شد؛ نمونهٔ بعدی رو به خاطر بسپار.'); this.feedbackKind = 'wrong'; this.next();
   }
   choose(index) {
     if (this.done || this.paused || this.preview || !Number.isInteger(index)) return null;
@@ -76,11 +78,11 @@ export class SearchSession extends Session {
     if (this.rejected.has(index) || this.found.has(index) || !this.current.choices[index]) return null;
     const stimulus = this.current.choices[index], target = stimulus.target;
     this.record(target, true, target ? this.clock.elapsed - this.revealAt : null, { round: this.index + 1, stimulus, choiceIndex:index });
-    this.feedback = target ? 'دقیقاً همون بود! آفرین.' : 'شبیهشه، ولی همون نیست. دوباره نگاه کن!'; this.feedbackKind = target ? 'good' : 'wrong';
+    this.feedback = target ? uiText('دقیقاً همون بود! آفرین.') : uiText('شبیهشه، ولی همون نیست. دوباره نگاه کن!'); this.feedbackKind = target ? 'good' : 'wrong';
     if (target) {
       this.found.add(index);
       if (this.found.size === this.targetCount) this.next();
-      else this.feedback = 'یکی رو پیدا کردی! حالا هدف دوم رو پیدا کن.';
+      else this.feedback = uiText('یکی رو پیدا کردی! حالا هدف دوم رو پیدا کن.');
     } else this.rejected.add(index);
     return target;
   }

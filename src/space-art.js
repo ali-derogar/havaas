@@ -1,3 +1,4 @@
+import {lt} from './i18n.js';
 // Local vector artwork: decorative paths never read or alter mission state.
 const svg=(body,box,cls)=>`<svg class="${cls}" viewBox="${box}" xmlns="http://www.w3.org/2000/svg" fill="none" aria-hidden="true">${body}</svg>`;
 
@@ -35,7 +36,7 @@ export function spaceAtmosphere(){
 }
 
 export function spaceCover({lazy=false}={}){
-  return `<div class="illustrated-cover training-cover illustrated-space space-cover" data-game="space"><img src="/assets/worlds/orbit-station.svg" alt="" aria-hidden="true" loading="${lazy?'lazy':'eager'}" decoding="async">${spaceAtmosphere()}<span class="space-cover-ship">${spaceShipArt()}</span><span class="space-cover-label" aria-hidden="true">آمادهٔ پرواز!</span></div>`;
+  return lt`<div class="illustrated-cover training-cover illustrated-space space-cover" data-game="space"><img src="/assets/worlds/orbit-station.svg" alt="" aria-hidden="true" loading="${lazy?'lazy':'eager'}" decoding="async">${spaceAtmosphere()}<span class="space-cover-ship">${spaceShipArt()}</span><span class="space-cover-label" aria-hidden="true">آمادهٔ پرواز!</span></div>`;
 }
 
 export function spaceOutcomeArt(completed){

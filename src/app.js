@@ -1,3 +1,6 @@
+import {getLocale,setLocale,languageSelector} from './i18n.js';
+import {numberLocale} from './i18n.js';
+import {t as uiText,lt} from './i18n.js';
 import {createFormTracker} from './pwa-forms.js';
 import {themeSelector} from './theme-ui.js';
 import {PlatformMotion,platformTheme} from './platform-motion.js';
@@ -48,6 +51,8 @@ import { recommendLevel, comparableRecords, needsMorePractice } from './core/rep
 import { reportsView, assessmentView, variantLabel } from './client-ui.js';
 import { icon, logo, art, heroArt, symbol, equipment, trophyArt, huntBackground, missionOutcomeArt } from './visuals.js';
 
+setLocale(getLocale());
+let pendingLocale=null;
 const app = document.querySelector('#app');
 const modal = document.querySelector('#modal');
 const announcer = document.querySelector('#announcer');
@@ -56,7 +61,7 @@ const platformMotion=new PlatformMotion({document});
 const progress = readProgress();
 const guidance=new GuidancePlayer({onState:(state,key)=>{
   document.querySelectorAll('[data-action=listen-guide]').forEach(button=>{const active=state==='playing'&&(button.dataset.guide===key||button.dataset.guide==='current');button.setAttribute('aria-pressed',String(active));button.classList.toggle('listening',active);});
-  document.querySelectorAll('.audio-guide-status').forEach(node=>{node.textContent=state==='unavailable'?'صدا پخش نشد؛ دوباره دکمهٔ بشنو را بزن.':state==='playing'?'در حال پخش راهنمای فارسی':'';});
+  document.querySelectorAll('.audio-guide-status').forEach(node=>{node.textContent=state==='unavailable'?uiText('صدا پخش نشد؛ دوباره دکمهٔ بشنو را بزن.'):state==='playing'?uiText('در حال پخش راهنمای صوتی'):'';});
 }});
 const clients = {version:1,activeId:null,profiles:[],records:[],difficulties:[]};
 const api=new ApiClient();
@@ -74,8 +79,8 @@ let pendingStart = null, sessionIsBaseline = false, editingProfile = null, guide
 let sessionOptions = null, repeatingPractice = false;
 let keyboardPlay=false;
 const reportState = { tab: 'admin', game: '', level: '', variant: '', kind: 'training', recordId: null };
-const fa = value => new Intl.NumberFormat('fa-IR', { maximumFractionDigits: 0 }).format(value);
-const time = ms => { const seconds = Math.max(0, Math.ceil(ms / 1000)); return `${fa(Math.floor(seconds / 60)).padStart(2, '۰')}:${fa(seconds % 60).padStart(2, '۰')}`; };
+const fa = value => new Intl.NumberFormat(numberLocale(), { maximumFractionDigits: 0 }).format(value);
+const time = ms => { const seconds = Math.max(0, Math.ceil(ms / 1000)); return `${fa(Math.floor(seconds / 60)).padStart(2, uiText('۰'))}:${fa(seconds % 60).padStart(2, uiText('۰'))}`; };
 const describe = describeStimulus;
 let route = 'home', selectedGame = 'hunt', selectedLevel = 'easy', selectedTheme = 'star', selectedHuntMode = 'standard', selectedLayout = 'grid', selectedSearchMode = 'single', selectedTrafficMode = 'circles', selectedMaterial = 'shapes', filter = 'all';
 let engine = null, frame = 0, arenaKey = '', modalKind = '', audioContext;
@@ -85,17 +90,17 @@ const guestScreen=()=>['registration','invitation','connecting','connection-erro
 function cardDuration(game) {
   if(game.kind!=='reaction')return game.time;
   const durations=Object.keys(LEVELS).flatMap(level=>(game.id==='hunt'?['star','fish']:['star']).map(theme=>(150+(game.id==='nback'?LEVELS[level].n:0))*reactionTiming({gameId:game.id,level,theme}).intervalMs));
-  return `${time(Math.min(...durations))} تا ${time(Math.max(...durations))}`;
+  return lt`${time(Math.min(...durations))} تا ${time(Math.max(...durations))}`;
 }
 
 function header() {
- if(publicReportData||!currentUser||guestScreen())return `<header class="site-header"><div class="header-inner"><span class="brand">${logo()} حواس</span><div class="header-end"><span class="header-note">${publicReportData?'گزارش خانواده':'همراه رشد و توجه'}</span>${themeSelector()}</div></div></header>`;
- if(currentUser.passwordChangeRequired)return `<header class="site-header"><div class="header-inner"><span class="brand">${logo()} حواس</span><div class="header-end">${themeSelector()}<button class="text-button" data-action="logout">خروج</button></div></div></header>`;
+ if(publicReportData||!currentUser||guestScreen())return lt`<header class="site-header"><div class="header-inner"><span class="brand">${logo()} حواس</span><div class="header-end"><span class="header-note">${publicReportData?uiText('گزارش خانواده'):uiText('همراه رشد و توجه')}</span>${themeSelector()}</div></div></header>`;
+ if(currentUser.passwordChangeRequired)return lt`<header class="site-header"><div class="header-inner"><span class="brand">${logo()} حواس</span><div class="header-end">${themeSelector()}<button class="text-button" data-action="logout">خروج</button></div></div></header>`;
  if(currentUser.role==='admin')return adminShell(currentUser,route==='admin'?'overview':route==='invitations'?'invitations':route==='account'?'settings':route==='audit'?'audit':route==='game-settings'?'game-settings':'users');
- const nav=[['home','home','خانه'],['games','grid','بازی‌ها'],['dashboard','activity','پیشرفت من'],['account','user','حساب']];
- return `<header class="site-header client-header"><div class="header-inner"><a class="brand" href="#app" data-action="home">${logo()}<span>حواس<small>ماجراجویی‌های ذهنی</small></span></a><nav aria-label="منوی اصلی">${nav.map(([action,symbol,label])=>`<button class="nav-link ${route==='home'&&action==='home'||route==='reports'&&action==='dashboard'||route==='account'&&action==='account'?'active':''}" data-action="${action}">${icon(symbol)}${label}</button>`).join('')}</nav><div class="header-end">${themeSelector()}<button class="profile-button" data-action="account">${esc(currentUser.name)}</button><button class="icon-button sound-button" data-action="sound" aria-label="${progress.sound?'خاموش‌کردن صدا و راهنمای گویا':'روشن‌کردن صدا و راهنمای گویا'}" aria-pressed="${progress.sound}">${icon(progress.sound?'sound':'mute')}</button></div></div></header><nav class="client-bottom-nav" aria-label="منوی موبایل">${nav.map(([action,symbol,label])=>`<button data-action="${action}" class="${route==='home'&&action==='home'||route==='reports'&&action==='dashboard'||route==='account'&&action==='account'?'active':''}">${icon(symbol)}<span>${label}</span></button>`).join('')}</nav>`;
+ const nav=[['home','home',uiText('خانه')],['games','grid',uiText('بازی‌ها')],['dashboard','activity',uiText('پیشرفت من')],['account','user',uiText('حساب')]];
+ return lt`<header class="site-header client-header"><div class="header-inner"><a class="brand" href="#app" data-action="home">${logo()}<span>حواس<small>ماجراجویی‌های ذهنی</small></span></a><nav aria-label="منوی اصلی">${nav.map(([action,symbol,label])=>`<button class="nav-link ${route==='home'&&action==='home'||route==='reports'&&action==='dashboard'||route==='account'&&action==='account'?'active':''}" data-action="${action}">${icon(symbol)}${label}</button>`).join('')}</nav><div class="header-end">${themeSelector()}<button class="profile-button" data-action="account">${esc(currentUser.name)}</button><button class="icon-button sound-button" data-action="sound" aria-label="${progress.sound?uiText('خاموش‌کردن صدا و راهنمای گویا'):uiText('روشن‌کردن صدا و راهنمای گویا')}" aria-pressed="${progress.sound}">${icon(progress.sound?'sound':'mute')}</button></div></div></header><nav class="client-bottom-nav" aria-label="منوی موبایل">${nav.map(([action,symbol,label])=>`<button data-action="${action}" class="${route==='home'&&action==='home'||route==='reports'&&action==='dashboard'||route==='account'&&action==='account'?'active':''}">${icon(symbol)}<span>${label}</span></button>`).join('')}</nav>`;
 }
-const footer = () => `<footer class="site-footer"><span>${logo()} حواس؛ جایی برای بازی و کشف</span><span>با سرعت خودت، به سبک خودت ${icon('spark')}</span></footer>`;
+const footer = () => lt`<footer class="site-footer"><span>${logo()} حواس؛ جایی برای بازی و کشف</span><span>با سرعت خودت، به سبک خودت ${icon('spark')}</span></footer>`;
 function page(content, className = '') {
   navigationGuard.stash();
   platformMotion.reset();
@@ -115,6 +120,8 @@ function page(content, className = '') {
   else delete document.body.dataset.platformTheme;
   document.body.classList.remove('admin-menu-open');
   app.innerHTML = `${header()}<main id="main" class="${className}" tabindex="-1">${route==='result'?guideControl(guidanceKey(sessionOptions||gameOptions())):''}${content}</main>${footer()}`;
+  const languageHost=app.querySelector('header .header-end')||app.querySelector('header .admin-identity')||app.querySelector('header .header-inner')||app.querySelector('header');
+  languageHost?.insertAdjacentHTML('beforeend',languageSelector());
   if(theme){
     app.querySelectorAll('.client-welcome,.client-quick-stats,.game-card,.routine-card,.little-note,.page-title,.assessment-step,.account-grid>.surface,.admin-stats>.surface,.dashboard-charts>.surface').forEach(node=>node.setAttribute('data-reveal',''));
     app.querySelectorAll('.empty-state,.dashboard-empty').forEach(node=>node.insertAdjacentHTML('afterbegin',sectionArt('pause')));
@@ -130,40 +137,41 @@ async function accountError(error,viewerId,viewerRole){
  let auth;
  try{auth=await api.request('/auth/session');}
  catch(sessionError){return sessionError.status===401?sessionError:error;}
- if(auth.user?.id!==viewerId||auth.user?.role!==viewerRole)return new ApiError('حساب این مرورگر تغییر کرده است؛ دوباره وارد شوید.',401,'ACCOUNT_CHANGED');
+ if(auth.user?.id!==viewerId||auth.user?.role!==viewerRole)return new ApiError(uiText('حساب این مرورگر تغییر کرده است؛ دوباره وارد شوید.'),401,'ACCOUNT_CHANGED');
  return error;
 }
 async function request(path,options){
  const publicPath=['/auth/session','/auth/login','/invitations/inspect','/invitations/accept','/public/report','/public/registration/inspect','/public/registration/complete'].includes(path),viewerId=currentUser?.id,viewerRole=currentUser?.role;
  const stale=()=>!publicPath&&(currentUser?.id!==viewerId||currentUser?.role!==viewerRole);
- try{const data=await api.request(path,options);if(stale())throw new ApiError('پاسخ متعلق به حساب قبلی است.',0,'STALE_RESPONSE');return data;}
+ try{const data=await api.request(path,options);if(stale())throw new ApiError(uiText('پاسخ متعلق به حساب قبلی است.'),0,'STALE_RESPONSE');return data;}
  catch(error){
-  if(stale())throw new ApiError('پاسخ متعلق به حساب قبلی است.',0,'STALE_RESPONSE');
+  if(stale())throw new ApiError(uiText('پاسخ متعلق به حساب قبلی است.'),0,'STALE_RESPONSE');
   const failure=publicPath?error:await accountError(error,viewerId,viewerRole);
-  if(stale())throw new ApiError('پاسخ متعلق به حساب قبلی است.',0,'STALE_RESPONSE');throw failure;
+  if(stale())throw new ApiError(uiText('پاسخ متعلق به حساب قبلی است.'),0,'STALE_RESPONSE');throw failure;
  }
 }
 // A response may render only into the account and navigation that requested it.
 function beginView(){if(launchAttempt){launchAttempt=null;starting=false;}return {version:++viewVersion,userId:currentUser?.id,role:currentUser?.role};}
 const currentView=view=>view.version===viewVersion&&view.userId===currentUser?.id&&view.role===currentUser?.role;
 async function viewRequest(view,path,options){try{const data=await request(path,options);return currentView(view)?data:null;}catch(error){if(currentView(view))throw error;return null;}}
-const historyNavigation=createHistoryNavigation({window,history,location,needsConfirmation:()=>Boolean(pendingSave)||navigationGuard.hasChanges(),confirm:()=>{if(pendingSave){notify('نتیجه هنوز در سرور ثبت نشده است.');return false;}return navigationGuard.allow(submitForm);},navigate:()=>navigate(),onError:showError});
+const historyNavigation=createHistoryNavigation({window,history,location,needsConfirmation:()=>Boolean(pendingSave)||navigationGuard.hasChanges(),confirm:()=>{if(pendingSave){notify(uiText('نتیجه هنوز در سرور ثبت نشده است.'));return false;}return navigationGuard.allow(submitForm);},navigate:()=>navigate(),onError:showError});
 function setHash(hash) { historyNavigation.push(hash); }
 function home(updateHash = true) {
+  if(pendingLocale){setLocale(pendingLocale);clients.locale=pendingLocale;pendingLocale=null;}
   if(!currentUser)return showLogin();
   if(currentUser.passwordChangeRequired)return forcedPassword();
   if(currentUser.role==='admin')return adminPanel();
   pendingStart = null; guideState = null; engine = null; route = 'home'; if (modal.open) modal.close(); if (updateHash) setHash('#app');
-  document.title = 'حواس — ماجراجویی‌های ذهنی';
-  page(`${clientWelcome(clients,currentUser)}<section class="library" id="games" aria-labelledby="library-heading"><div class="section-heading"><div><div class="section-kicker">بازی مورد علاقه‌ات رو پیدا کن</div><h2 id="library-heading">دوست داری چی بازی کنی؟ ${icon('spark')}</h2></div><p>از هر جا دوست داری، شروع کن.</p></div><div class="filter-bar" role="group" aria-label="دسته‌بندی بازی‌ها">${[['all','همهٔ بازی‌ها'],['attention','توجه و تمرکز'],['memory','حافظه'],['speed','سرعت واکنش']].map(([id,label]) => `<button class="filter ${filter === id ? 'selected' : ''}" data-action="filter" data-filter="${id}" aria-pressed="${filter === id}">${label}${id === 'all' ? '<span>۷</span>' : ''}</button>`).join('')}<span class="filter-note">همهٔ بازی‌ها رو می‌تونی انتخاب کنی ${icon('check')}</span></div><div class="game-grid" id="game-grid">${gameCards()}</div></section>
+  document.title = uiText('حواس — ماجراجویی‌های ذهنی');
+  page(lt`${clientWelcome(clients,currentUser)}<section class="library" id="games" aria-labelledby="library-heading"><div class="section-heading"><div><div class="section-kicker">بازی مورد علاقه‌ات رو پیدا کن</div><h2 id="library-heading">دوست داری چی بازی کنی؟ ${icon('spark')}</h2></div><p>از هر جا دوست داری، شروع کن.</p></div><div class="filter-bar" role="group" aria-label="دسته‌بندی بازی‌ها">${[['all',uiText('همهٔ بازی‌ها')],['attention',uiText('توجه و تمرکز')],['memory',uiText('حافظه')],['speed',uiText('سرعت واکنش')]].map(([id,label]) => `<button class="filter ${filter === id ? 'selected' : ''}" data-action="filter" data-filter="${id}" aria-pressed="${filter === id}">${label}${id === 'all' ? uiText('<span>۷</span>') : ''}</button>`).join('')}<span class="filter-note">همهٔ بازی‌ها رو می‌تونی انتخاب کنی ${icon('check')}</span></div><div class="game-grid" id="game-grid">${gameCards()}</div></section>
     <section class="little-note"><span class="note-symbol">${icon('spark')}</span><div><h3>برای بهترشدن، لازم نیست عجله کنی.</h3><p>اول قانون بازی رو یاد بگیر. هر وقت آماده بودی، شروع کن.</p></div><span class="note-doodle">✳</span></section>`, 'home-main');
 }
 function gameCards() {
   const shown = GAMES.filter(game => filter === 'all' || game.tags.includes(filter));
   return shown.map((game, index) => {
     const records = profileRecords(clients).filter(item => item.kind === 'training' && item.result.gameId === game.id);
-    return `<button class="game-card" data-reveal data-action="open" data-game="${game.id}" style="--card-color:${game.color};--card-accent:${game.accent};--card-index:${index}"><div class="card-picture"><span class="card-number">${fa(GAMES.indexOf(game) + 1).padStart(2, '۰')}</span>${gameArtwork(game.id,{lazy:true})}${(clients.panelSummary?.games.find(g=>g.id===game.id)?.count??records.length) ? `<span class="played-badge">${icon('check')} بازی کردی</span>` : ''}</div><div class="card-content"><span class="skill-label">${game.skill}</span><h3>${game.title}</h3><p>${game.subtitle}</p><div class="card-bottom"><span>${icon('clock')} ${cardDuration(game)}</span><span class="card-arrow" aria-hidden="true">${icon('arrow')}</span></div></div></button>`;
-  }).join('') + (filter === 'all' ? `<div class="routine-card"><span class="routine-flower">✳</span><span class="section-kicker">یادآوری</span><h3>هر روز، <br>چند دقیقه برای ذهنت.</h3><p>با یک بازی شروع کن. <br>لازم نیست همه رو یک‌جا انجام بدی.</p><button class="text-button" data-action="about">راهنمای شروع ${icon('arrow')}</button><span class="routine-dots">● ● ●</span></div>` : '');
+    return `<button class="game-card" data-reveal data-action="open" data-game="${game.id}" style="--card-color:${game.color};--card-accent:${game.accent};--card-index:${index}"><div class="card-picture"><span class="card-number">${fa(GAMES.indexOf(game) + 1).padStart(2, uiText('۰'))}</span>${gameArtwork(game.id,{lazy:true})}${(clients.panelSummary?.games.find(g=>g.id===game.id)?.count??records.length) ? lt`<span class="played-badge">${icon('check')} بازی کردی</span>` : ''}</div><div class="card-content"><span class="skill-label">${game.skill}</span><h3>${game.title}</h3><p>${game.subtitle}</p><div class="card-bottom"><span>${icon('clock')} ${cardDuration(game)}</span><span class="card-arrow" aria-hidden="true">${icon('arrow')}</span></div></div></button>`;
+  }).join('') + (filter === 'all' ? lt`<div class="routine-card"><span class="routine-flower">✳</span><span class="section-kicker">یادآوری</span><h3>هر روز، <br>چند دقیقه برای ذهنت.</h3><p>با یک بازی شروع کن. <br>لازم نیست همه رو یک‌جا انجام بدی.</p><button class="text-button" data-action="about">راهنمای شروع ${icon('arrow')}</button><span class="routine-dots">● ● ●</span></div>` : '');
 }
 
 function lessonContent() {
@@ -171,12 +179,12 @@ function lessonContent() {
   if(step.kind==='search')return searchLessonContent(step);
   const memory=step.kind==='memory',ready=!memory||memoryLessonState(step,lessonState).ready;
   const sample=memory?memoryLessonView(step,lessonState):`<div class="lesson-stimuli">${step.equipment?equipment(step.equipment):step.stimuli.map(value=>`<div class="lesson-token">${symbol(value)}</div>`).join('')}</div>`;
-  const feedback=lessonState.answered?`<div class="lesson-feedback ${lessonState.correct?'good':'wrong'}" role="status"><b>${icon(lessonState.correct?'check':'repeat')} ${lessonState.correct?'درست بود!':'با هم نگاه کنیم'}</b><div class="lesson-expected ${step.expected?'do-cue':'wait-cue'}">${icon(step.expected?'tap':'wait')}<strong>${step.expected?'بزن':'صبر کن'}</strong></div><details class="companion-guide"><summary>چرا؟</summary><p>${step.explanation}</p></details></div><button class="text-button" data-action="lesson-next">نمونهٔ بعدی ${icon('arrow')}</button>`:ready?`<div class="lesson-answers"><button class="button lesson-yes" data-action="lesson-answer" data-response="true">${icon('tap')} بزن</button><button class="button wait-button" data-action="lesson-answer" data-response="false">${icon('wait')} صبر کن</button></div>`:'';
-  return `<div class="lesson-heading"><span class="section-kicker">با هم یاد بگیریم</span><b>${fa(lessonState.index+1)} از ${fa(lessonState.steps.length)}</b></div><h3>${step.title}</h3><p>${step.prompt}</p>${guideControl(lessonGuidanceKey(selectedGame,step,gameOptions()))}${selectedGame==='stroop'?stroopRulePicture(step.phase):''}${sample}${feedback}`;
+  const feedback=lessonState.answered?lt`<div class="lesson-feedback ${lessonState.correct?'good':'wrong'}" role="status"><b>${icon(lessonState.correct?'check':'repeat')} ${lessonState.correct?uiText('درست بود!'):uiText('با هم نگاه کنیم')}</b><div class="lesson-expected ${step.expected?'do-cue':'wait-cue'}">${icon(step.expected?'tap':'wait')}<strong>${step.expected?uiText('بزن'):uiText('صبر کن')}</strong></div><details class="companion-guide"><summary>چرا؟</summary><p>${step.explanation}</p></details></div><button class="text-button" data-action="lesson-next">نمونهٔ بعدی ${icon('arrow')}</button>`:ready?lt`<div class="lesson-answers"><button class="button lesson-yes" data-action="lesson-answer" data-response="true">${icon('tap')} بزن</button><button class="button wait-button" data-action="lesson-answer" data-response="false">${icon('wait')} صبر کن</button></div>`:'';
+  return lt`<div class="lesson-heading"><span class="section-kicker">با هم یاد بگیریم</span><b>${fa(lessonState.index+1)} از ${fa(lessonState.steps.length)}</b></div><h3>${step.title}</h3><p>${step.prompt}</p>${guideControl(lessonGuidanceKey(selectedGame,step,gameOptions()))}${selectedGame==='stroop'?stroopRulePicture(step.phase):''}${sample}${feedback}`;
 }
 function searchLessonContent(step) {
   const found=lessonState.searchFound||[],rejected=lessonState.searchRejected||[],answered=lessonState.answered,hidden=step.memorize&&lessonState.memoryHidden,showChoices=!step.memorize||hidden;
-  return `<div class="lesson-heading"><span class="section-kicker">کارآگاه کوچک · بدون زمان و بدون ثبت امتیاز</span><b>${fa(lessonState.index+1)} از ${fa(lessonState.steps.length)}</b></div><h3>${step.title}</h3><p>${step.prompt}</p>${guideControl(lessonGuidanceKey('search',step,gameOptions()))}<div class="lesson-search-samples ${hidden?'samples-hidden':''}" aria-label="${hidden?'نمونه‌ها پنهان شده‌اند':'نمونه‌های هدف'}">${step.samples.map(sample=>`<span>${hidden?'<b aria-hidden="true">؟</b>':symbol(sample)}</span>`).join('')}</div>${showChoices?`<div class="lesson-search-choices">${step.choices.map((choice,i)=>`<button class="lesson-choice ${found.includes(i)?'found':''} ${rejected.includes(i)?'rejected':''}" data-action="lesson-choice" data-index="${i}" aria-label="گزینهٔ ${fa(i+1)}: ${esc(describe(choice))}" ${answered||found.includes(i)||rejected.includes(i)?'disabled':''}>${symbol(choice)}${found.includes(i)?icon('check'):''}</button>`).join('')}</div>`:'<button class="button subtle lesson-memory-button" data-action="lesson-hide">به خاطر سپردم؛ گزینه‌ها را ببین</button>'}${hidden&&!answered?'<button class="text-button" data-action="lesson-show">نمونه را دوباره ببین</button>':''}${lessonState.lastCorrect!==undefined?`<div class="lesson-feedback ${lessonState.lastCorrect?'good':'wrong'}" role="status"><b>${answered?'همهٔ هدف‌ها را پیدا کردی!':lessonState.lastCorrect?'یکی پیدا شد؛ هدف دیگر را هم پیدا کن.':'شبیه نمونه است؛ جزئیات را دوباره نگاه کن.'}</b><p>${step.explanation}</p></div>`:''}${answered?'<button class="text-button" data-action="lesson-next">نمونهٔ بعدی ←</button>':''}`;
+  return lt`<div class="lesson-heading"><span class="section-kicker">کارآگاه کوچک · بدون زمان و بدون ثبت امتیاز</span><b>${fa(lessonState.index+1)} از ${fa(lessonState.steps.length)}</b></div><h3>${step.title}</h3><p>${step.prompt}</p>${guideControl(lessonGuidanceKey('search',step,gameOptions()))}<div class="lesson-search-samples ${hidden?'samples-hidden':''}" aria-label="${hidden?uiText('نمونه‌ها پنهان شده‌اند'):uiText('نمونه‌های هدف')}">${step.samples.map(sample=>`<span>${hidden?uiText('<b aria-hidden="true">؟</b>'):symbol(sample)}</span>`).join('')}</div>${showChoices?`<div class="lesson-search-choices">${step.choices.map((choice,i)=>lt`<button class="lesson-choice ${found.includes(i)?'found':''} ${rejected.includes(i)?'rejected':''}" data-action="lesson-choice" data-index="${i}" aria-label="گزینهٔ ${fa(i+1)}: ${esc(describe(choice))}" ${answered||found.includes(i)||rejected.includes(i)?'disabled':''}>${symbol(choice)}${found.includes(i)?icon('check'):''}</button>`).join('')}</div>`:uiText('<button class="button subtle lesson-memory-button" data-action="lesson-hide">به خاطر سپردم؛ گزینه‌ها را ببین</button>')}${hidden&&!answered?uiText('<button class="text-button" data-action="lesson-show">نمونه را دوباره ببین</button>'):''}${lessonState.lastCorrect!==undefined?`<div class="lesson-feedback ${lessonState.lastCorrect?'good':'wrong'}" role="status"><b>${answered?uiText('همهٔ هدف‌ها را پیدا کردی!'):lessonState.lastCorrect?uiText('یکی پیدا شد؛ هدف دیگر را هم پیدا کن.'):uiText('شبیه نمونه است؛ جزئیات را دوباره نگاه کن.')}</b><p>${step.explanation}</p></div>`:''}${answered?uiText('<button class="text-button" data-action="lesson-next">نمونهٔ بعدی ←</button>'):''}`;
 }
 function answerLessonChoice(index) {
   const step=lessonState?.steps[lessonState.index];if(route!=='detail'||step?.kind!=='search'||lessonState.answered||step.memorize&&!lessonState.memoryHidden||!Number.isInteger(index)||!step.choices[index])return;
@@ -206,7 +214,7 @@ async function assessment() {
   if(!currentUser)return showLogin();if(currentUser.role==='admin')return adminPanel();
   const view=beginView();if(!await refreshClients(view))return;
   engine=null;guideState=null;route='assessment';if(modal.open)modal.close();setHash('#assessment');
-  document.title='ارزیابی اولیه — حواس';page(assessmentView(clients),'content-main assessment-main');
+  document.title=uiText('ارزیابی اولیه — حواس');page(assessmentView(clients),'content-main assessment-main');
 }
 function standardOptions(level='easy') {
   selectedLevel=level;selectedTheme='star';selectedMaterial='shapes';selectedHuntMode='standard';selectedLayout='grid';selectedSearchMode='single';selectedTrafficMode='circles';
@@ -221,10 +229,10 @@ function trainFromAssessment(id) {
   guideState=null;standardOptions(step?.recommendation?.level || 'easy');return detail(id);
 }
 function taskOptions(game) {
-  if (game.id==='hunt') return `<fieldset class="theme-selector"><legend>تمرین کدام نوع توجه؟</legend><div class="theme-options">${[['standard','یک هدف · توجه پایدار'],['divided','دو هدف · توجه تقسیم‌شده']].map(([mode,label])=>`<button class="theme-button hunt-mode ${selectedHuntMode===mode?'selected':''}" data-action="hunt-mode" data-mode="${mode}" aria-pressed="${selectedHuntMode===mode}">${label}</button>`).join('')}</div><p class="option-hint">در حالت دوهدفه، به هر کدام از دو نمونه پاسخ بده؛ مجموع هدف‌ها همچنان ۳۰ تاست.</p></fieldset>`;
-  if (game.id==='traffic') return `<fieldset class="theme-selector"><legend>با کدام نشانه بازی کنیم؟</legend><div class="theme-options">${[['circles','دایره‌های قرمز و سبز'],['signs','ورود ممنوع و یک‌طرفه']].map(([mode,label])=>`<button class="theme-button ${selectedTrafficMode===mode?'selected':''}" data-action="traffic-mode" data-mode="${mode}" aria-pressed="${selectedTrafficMode===mode}">${label}</button>`).join('')}</div><p class="option-hint">در حالت تابلوها، به نشانهٔ آبی یک‌طرفه پاسخ بده و تابلوی قرمز ورود ممنوع را نادیده بگیر.</p></fieldset>`;
-  if (game.id==='nback') return materialOptions('حافظه را با چی تمرین کنیم؟', [['shapes','شکل‌ها'],['numbers','اعداد'],['toys','اسباب‌بازی‌ها']]);
-  if (game.id==='search') return `<fieldset class="theme-selector"><legend>چیدمان شکل‌ها</legend><div class="theme-options">${[['grid','منظم'],['scattered','پراکنده']].map(([layout,label])=>`<button class="theme-button layout-button ${selectedLayout===layout?'selected':''}" data-action="search-layout" data-layout="${layout}" aria-pressed="${selectedLayout===layout}">${label}</button>`).join('')}</div></fieldset>${materialOptions('نوع محرک', [['shapes','شکل‌ها'],['letters','حروف انگلیسی']])}<fieldset class="theme-selector"><legend>چند هدف پیدا کنیم؟</legend><div class="theme-options">${[['single','یک هدف · حافظه'],['dual','دو هدف · توجه تقسیم‌شده']].map(([mode,label])=>`<button class="theme-button ${selectedSearchMode===mode?'selected':''}" data-action="search-mode" data-mode="${mode}" aria-pressed="${selectedSearchMode===mode}">${label}</button>`).join('')}</div><p class="option-hint">در حالت دوهدفه، هر دو نمونه را حفظ کن و در هر دور هر دو را پیدا کن؛ هر کشف درست یک امتیاز دارد.</p></fieldset>`;
+  if (game.id==='hunt') return lt`<fieldset class="theme-selector"><legend>تمرین کدام نوع توجه؟</legend><div class="theme-options">${[['standard',uiText('یک هدف · توجه پایدار')],['divided',uiText('دو هدف · توجه تقسیم‌شده')]].map(([mode,label])=>`<button class="theme-button hunt-mode ${selectedHuntMode===mode?'selected':''}" data-action="hunt-mode" data-mode="${mode}" aria-pressed="${selectedHuntMode===mode}">${label}</button>`).join('')}</div><p class="option-hint">در حالت دوهدفه، به هر کدام از دو نمونه پاسخ بده؛ مجموع هدف‌ها همچنان ۳۰ تاست.</p></fieldset>`;
+  if (game.id==='traffic') return lt`<fieldset class="theme-selector"><legend>با کدام نشانه بازی کنیم؟</legend><div class="theme-options">${[['circles',uiText('دایره‌های قرمز و سبز')],['signs',uiText('ورود ممنوع و یک‌طرفه')]].map(([mode,label])=>`<button class="theme-button ${selectedTrafficMode===mode?'selected':''}" data-action="traffic-mode" data-mode="${mode}" aria-pressed="${selectedTrafficMode===mode}">${label}</button>`).join('')}</div><p class="option-hint">در حالت تابلوها، به نشانهٔ آبی یک‌طرفه پاسخ بده و تابلوی قرمز ورود ممنوع را نادیده بگیر.</p></fieldset>`;
+  if (game.id==='nback') return materialOptions(uiText('حافظه را با چی تمرین کنیم؟'), [['shapes',uiText('شکل‌ها')],['numbers',uiText('اعداد')],['toys',uiText('اسباب‌بازی‌ها')]]);
+  if (game.id==='search') return lt`<fieldset class="theme-selector"><legend>چیدمان شکل‌ها</legend><div class="theme-options">${[['grid',uiText('منظم')],['scattered',uiText('پراکنده')]].map(([layout,label])=>`<button class="theme-button layout-button ${selectedLayout===layout?'selected':''}" data-action="search-layout" data-layout="${layout}" aria-pressed="${selectedLayout===layout}">${label}</button>`).join('')}</div></fieldset>${materialOptions(uiText('نوع محرک'), [['shapes',uiText('شکل‌ها')],['letters',uiText('حروف انگلیسی')]])}<fieldset class="theme-selector"><legend>چند هدف پیدا کنیم؟</legend><div class="theme-options">${[['single',uiText('یک هدف · حافظه')],['dual',uiText('دو هدف · توجه تقسیم‌شده')]].map(([mode,label])=>`<button class="theme-button ${selectedSearchMode===mode?'selected':''}" data-action="search-mode" data-mode="${mode}" aria-pressed="${selectedSearchMode===mode}">${label}</button>`).join('')}</div><p class="option-hint">در حالت دوهدفه، هر دو نمونه را حفظ کن و در هر دور هر دو را پیدا کن؛ هر کشف درست یک امتیاز دارد.</p></fieldset>`;
   return '';
 }
 function materialOptions(title, choices) {
@@ -240,17 +248,17 @@ function currentVariant() {
 function assessmentInfo() {
   const baseline = latestBaseline(clients, selectedGame, currentVariant());
   const last = clients.panelSummary?clients.panelSummary.latestResults.find(r=>r.result.gameId===selectedGame&&variantOf(r.result)===currentVariant())?.result:profileRecords(clients).filter(r=>r.result.gameId===selectedGame && (r.result.protocolVersion || 2)===GAME_PROTOCOLS[selectedGame] && variantOf(r.result)===currentVariant()).at(-1)?.result;
-  return `<div class="assessment-info"><b>${baseline ? 'ارزیابی پایه انجام شده' : 'شروع با ۵ تمرین و ارزیابی پایه'}</b><p>${last ? `سطح پیشنهادی: ${LEVELS[recommendLevel(last).level].label}. ${recommendLevel(last).reason}` : 'اول قانون را یاد می‌گیری؛ سپس براساس دقت، سرعت، خطاها و پاسخ‌های متوالی، یک سطح قابل‌تغییر پیشنهاد می‌شود.'}</p>${baseline ? '<button class="text-button" data-action="baseline">تکرار ارزیابی پایه</button>' : ''}</div>`;
+  return `<div class="assessment-info"><b>${baseline ? uiText('ارزیابی پایه انجام شده') : uiText('شروع با ۵ تمرین و ارزیابی پایه')}</b><p>${last ? lt`سطح پیشنهادی: ${LEVELS[recommendLevel(last).level].label}. ${recommendLevel(last).reason}` : uiText('اول قانون را یاد می‌گیری؛ سپس براساس دقت، سرعت، خطاها و پاسخ‌های متوالی، یک سطح قابل‌تغییر پیشنهاد می‌شود.')}</p>${baseline ? uiText('<button class="text-button" data-action="baseline">تکرار ارزیابی پایه</button>') : ''}</div>`;
 }
 function gameCopy(game) {
-  if(game.id==='traffic' && selectedTrafficMode==='signs')return {...game,description:'فقط با دیدن تابلوی آبی یک‌طرفه حرکت کن. تابلوی ورود ممنوع یعنی باید صبر کنی و پاسخ ندهی.',rules:['تابلوی آبی یک‌طرفه: دکمهٔ «حرکت!» را بزن.','تابلوی قرمز ورود ممنوع: هیچ دکمه‌ای نزن.','تابلو کوتاه دیده می‌شود، اما تا شروع نوبت بعد فرصت پاسخ داری.']};
+  if(game.id==='traffic' && selectedTrafficMode==='signs')return {...game,description:uiText('فقط با دیدن تابلوی آبی یک‌طرفه حرکت کن. تابلوی ورود ممنوع یعنی باید صبر کنی و پاسخ ندهی.'),rules:[uiText('تابلوی آبی یک‌طرفه: دکمهٔ «حرکت!» را بزن.'),uiText('تابلوی قرمز ورود ممنوع: هیچ دکمه‌ای نزن.'),uiText('تابلو کوتاه دیده می‌شود، اما تا شروع نوبت بعد فرصت پاسخ داری.')]};
   if(game.id==='nback') {
-    const noun=selectedMaterial==='numbers'?'عدد':selectedMaterial==='toys'?'اسباب‌بازی':'شکل';
-    return {...game,description:`${noun}‌ها یکی‌یکی دیده می‌شوند. قانون می‌گوید محرک فعلی را با یک، دو یا سه محرک قبل مقایسه کنی.`,rules:[`در آسان، ${noun} فعلی را با یک محرک قبل مقایسه کن.`,`در متوسط دو و در سخت سه محرک قبل را به خاطر بیاور.`,`فقط وقتی ${noun} فعلی با همان محرک یکسان است پاسخ بده؛ به بقیه پاسخ نده.`]};
+    const noun=selectedMaterial==='numbers'?uiText('عدد'):selectedMaterial==='toys'?uiText('اسباب‌بازی'):uiText('شکل');
+    return {...game,description:lt`${noun}‌ها یکی‌یکی دیده می‌شوند. قانون می‌گوید محرک فعلی را با یک، دو یا سه محرک قبل مقایسه کنی.`,rules:[lt`در آسان، ${noun} فعلی را با یک محرک قبل مقایسه کن.`,lt`در متوسط دو و در سخت سه محرک قبل را به خاطر بیاور.`,lt`فقط وقتی ${noun} فعلی با همان محرک یکسان است پاسخ بده؛ به بقیه پاسخ نده.`]};
   }
   if(game.id==='search') {
-    const dual=selectedSearchMode==='dual',noun=selectedMaterial==='letters'?'حرف':'شکل';
-    return {...game,description:dual?`دو ${noun} را به خاطر بسپار و بعد، هر دو را در یک صفحهٔ شلوغ پیدا کن. جزئیات نمونه‌ها مهم‌اند.`:`${noun} نمونه را به خاطر بسپار و بعد آن را میان گزینه‌های مشابه پیدا کن.`,rules:[dual?`${((gameOptions().timing?.previewMs||2000)/1000).toLocaleString('fa-IR')} ثانیه به هر دو نمونه نگاه کن و جزئیاتشان را حفظ کن.`:`${((gameOptions().timing?.previewMs||2000)/1000).toLocaleString('fa-IR')} ثانیه به ${noun} نمونه نگاه کن و جزئیاتش را حفظ کن.`,dual?'پس از پنهان‌شدن نمونه‌ها، هر دو هدف را پیدا کن؛ با پیدا‌کردن یکی، دور تمام نمی‌شود.':'پس از پنهان‌شدن نمونه، همان نمونه را بین گزینه‌ها پیدا کن.','هر کشف درست یک امتیاز دارد. برای هر دور زمان محدودی داری.']};
+    const dual=selectedSearchMode==='dual',noun=selectedMaterial==='letters'?uiText('حرف'):uiText('شکل');
+    return {...game,description:dual?lt`دو ${noun} را به خاطر بسپار و بعد، هر دو را در یک صفحهٔ شلوغ پیدا کن. جزئیات نمونه‌ها مهم‌اند.`:lt`${noun} نمونه را به خاطر بسپار و بعد آن را میان گزینه‌های مشابه پیدا کن.`,rules:[dual?lt`${((gameOptions().timing?.previewMs||2000)/1000).toLocaleString(numberLocale())} ثانیه به هر دو نمونه نگاه کن و جزئیاتشان را حفظ کن.`:lt`${((gameOptions().timing?.previewMs||2000)/1000).toLocaleString(numberLocale())} ثانیه به ${noun} نمونه نگاه کن و جزئیاتش را حفظ کن.`,dual?uiText('پس از پنهان‌شدن نمونه‌ها، هر دو هدف را پیدا کن؛ با پیدا‌کردن یکی، دور تمام نمی‌شود.'):uiText('پس از پنهان‌شدن نمونه، همان نمونه را بین گزینه‌ها پیدا کن.'),uiText('هر کشف درست یک امتیاز دارد. برای هر دور زمان محدودی داری.')]};
   }
   return game;
 }
@@ -274,17 +282,17 @@ function renderDetail(id, updateHash = true) {
   const policy=clients.difficulties.find(d=>d.gameId===id&&d.variant===currentVariant()&&d.protocolVersion===GAME_PROTOCOLS[id]);
   if(!guideState&&policy)selectedLevel=policy.level;
   lessonState = {steps:createLesson(id,{level:selectedLevel,material:selectedMaterial,theme:selectedTheme,trafficMode:selectedTrafficMode,targetCount:id==='search'?(selectedSearchMode==='dual'?2:1):(selectedHuntMode==='divided'?2:1)}),index:0,answered:false};
-  const game = gameCopy(GAME_MAP[id]); document.title = `${game.title} — حواس`;
-  page(`<div class="breadcrumb"><button data-action="home">بازی‌ها</button>${icon('chevron')}<span>${game.title}</span></div>${guideState?`<div class="guided-banner"><b>ارزیابی اولیه · ${fa(GAMES.findIndex(game=>game.id===id)+1)} از ۷</b><span>این بخش شامل پنج تمرین در سطح آسان است.</span><button class="text-button" data-action="assessment">دیدن مسیر ارزیابی ←</button></div>`:""}<section class="intro-layout"><div class="intro-copy"><div class="eyebrow">${icon('spark')} ${game.skill}</div><h1>${game.title}</h1><details class="companion-guide intro-companion"><summary>راهنمای همراه</summary><p class="intro-description">${game.description}</p><ol class="rules">${game.rules.map((rule,i) => `<li><span>${fa(i+1)}</span><p>${rule}</p></li>`).join('')}</ol></details>${lessonState.steps.length?`<section class="lesson-box" id="lesson-box" aria-label="نمونهٔ آموزشی تعاملی">${lessonContent()}</section>`:""}<fieldset class="level-selector"><legend>سطح تمرین تعیین‌شده${policy?.trainingProfile?` · ${esc(policy.trainingProfile.name)}`:''}</legend><div class="levels">${Object.entries(LEVELS).map(([id,level],i) => `<button class="level-button ${selectedLevel === id ? 'selected' : ''}" data-action="level" data-level="${id}" aria-pressed="${selectedLevel === id}" ${guideState||currentUser?.role!=='admin'?"disabled":""}><span class="level-bars" aria-hidden="true">${[0,1,2].map(j=>`<i class="${j<=i?'lit':''}"></i>`).join('')}</span><b>${level.label}</b><small>${level.caption}</small></button>`).join('')}</div></fieldset>${id === 'hunt' ? `<fieldset class="theme-selector"><legend>با چی بازی کنیم؟</legend><div class="theme-options">${Object.entries(THEMES).map(([key,label]) => `<button class="theme-button ${key===selectedTheme?'selected':''}" data-action="theme" data-theme="${key}" aria-pressed="${key===selectedTheme}">${label}</button>`).join('')}</div></fieldset>` : ''}${taskOptions(game)}${assessmentInfo()}${currentUser?.role==='admin'&&activeProfile(clients)?`<div class="difficulty-policy"><span>روش سطح: ${policy?.mode==='fixed'?'ثابت؛ انتخاب سطح، تنظیم ادمین را ثابت می‌کند.':'تطبیقی؛ سطح جلسهٔ بعد از عملکرد تعیین می‌شود.'}</span><button class="text-button" data-action="adaptive-level">فعال‌کردن سطح تطبیقی</button></div>`:''}<div class="start-row"><button class="button primary" data-action="practice">بریم تمرین کنیم ${icon('arrow')}</button>${!guideState && latestBaseline(clients,id,currentVariant()) ? '<button class="button primary" data-action="main-game">بازی اصلی ←</button>' : '<span>۵ تمرین؛ ارزیابی جدا از امتیاز اصلی</span>'}</div></div><aside class="intro-art" style="--card-color:${game.color}"><div class="intro-art-bubble">${gameArtwork(id,{theme:selectedTheme})}</div><div class="intro-art-note">${icon('target')} <span>یک قانون ساده، یک چالش جذاب</span></div><div class="session-summary" id="session-summary">${levelSummary(game)}</div></aside></section>`, 'content-main');
+  const game = gameCopy(GAME_MAP[id]); document.title = lt`${game.title} — حواس`;
+  page(lt`<div class="breadcrumb"><button data-action="home">بازی‌ها</button>${icon('chevron')}<span>${game.title}</span></div>${guideState?lt`<div class="guided-banner"><b>ارزیابی اولیه · ${fa(GAMES.findIndex(game=>game.id===id)+1)} از ۷</b><span>این بخش شامل پنج تمرین در سطح آسان است.</span><button class="text-button" data-action="assessment">دیدن مسیر ارزیابی ←</button></div>`:""}<section class="intro-layout"><div class="intro-copy"><div class="eyebrow">${icon('spark')} ${game.skill}</div><h1>${game.title}</h1><details class="companion-guide intro-companion"><summary>راهنمای همراه</summary><p class="intro-description">${game.description}</p><ol class="rules">${game.rules.map((rule,i) => `<li><span>${fa(i+1)}</span><p>${rule}</p></li>`).join('')}</ol></details>${lessonState.steps.length?lt`<section class="lesson-box" id="lesson-box" aria-label="نمونهٔ آموزشی تعاملی">${lessonContent()}</section>`:""}<fieldset class="level-selector"><legend>سطح تمرین تعیین‌شده${policy?.trainingProfile?` · ${esc(policy.trainingProfile.name)}`:''}</legend><div class="levels">${Object.entries(LEVELS).map(([id,level],i) => `<button class="level-button ${selectedLevel === id ? 'selected' : ''}" data-action="level" data-level="${id}" aria-pressed="${selectedLevel === id}" ${guideState||currentUser?.role!=='admin'?"disabled":""}><span class="level-bars" aria-hidden="true">${[0,1,2].map(j=>`<i class="${j<=i?'lit':''}"></i>`).join('')}</span><b>${level.label}</b><small>${level.caption}</small></button>`).join('')}</div></fieldset>${id === 'hunt' ? lt`<fieldset class="theme-selector"><legend>با چی بازی کنیم؟</legend><div class="theme-options">${Object.entries(THEMES).map(([key,label]) => `<button class="theme-button ${key===selectedTheme?'selected':''}" data-action="theme" data-theme="${key}" aria-pressed="${key===selectedTheme}">${label}</button>`).join('')}</div></fieldset>` : ''}${taskOptions(game)}${assessmentInfo()}${currentUser?.role==='admin'&&activeProfile(clients)?lt`<div class="difficulty-policy"><span>روش سطح: ${policy?.mode==='fixed'?uiText('ثابت؛ انتخاب سطح، تنظیم ادمین را ثابت می‌کند.'):uiText('تطبیقی؛ سطح جلسهٔ بعد از عملکرد تعیین می‌شود.')}</span><button class="text-button" data-action="adaptive-level">فعال‌کردن سطح تطبیقی</button></div>`:''}<div class="start-row"><button class="button primary" data-action="practice">بریم تمرین کنیم ${icon('arrow')}</button>${!guideState && latestBaseline(clients,id,currentVariant()) ? uiText('<button class="button primary" data-action="main-game">بازی اصلی ←</button>') : uiText('<span>۵ تمرین؛ ارزیابی جدا از امتیاز اصلی</span>')}</div></div><aside class="intro-art" style="--card-color:${game.color}"><div class="intro-art-bubble">${gameArtwork(id,{theme:selectedTheme})}</div><div class="intro-art-note">${icon('target')} <span>یک قانون ساده، یک چالش جذاب</span></div><div class="session-summary" id="session-summary">${levelSummary(game)}</div></aside></section>`, 'content-main');
   if(guideState)document.querySelectorAll('[data-action="theme"],[data-action="hunt-mode"],[data-action="material"],[data-action="traffic-mode"],[data-action="search-mode"],[data-action="search-layout"]').forEach(button=>button.disabled=true);
   if(lessonState.steps.length)narrateEntry(lessonGuidanceKey(selectedGame,lessonState.steps[lessonState.index],gameOptions()));
 }
 function levelSummary(game) {
   const l = LEVELS[selectedLevel];
   const timing=gameOptions().timing||defaultTiming(gameOptions()),{visibleMs,intervalMs}=timing;
-  if (game.kind === 'reaction') return `<span><b>۱۵۰</b> نوبت · ۳۰ هدف</span><span><b>${fa(visibleMs)}</b> میلی‌ثانیه نمایش</span><span><b>${time((150+(game.id==='nback'?l.n:0))*intervalMs)}</b> زمان فعال</span>${game.id==='hunt'?`<span><b>${fa(HUNT_SETTINGS[selectedLevel].sceneItems)}</b> شکل هم‌زمان</span>`:''}`;
-  if (game.kind === 'search') return `<span><b>۱۰</b> دور جست‌وجو</span><span><b>${(timing.searchMs/1000).toLocaleString('fa-IR')}</b> ثانیه برای هر دور</span><span><b>${selectedSearchMode==='dual'?'۲':'۱'}</b> هدف در هر دور</span>`;
-  return `<span><b>${fa(l.required)}</b> وسیلهٔ ضروری</span><span><b>${(timing.limitMs/1000).toLocaleString('fa-IR')}</b> ثانیه فرصت</span>`;
+  if (game.kind === 'reaction') return lt`<span><b>۱۵۰</b> نوبت · ۳۰ هدف</span><span><b>${fa(visibleMs)}</b> میلی‌ثانیه نمایش</span><span><b>${time((150+(game.id==='nback'?l.n:0))*intervalMs)}</b> زمان فعال</span>${game.id==='hunt'?lt`<span><b>${fa(HUNT_SETTINGS[selectedLevel].sceneItems)}</b> شکل هم‌زمان</span>`:''}`;
+  if (game.kind === 'search') return lt`<span><b>۱۰</b> دور جست‌وجو</span><span><b>${(timing.searchMs/1000).toLocaleString(numberLocale())}</b> ثانیه برای هر دور</span><span><b>${selectedSearchMode==='dual'?uiText('۲'):uiText('۱')}</b> هدف در هر دور</span>`;
+  return lt`<span><b>${fa(l.required)}</b> وسیلهٔ ضروری</span><span><b>${(timing.limitMs/1000).toLocaleString(numberLocale())}</b> ثانیه فرصت</span>`;
 }
 
 async function start(practice, forceBaseline = false, repeatOptions = null) {
@@ -303,7 +311,7 @@ async function start(practice, forceBaseline = false, repeatOptions = null) {
   }
   const options={...(repeatOptions||gameOptions())};
   if(repeatOptions){selectedGame=options.gameId;selectedLevel=options.level;}
-  const attempt={};launchAttempt=attempt;starting=true;notify('در حال آماده‌سازی بازی…');document.querySelectorAll('[data-action="practice"],[data-action="repeat-practice"],[data-action="main-game"],[data-action="replay"]').forEach(button=>button.disabled=true);
+  const attempt={};launchAttempt=attempt;starting=true;notify(uiText('در حال آماده‌سازی بازی…'));document.querySelectorAll('[data-action="practice"],[data-action="repeat-practice"],[data-action="main-game"],[data-action="replay"]').forEach(button=>button.disabled=true);
   try {
     const run=(!practice||sessionIsBaseline)?await request(`/children/${clients.activeId}/sessions`,{method:'POST',body:{...options,kind:sessionIsBaseline?'baseline':'training'}}):null;
     if(!run&&!repeatOptions){
@@ -311,6 +319,7 @@ async function start(practice, forceBaseline = false, repeatOptions = null) {
       if(data.effectiveLevel)options.level=selectedLevel=data.effectiveLevel;
       options.timing={...data.levels.find(row=>row.level===selectedLevel).timing};if(data.trainingProfile)options.trainingProfile=data.trainingProfile;else delete options.trainingProfile;
     }
+    if(!run&&!repeatOptions)options.seed=globalThis.crypto.getRandomValues(new Uint32Array(1))[0];
     const world=await preloadWorld(run?.settings||options);
     if(launchAttempt!==attempt)return;
     remoteRun=run;loadedWorld=world;
@@ -330,7 +339,7 @@ async function start(practice, forceBaseline = false, repeatOptions = null) {
   sessionOptions={...options,...remoteRun?.settings,level:engine.level,experienceVersion:engine.experienceVersion,trainingProfile:engine.trainingProfile?{...engine.trainingProfile}:null,...(engine.experienceVersion>=3?{timing:{...engine.timing}}:{})};
   repeatingPractice=Boolean(repeatOptions);
   const game = GAME_MAP[selectedGame];
-  page(`<div class="play-heading"><div><span class="section-kicker">${practice ? sessionIsBaseline ? '۵ تمرین برای آموزش و ارزیابی پایه' : 'وقت تمرینه؛ امتیازت ثبت نمی‌شه' : 'نوبت ماجراجویی توئه'}</span><h1>${game.title}<span class="level-pill">${LEVELS[selectedLevel].label}</span></h1></div><div class="play-heading-actions">${themeSelector()}${guideControl('current','راهنما')}<button class="icon-button sound-button" data-action="sound" aria-label="${progress.sound?'خاموش‌کردن صدا و راهنمای گویا':'روشن‌کردن صدا و راهنمای گویا'}" aria-pressed="${progress.sound}">${icon(progress.sound?'sound':'mute')}</button><button class="button subtle pause-button" data-action="pause">${icon('pause')} توقف</button></div></div><section class="play-panel ${game.kind}" data-game="${game.id}" data-interval-ms="${engine.intervalMs||1000}" data-visible-ms="${engine.visibleMs||0}" style="--game-color:${game.color};--game-accent:${game.accent}" aria-label="محیط بازی"><div class="play-hud"><div><span id="progress-label"></span><b id="position"></b></div><div class="hud-time">${icon('clock')}<div><span id="time-label"></span><b id="time"></b></div></div><div><span>پاسخ‌های هدف درست</span><b id="hits">۰</b></div></div><div class="progress-track"><span id="progress-fill"></span></div><div class="instruction-strip" id="instruction"></div><div id="arena" class="arena"></div><div class="play-controls" id="play-controls"></div><div class="visual-feedback" id="visual-feedback" aria-hidden="true"><span class="feedback-good">${icon('check')}</span><span class="feedback-wrong">${icon('repeat')}</span><span class="feedback-cleared">${icon('spark')}</span><strong class="feedback-label"></strong></div><div id="feedback" class="feedback" role="status">با آرامش و دقت شروع کن؛ تو می‌تونی!</div></section><p class="play-footnote">${icon('info')} ${practice ? sessionIsBaseline ? 'این پنج تمرین برای آموزش و پیشنهاد سطح اولیه ثبت می‌شوند.' : 'این بخش فقط برای یادگرفتن قانون بازیه.' : game.kind==='reaction' ? 'محرک کوتاه دیده می‌شه؛ تا شروع نوبت بعد فرصت پاسخ داری.' : 'عجله نکن؛ انتخاب درست، مهم‌تر از انتخاب سریعه.'}</p>`, 'play-main');
+  page(lt`<div class="play-heading"><div><span class="section-kicker">${practice ? sessionIsBaseline ? uiText('۵ تمرین برای آموزش و ارزیابی پایه') : uiText('وقت تمرینه؛ امتیازت ثبت نمی‌شه') : uiText('نوبت ماجراجویی توئه')}</span><h1>${game.title}<span class="level-pill">${LEVELS[selectedLevel].label}</span></h1></div><div class="play-heading-actions">${themeSelector()}${guideControl('current',uiText('راهنما'))}<button class="icon-button sound-button" data-action="sound" aria-label="${progress.sound?uiText('خاموش‌کردن صدا و راهنمای گویا'):uiText('روشن‌کردن صدا و راهنمای گویا')}" aria-pressed="${progress.sound}">${icon(progress.sound?'sound':'mute')}</button><button class="button subtle pause-button" data-action="pause">${icon('pause')} توقف</button></div></div><section class="play-panel ${game.kind}" data-game="${game.id}" data-interval-ms="${engine.intervalMs||1000}" data-visible-ms="${engine.visibleMs||0}" style="--game-color:${game.color};--game-accent:${game.accent}" aria-label="محیط بازی"><div class="play-hud"><div><span id="progress-label"></span><b id="position"></b></div><div class="hud-time">${icon('clock')}<div><span id="time-label"></span><b id="time"></b></div></div><div><span>پاسخ‌های هدف درست</span><b id="hits">۰</b></div></div><div class="progress-track"><span id="progress-fill"></span></div><div class="instruction-strip" id="instruction"></div><div id="arena" class="arena"></div><div class="play-controls" id="play-controls"></div><div class="visual-feedback" id="visual-feedback" aria-hidden="true"><span class="feedback-good">${icon('check')}</span><span class="feedback-wrong">${icon('repeat')}</span><span class="feedback-cleared">${icon('spark')}</span><strong class="feedback-label"></strong></div><div id="feedback" class="feedback" role="status">با آرامش و دقت شروع کن؛ تو می‌تونی!</div></section><p class="play-footnote">${icon('info')} ${practice ? sessionIsBaseline ? uiText('این پنج تمرین برای آموزش و پیشنهاد سطح اولیه ثبت می‌شوند.') : uiText('این بخش فقط برای یادگرفتن قانون بازیه.') : game.kind==='reaction' ? uiText('محرک کوتاه دیده می‌شه؛ تا شروع نوبت بعد فرصت پاسخ داری.') : uiText('عجله نکن؛ انتخاب درست، مهم‌تر از انتخاب سریعه.')}</p>`, 'play-main');
   updatePlay();
   frame = requestAnimationFrame(loop);
 }
@@ -340,19 +349,19 @@ function beginGame() {
   if(playPhase!=='ready'||route!=='play'||modal.open)return;
   guidance.stop();
   playPhase='countdown';preparationClock=new ActiveClock();preparationClock.pause();arenaKey='';updatePlay();preparationClock.resume();
-  announcer.textContent='بازی تا سه ثانیهٔ دیگر شروع می‌شود.';
+  announcer.textContent=uiText('بازی تا سه ثانیهٔ دیگر شروع می‌شود.');
 }
 function updatePreparation() {
-  setText('progress-label','آماده‌سازی');setText('position','هنوز شروع نشده');setText('time-label','زمان بازی');setText('time','۰۰:۰۰');
+  setText('progress-label',uiText('آماده‌سازی'));setText('position',uiText('هنوز شروع نشده'));setText('time-label',uiText('زمان بازی'));setText('time',uiText('۰۰:۰۰'));
   const fill=document.getElementById('progress-fill');if(fill)fill.style.width='0%';
   const key=`preparation:${playPhase}`;
   document.querySelector('.play-panel').dataset.phase=playPhase;
   if(arenaKey!==key){
     arenaKey=key;
-    document.querySelector('#instruction').innerHTML=`${icon('info')}<span>${playPhase==='ready'?'نمونه را ببین یا راهنما را بشنو.':'با پایان شمارش، بازی شروع می‌شود.'}</span>`;
+    document.querySelector('#instruction').innerHTML=`${icon('info')}<span>${playPhase==='ready'?uiText('نمونه را ببین یا راهنما را بشنو.'):uiText('با پایان شمارش، بازی شروع می‌شود.')}</span>`;
     document.querySelector('#arena').innerHTML=playPhase==='ready'?preparationView(engine):countdownView();
-    document.querySelector('#play-controls').innerHTML=playPhase==='ready'?`<button class="button primary begin-button" data-action="begin-game">آماده‌ام، شروع کنیم ${icon('play')}</button><span class="keyboard-hint">یا کلید <kbd>فاصله</kbd></span>`:'';
-    setText('feedback','زمان آماده‌شدن و خواندن توضیحات، جزو زمان بازی نیست.');
+    document.querySelector('#play-controls').innerHTML=playPhase==='ready'?lt`<button class="button primary begin-button" data-action="begin-game">آماده‌ام، شروع کنیم ${icon('play')}</button><span class="keyboard-hint">یا کلید <kbd>فاصله</kbd></span>`:'';
+    setText('feedback',uiText('زمان آماده‌شدن و خواندن توضیحات، جزو زمان بازی نیست.'));
   }
   if(playPhase==='countdown'){
     const number=Math.max(1,3-Math.floor(preparationClock.elapsed/1000)),node=document.getElementById('countdown-number');
@@ -364,8 +373,8 @@ function updatePlay() {
   playMotion.sync(document.querySelector('.play-panel'),engine,{paused:modal.open||document.hidden===true,reduced:matchMedia('(prefers-reduced-motion: reduce)').matches});
   if(playPhase!=='playing'){
     if(playPhase==='countdown'&&preparationClock.elapsed>=3000&&!modal.open){
-      playPhase='playing';arenaKey='';setText('feedback','با آرامش و دقت ادامه بده؛ تو می‌تونی!');updatePlay();engine.clock.resume();if(GAME_MAP[engine.gameId].kind==='reaction')engine.onset=engine.clock.elapsed;updatePlay();
-      announcer.textContent='بازی شروع شد.';return;
+      playPhase='playing';arenaKey='';setText('feedback',uiText('با آرامش و دقت ادامه بده؛ تو می‌تونی!'));updatePlay();engine.clock.resume();if(GAME_MAP[engine.gameId].kind==='reaction')engine.onset=engine.clock.elapsed;updatePlay();
+      announcer.textContent=uiText('بازی شروع شد.');return;
     }
     updatePreparation();return;
   }
@@ -374,15 +383,15 @@ function updatePlay() {
   const game = GAME_MAP[engine.gameId], reaction = game.kind === 'reaction', search = game.kind === 'search';
   const position = reaction ? engine.position : search ? engine.index : engine.practice ? engine.judged : engine.metrics.hits;
   const total = engine.total;
-  setText('progress-label', reaction ? engine.current.scored === false ? 'اول به خاطر بسپار' : 'نوبت بازی' : search ? 'دور جست‌وجو' : engine.practice ? 'تمرین' : 'تجهیزات کوله');
-  setText('position', reaction && engine.current.scored === false ? `${fa(engine.index+1)} از ${fa(engine.n)}` : `${fa(Math.min(total,position + (game.kind === 'adventure' && !engine.practice ? 0 : 1)))} از ${fa(total)}`);
+  setText('progress-label', reaction ? engine.current.scored === false ? uiText('اول به خاطر بسپار') : uiText('نوبت بازی') : search ? uiText('دور جست‌وجو') : engine.practice ? uiText('تمرین') : uiText('تجهیزات کوله'));
+  setText('position', reaction && engine.current.scored === false ? lt`${fa(engine.index+1)} از ${fa(engine.n)}` : lt`${fa(Math.min(total,position + (game.kind === 'adventure' && !engine.practice ? 0 : 1)))} از ${fa(total)}`);
   setText('hits', fa(engine.metrics.hits));
-  setText('time-label', reaction || engine.practice && game.kind === 'adventure' ? 'زمان بازی' : 'زمان باقی‌مانده');
-  setText('time', search && engine.preview ? 'نگاه کن' : time(reaction || engine.practice && game.kind === 'adventure' ? engine.clock.elapsed : engine.remainingMs));
+  setText('time-label', reaction || engine.practice && game.kind === 'adventure' ? uiText('زمان بازی') : uiText('زمان باقی‌مانده'));
+  setText('time', search && engine.preview ? uiText('نگاه کن') : time(reaction || engine.practice && game.kind === 'adventure' ? engine.clock.elapsed : engine.remainingMs));
   const fill = document.getElementById('progress-fill'); if (fill) fill.style.width = `${100*position/total}%`;
   document.querySelector('.play-panel').dataset.phase=engine.roundBreak?'round-break':engine.review?'review':engine.gate?'rule':'playing';
   document.querySelector('.hud-time').classList.toggle('time-urgent',!engine.review&&!engine.roundBreak&&!reaction&&!engine.practice&&engine.remainingMs<=10000);
-  if(engine.roundBreak){setText('time-label','استراحت بین دورها');setText('time','—');}
+  if(engine.roundBreak){setText('time-label',uiText('استراحت بین دورها'));setText('time','—');}
   const key = `${Boolean(engine.roundBreak)}:${Boolean(engine.review)}:` + (reaction ? `${engine.index}:${engine.gate}` : search ? `${engine.index}:${engine.preview}:${[...engine.rejected].join(',')}:${[...engine.found].join(',')}` : `${engine.judged}:${engine.items.map(i=>`${+i.collected}${+i.rejected}${+i.blocked}`).join('')}`);
   if (key !== arenaKey) {
     arenaKey = key;
@@ -420,7 +429,7 @@ function updatePlay() {
     const response = document.querySelector('[data-action="respond"]'); if (response) response.disabled = engine.gate || engine.paused || !!engine.response || engine.current.scored === false;
     if(engine.gameId==='hunt'&&engine.moving)syncHuntFocus(document.querySelector('.hunt-surface'),huntFocus);
   }
-  if(search&&engine.preview&&!engine.review){setText('preview-seconds',`${fa(Math.ceil((engine.revealAt-engine.clock.elapsed)/1000))} ثانیه`);const previewFill=document.querySelector('.preview-timer span');const previewRatio=Math.max(0,Math.min(1,(engine.revealAt-engine.clock.elapsed)/engine.timing.previewMs));if(previewFill)previewFill.style.width=`${100*previewRatio}%`;document.querySelector('.search-clock-arc')?.setAttribute('stroke-dashoffset',String(100*(1-previewRatio)));}
+  if(search&&engine.preview&&!engine.review){setText('preview-seconds',lt`${fa(Math.ceil((engine.revealAt-engine.clock.elapsed)/1000))} ثانیه`);const previewFill=document.querySelector('.preview-timer span');const previewRatio=Math.max(0,Math.min(1,(engine.revealAt-engine.clock.elapsed)/engine.timing.previewMs));if(previewFill)previewFill.style.width=`${100*previewRatio}%`;document.querySelector('.search-clock-arc')?.setAttribute('stroke-dashoffset',String(100*(1-previewRatio)));}
   playMotion.sync(document.querySelector('.play-panel'),engine,{paused:modal.open||document.hidden===true,reduced:matchMedia('(prefers-reduced-motion: reduce)').matches});
   if(search&&!engine.preview&&!engine.review&&!engine.roundBreak){const timeFill=document.querySelector('#search-time-fill');if(timeFill)timeFill.style.width=`${100*engine.remainingMs/engine.timing.searchMs}%`;}
   const missionFill=document.querySelector('#mission-time-fill');if(missionFill)missionFill.style.width=`${engine.practice?100:100*engine.remainingMs/engine.limitMs}%`;
@@ -431,39 +440,39 @@ function reactionScene(game) {
   if(game.id==='traffic')return trafficScene(engine,trafficRoad(engine));
   if(game.id==='nback')return memoryStage(engine,worldBackground(engine,loadedWorld));
   if(game.id==='stroop')return stroopScene(engine,worldBackground(engine,loadedWorld));
-  const tap=`<button class="stimulus-tap" data-action="stimulus-response" data-trial="${engine.index}" aria-label="پاسخ به محرک نمایش‌داده‌شده">${symbol(engine.current.stimulus)}</button>`;
+  const tap=lt`<button class="stimulus-tap" data-action="stimulus-response" data-trial="${engine.index}" aria-label="پاسخ به محرک نمایش‌داده‌شده">${symbol(engine.current.stimulus)}</button>`;
   if(game.id==='hunt')return huntScene(engine,worldBackground(engine,loadedWorld),sceneAtmosphere(engine.theme));
-  return `${game.id==='stroop'?stroopStages(engine.current.phase):''}<div class="reaction-stage">${worldBackground(engine,loadedWorld)}<div class="stage-caption">خوب نگاه کن…</div><div class="focus-corners"><i></i><i></i><i></i><i></i><div class="stimulus-shell">${tap}</div></div><span class="stage-dots" aria-hidden="true">· · ·</span></div>`;
+  return lt`${game.id==='stroop'?stroopStages(engine.current.phase):''}<div class="reaction-stage">${worldBackground(engine,loadedWorld)}<div class="stage-caption">خوب نگاه کن…</div><div class="focus-corners"><i></i><i></i><i></i><i></i><div class="stimulus-shell">${tap}</div></div><span class="stage-dots" aria-hidden="true">· · ·</span></div>`;
 }
 function searchBoard() { return searchChoices(engine); }
 function renderArena(game) {
   const arena = document.getElementById('arena'), controls = document.getElementById('play-controls'), instruction = document.getElementById('instruction');
-  if(engine.roundBreak){instruction.innerHTML=`${icon('pause')}<span>قبل از نمونهٔ بعد، <b>آماده شو</b></span>`;arena.innerHTML=roundBreakView(engine);controls.innerHTML=`<button class="button primary next-round-button" data-action="next-round">آماده‌ام، دور ${fa(engine.index+2)} ${icon('arrow')}</button><span class="keyboard-hint">یا کلید <kbd>فاصله</kbd></span>`;return;}
+  if(engine.roundBreak){instruction.innerHTML=lt`${icon('pause')}<span>قبل از نمونهٔ بعد، <b>آماده شو</b></span>`;arena.innerHTML=roundBreakView(engine);controls.innerHTML=lt`<button class="button primary next-round-button" data-action="next-round">آماده‌ام، دور ${fa(engine.index+2)} ${icon('arrow')}</button><span class="keyboard-hint">یا کلید <kbd>فاصله</kbd></span>`;return;}
   if(engine.review){
-    instruction.innerHTML=`${icon('info')}<span>مرور تمرین · <b>زمان متوقف است</b></span>`;arena.innerHTML=reviewView(engine);
+    instruction.innerHTML=lt`${icon('info')}<span>مرور تمرین · <b>زمان متوقف است</b></span>`;arena.innerHTML=reviewView(engine);
     const position=game.kind==='reaction'?engine.position:game.kind==='search'?engine.index:engine.judged;
-    controls.innerHTML=`<button class="button primary review-next" data-action="continue-review">${position>=engine.total-1?'دیدن نتیجهٔ تمرین':'آماده‌ام، تمرین بعدی'} ${icon('arrow')}</button>`;return;
+    controls.innerHTML=`<button class="button primary review-next" data-action="continue-review">${position>=engine.total-1?uiText('دیدن نتیجهٔ تمرین'):uiText('آماده‌ام، تمرین بعدی')} ${icon('arrow')}</button>`;return;
   }
   if (game.kind === 'reaction') {
     let cue, button;
-    if (game.id === 'hunt') { cue = huntTargetCue(engine); button = 'پیداش کردم'; }
-    if(game.id==='traffic'){cue=trafficRulePicture(engine.variant==='signs');button='حرکت!';}
-    if (game.id === 'nback') { cue = memoryRule(engine); button = `مثل ${fa(engine.n)} تا قبله`; }
-    if (game.id === 'stroop') { cue = `${stroopRulePicture(engine.current.phase)}<span class="sr-only">مرحلهٔ ${fa(engine.current.phase+1)}: ${STROOP_RULES[engine.current.phase].title}</span>`; button = 'این هدفه'; }
+    if (game.id === 'hunt') { cue = huntTargetCue(engine); button = uiText('پیداش کردم'); }
+    if(game.id==='traffic'){cue=trafficRulePicture(engine.variant==='signs');button=uiText('حرکت!');}
+    if (game.id === 'nback') { cue = memoryRule(engine); button = lt`مثل ${fa(engine.n)} تا قبله`; }
+    if (game.id === 'stroop') { cue = lt`${stroopRulePicture(engine.current.phase)}<span class="sr-only">مرحلهٔ ${fa(engine.current.phase+1)}: ${STROOP_RULES[engine.current.phase].title}</span>`; button = uiText('این هدفه'); }
     instruction.innerHTML = cue;
     if (engine.gate) {
       arena.innerHTML=transitionView(engine);
     } else arena.innerHTML = reactionScene(game);
-    controls.innerHTML = game.id==='hunt'?huntControls(engine):game.id==='nback'?memoryControls(engine):game.id==='stroop'?stroopControls(engine):`<button class="button response-button" data-action="respond" ${engine.gate || engine.response || engine.current.scored === false ? 'disabled' : ''}>${icon('tap')} <span>${game.id==='traffic'?'حرکت':'بزن'}</span><span class="sr-only">${button}</span></button><span class="keyboard-hint">یا کلید <kbd>فاصله</kbd> روی کیبورد</span>`;
+    controls.innerHTML = game.id==='hunt'?huntControls(engine):game.id==='nback'?memoryControls(engine):game.id==='stroop'?stroopControls(engine):lt`<button class="button response-button" data-action="respond" ${engine.gate || engine.response || engine.current.scored === false ? 'disabled' : ''}>${icon('tap')} <span>${game.id==='traffic'?uiText('حرکت'):uiText('بزن')}</span><span class="sr-only">${button}</span></button><span class="keyboard-hint">یا کلید <kbd>فاصله</kbd> روی کیبورد</span>`;
   } else if (game.kind === 'search') {
     const dual=engine.targetCount===2;
-    instruction.innerHTML = `${icon(engine.preview ? 'info' : 'target')}<span>${engine.preview ? dual?`${(engine.timing.previewMs/1000).toLocaleString('fa-IR')} ثانیه فرصت داری؛ <b>هر دو نمونه رو به خاطر بسپار.</b>`:`${(engine.timing.previewMs/1000).toLocaleString('fa-IR')} ثانیه فرصت داری؛ <b>شکل و علامتش رو به خاطر بسپار.</b>` : dual?'نمونه‌ها پنهان شدند؛ <b>هر دو هدف رو پیدا کن.</b>':'نمونه پنهان شده؛ <b>همون شکل رو پیدا کن.</b>'}</span>`;
+    instruction.innerHTML = `${icon(engine.preview ? 'info' : 'target')}<span>${engine.preview ? dual?lt`${(engine.timing.previewMs/1000).toLocaleString(numberLocale())} ثانیه فرصت داری؛ <b>هر دو نمونه رو به خاطر بسپار.</b>`:lt`${(engine.timing.previewMs/1000).toLocaleString(numberLocale())} ثانیه فرصت داری؛ <b>شکل و علامتش رو به خاطر بسپار.</b>` : dual?uiText('نمونه‌ها پنهان شدند؛ <b>هر دو هدف رو پیدا کن.</b>'):uiText('نمونه پنهان شده؛ <b>همون شکل رو پیدا کن.</b>')}</span>`;
     arena.innerHTML=`<div class="search-world">${searchWorkspaceHeading(engine)}${searchRounds(engine)}${engine.preview?searchPreview(engine):`<div class="search-board-meta">${searchMemoryNote()}${searchTargetStatus(engine)}</div><div class="search-time-track" aria-hidden="true"><span id="search-time-fill"></span></div>${searchBoard()}`}</div>`;
-    controls.innerHTML = `<span class="search-tip">${icon('info')} ${engine.preview ? 'هنوز گزینه‌ها نمایش داده نشدن.' : dual?`${fa(engine.found.size)} از ۲ هدف این دور پیدا شده؛ به جزئیات دقت کن.`:'روی شکل درست بزن؛ به جزئیات دقت کن.'}</span>`;
+    controls.innerHTML = `<span class="search-tip">${icon('info')} ${engine.preview ? uiText('هنوز گزینه‌ها نمایش داده نشدن.') : dual?lt`${fa(engine.found.size)} از ۲ هدف این دور پیدا شده؛ به جزئیات دقت کن.`:uiText('روی شکل درست بزن؛ به جزئیات دقت کن.')}</span>`;
   } else {
-    instruction.innerHTML = `${icon('target')}<span>${engine.practice ? 'این وسیله برای سفر لازمه؟ <b>لازم است؟ «بردار»؛ لازم نیست؟ «دست نگه دار».</b>' : engine.ready ? (game.id==='space'?'<b>سفینه آماده‌ست! حالا پرتاب کن.</b>':'<b>کوله آماده‌ست! قبل از پایان زمان راهی شو.</b>') : `<b>${fa(engine.required.length)} وسیلهٔ ضروری</b> رو پیدا کن.${game.id==='space'?' اول موانع رو کنار بزن.':''}`}</span>`;
+    instruction.innerHTML = `${icon('target')}<span>${engine.practice ? uiText('این وسیله برای سفر لازمه؟ <b>لازم است؟ «بردار»؛ لازم نیست؟ «دست نگه دار».</b>') : engine.ready ? (game.id==='space'?uiText('<b>سفینه آماده‌ست! حالا پرتاب کن.</b>'):uiText('<b>کوله آماده‌ست! قبل از پایان زمان راهی شو.</b>')) : lt`<b>${fa(engine.required.length)} وسیلهٔ ضروری</b> رو پیدا کن.${game.id==='space'?uiText(' اول موانع رو کنار بزن.'):''}`}</span>`;
     arena.innerHTML=game.id==='ark'?arkScene(engine,missionChecklist(engine)):spaceScene(engine,missionChecklist(engine));
-    controls.innerHTML = engine.practice ? `<button class="button response-button collect-button" data-action="item" data-index="${engine.currentItem.id}" ${engine.currentItem.blocked?'disabled':''}>${icon('bag')} بردار</button><button class="button wait-button" data-action="reject-item" ${engine.currentItem.blocked?'disabled':''}>${icon('wait')} دست نگه دار</button>` : `${missionInventory(engine)}<button class="button primary depart-button" data-action="depart" ${engine.ready?'':'disabled'}>${icon(game.id==='space'?'rocket':engine.ready?'check':'bag')}${game.id==='space'?'پرتاب سفینه':'سوار کشتی شو'} ${icon('arrow')}</button>`;
+    controls.innerHTML = engine.practice ? lt`<button class="button response-button collect-button" data-action="item" data-index="${engine.currentItem.id}" ${engine.currentItem.blocked?'disabled':''}>${icon('bag')} بردار</button><button class="button wait-button" data-action="reject-item" ${engine.currentItem.blocked?'disabled':''}>${icon('wait')} دست نگه دار</button>` : `${missionInventory(engine)}<button class="button primary depart-button" data-action="depart" ${engine.ready?'':'disabled'}>${icon(game.id==='space'?'rocket':engine.ready?'check':'bag')}${game.id==='space'?uiText('پرتاب سفینه'):uiText('سوار کشتی شو')} ${icon('arrow')}</button>`;
   }
 }
 
@@ -472,47 +481,48 @@ function renderResultActions() {
   if(route!=='result'||!engine||!actions)return;
   const practice=engine.practice,morePractice=practice&&needsMorePractice(engine.result);
   const button=(action,label,style='subtle')=>`<button class="button ${style}" data-action="${action}">${label}</button>`;
-  const repeat=button('repeat-practice','دوباره تمرین کنیم',morePractice?'primary':'subtle');
+  const repeat=button('repeat-practice',uiText('دوباره تمرین کنیم'),morePractice?'primary':'subtle');
   let content;
   if(sessionAssessment){
     const next=nextAssessmentGame(clients);
-    const onward=button(next?'assessment-next':'assessment',next?'ادامهٔ ارزیابی بازی بعد':'جمع‌بندی ارزیابی هفت بازی',morePractice?'subtle':'primary');
-    content=(morePractice?repeat+onward:onward+repeat)+button('assessment','مسیر ارزیابی و استراحت');
+    const onward=button(next?'assessment-next':'assessment',next?uiText('ادامهٔ ارزیابی بازی بعد'):uiText('جمع‌بندی ارزیابی هفت بازی'),morePractice?'subtle':'primary');
+    content=(morePractice?repeat+onward:onward+repeat)+button('assessment',uiText('مسیر ارزیابی و استراحت'));
   }else if(practice){
-    const main=button('main-game','بزن بریم بازی اصلی',morePractice?'subtle':'primary');
-    content=(morePractice?repeat+main:main+repeat)+button('detail','برگشت به راهنما');
-    if(sessionIsBaseline)content+='<button class="text-button" data-action="assessment">ارزیابی سایر بازی‌ها</button>';
-  }else content=button('replay',`دوباره بازی کن ${icon('repeat')}`,'primary')+button('home','انتخاب بازی دیگه');
-  actions.innerHTML=content+'<button class="text-button" data-action="dashboard">دیدن اطلاعات کاربر و گزارش‌ها</button>';
+    const main=button('main-game',uiText('بزن بریم بازی اصلی'),morePractice?'subtle':'primary');
+    content=(morePractice?repeat+main:main+repeat)+button('detail',uiText('برگشت به راهنما'));
+    if(sessionIsBaseline)content+=uiText('<button class="text-button" data-action="assessment">ارزیابی سایر بازی‌ها</button>');
+  }else content=button('replay',lt`دوباره بازی کن ${icon('repeat')}`,'primary')+button('home',uiText('انتخاب بازی دیگه'));
+  actions.innerHTML=content+uiText('<button class="text-button" data-action="dashboard">دیدن اطلاعات کاربر و گزارش‌ها</button>');
   if(pendingSave)actions.querySelectorAll('button').forEach(button=>button.disabled=true);
 }
 
-function finish() {
+function finish({renderOnly=false}={}) {
+  if(pendingLocale){setLocale(pendingLocale);clients.locale=pendingLocale;pendingLocale=null;}
   const session = engine, result = session.result, game = GAME_MAP[selectedGame]; route = 'result';
   if (modal.open) modal.close();
   const needsSave=!session.practice||sessionIsBaseline;
-  if(needsSave)pendingSave={run:remoteRun,result,childId:clients.activeId,ownerId:currentUser.id};
+  if(needsSave&&!renderOnly)pendingSave={run:remoteRun,result,childId:clients.activeId,ownerId:currentUser.id};
   const recommendation = recommendLevel(result);
   const morePractice=session.practice&&needsMorePractice(result);
   if (sessionIsBaseline) selectedLevel = recommendation.level;
   const ratio = result.maxScore ? result.score/result.maxScore : 0;
   const stars = !result.completed?0:ratio>=.85?3:ratio>=.5?2:ratio>0?1:0;
-  const title = session.practice ? sessionIsBaseline ? 'ارزیابی پایه کامل شد' : morePractice ? 'یک فرصت تازه برای تمرین!' : 'تمرین تموم شد، آماده‌ای؟' : !result.completed ? 'این سفر هنوز ادامه داره!' : ratio>=.85 ? 'چه تمرکز درخشانی!' : ratio>=.5 ? 'آفرین، خوب پیش رفتی!' : 'هر بار، یک قدم بهتر!';
-  const caption = morePractice ? 'پنج تمرین رو انجام دادی. پیشنهاد می‌کنیم یک بار دیگه با هم تمرین کنیم؛ می‌تونی مسیرت رو هم ادامه بدی.' : session.practice ? sessionIsBaseline ? 'نتیجهٔ این پنج تمرین جدا از بازی اصلی در اطلاعات کاربر نگهداری می‌شود. پیشنهاد سطح اولیه براساس همین تمرین‌هاست.' : 'پنج تمرین رو انجام دادی. هر وقت آماده بودی، می‌تونی ماجراجویی اصلی رو شروع کنی.' : !result.completed ? result.hits===result.maxScore?'همهٔ وسایل را پیدا کردی! دفعهٔ بعد، پیش از پایان زمان دکمهٔ حرکت را بزن.':'زمان تمام شد؛ در مرور پایین، نیازهای باقی‌ماندهٔ سفر را بشناس و دوباره امتحان کن.' : game.kind==='adventure' ? session.mission.success : 'مهم‌ترین بخشش رو انجام دادی: با دقت بازی کردی. آمادهٔ یک چالش دیگه‌ای؟';
-  page(`<section class="result-card">${game.id==='hunt'&&!session.practice?huntOutcomeArt(session):game.id==='stroop'&&!session.practice?stroopOutcomeArt(session):game.id==='nback'&&!session.practice?memoryOutcomeArt(session):game.id==='search'&&!session.practice?searchOutcomeArt(session):game.id==='traffic'&&!session.practice?trafficOutcome(trafficProgress(session)):game.kind==='adventure'&&!session.practice?missionOutcomeArt(game.id,result.completed):trophyArt()}<div class="eyebrow">${session.practice?'۵ تمرین آموزشی':'پایان بازی'} <span>·</span> ${game.title}</div><h1>${title}</h1><p class="result-caption">${caption}</p>${!session.practice?`<div class="result-stars" aria-label="${fa(stars)} ستاره از ۳">${[0,1,2].map(i=>`<span class="${i<stars?'earned':''}">${i<stars?'★':'☆'}</span>`).join('')}</div>`:''}<div class="result-main-score"><b>${fa(result.score)}</b><span>از ${fa(result.maxScore)} ${session.practice?'پاسخ هدف':'امتیاز'}</span></div><div class="result-stats"><div>${icon('check')}<b>${fa(result.hits)}</b><span>انتخاب هدف درست</span></div><div>${icon('target')}<b>${fa(result.falseSelections)}</b><span>انتخاب اشتباه</span></div><div>${icon('info')}<b>${fa(result.omissions)}</b><span>هدف بدون پاسخ</span></div><div>${icon('clock')}<b>${time(result.durationMs)}</b><span>زمان فعال بازی</span></div><div>${icon('check')}<b>${fa(result.longestStreak)}</b><span>تصمیم درست متوالی</span></div>${game.kind==='reaction'?`<div>${icon('pause')}<b>${fa(result.correctRejections)}</b><span>خودداری درست از پاسخ</span></div>`:''}${result.meanReactionMs!==null?`<div>${icon('spark')}<b>${fa(result.meanReactionMs)} <small>ms</small></b><span>${result.reactionMeasure==='decision-interval'?'میانگین زمان انتخاب درست':'میانگین واکنش درست'}</span></div>`:''}</div>${stroopScorecard(session)}${learningRecap(session)}${game.kind==='reaction'?'<p class="score-note">امتیاز = هدف‌های درست، منهای انتخاب‌های اشتباه؛ حداقل صفر.</p>':''}${!session.practice || sessionIsBaseline?`<p class="local-note">${icon('check')} در حال ثبت نتیجه در سرور مرکز…</p>`:''}<div class="result-actions"></div></section>`, 'result-main');
+  const title = session.practice ? sessionIsBaseline ? uiText('ارزیابی پایه کامل شد') : morePractice ? uiText('یک فرصت تازه برای تمرین!') : uiText('تمرین تموم شد، آماده‌ای؟') : !result.completed ? uiText('این سفر هنوز ادامه داره!') : ratio>=.85 ? uiText('چه تمرکز درخشانی!') : ratio>=.5 ? uiText('آفرین، خوب پیش رفتی!') : uiText('هر بار، یک قدم بهتر!');
+  const caption = morePractice ? uiText('پنج تمرین رو انجام دادی. پیشنهاد می‌کنیم یک بار دیگه با هم تمرین کنیم؛ می‌تونی مسیرت رو هم ادامه بدی.') : session.practice ? sessionIsBaseline ? uiText('نتیجهٔ این پنج تمرین جدا از بازی اصلی در اطلاعات کاربر نگهداری می‌شود. پیشنهاد سطح اولیه براساس همین تمرین‌هاست.') : uiText('پنج تمرین رو انجام دادی. هر وقت آماده بودی، می‌تونی ماجراجویی اصلی رو شروع کنی.') : !result.completed ? result.hits===result.maxScore?uiText('همهٔ وسایل را پیدا کردی! دفعهٔ بعد، پیش از پایان زمان دکمهٔ حرکت را بزن.'):uiText('زمان تمام شد؛ در مرور پایین، نیازهای باقی‌ماندهٔ سفر را بشناس و دوباره امتحان کن.') : game.kind==='adventure' ? session.mission.success : uiText('مهم‌ترین بخشش رو انجام دادی: با دقت بازی کردی. آمادهٔ یک چالش دیگه‌ای؟');
+  page(lt`<section class="result-card">${game.id==='hunt'&&!session.practice?huntOutcomeArt(session):game.id==='stroop'&&!session.practice?stroopOutcomeArt(session):game.id==='nback'&&!session.practice?memoryOutcomeArt(session):game.id==='search'&&!session.practice?searchOutcomeArt(session):game.id==='traffic'&&!session.practice?trafficOutcome(trafficProgress(session),session):game.kind==='adventure'&&!session.practice?missionOutcomeArt(game.id,result.completed):trophyArt()}<div class="eyebrow">${session.practice?uiText('۵ تمرین آموزشی'):uiText('پایان بازی')} <span>·</span> ${game.title}</div><h1>${title}</h1><p class="result-caption">${caption}</p>${!session.practice?lt`<div class="result-stars" aria-label="${fa(stars)} ستاره از ۳">${[0,1,2].map(i=>`<span class="${i<stars?'earned':''}">${i<stars?'★':'☆'}</span>`).join('')}</div>`:''}<div class="result-main-score"><b>${fa(result.score)}</b><span>از ${fa(result.maxScore)} ${session.practice?uiText('پاسخ هدف'):uiText('امتیاز')}</span></div><div class="result-stats"><div>${icon('check')}<b>${fa(result.hits)}</b><span>انتخاب هدف درست</span></div><div>${icon('target')}<b>${fa(result.falseSelections)}</b><span>انتخاب اشتباه</span></div><div>${icon('info')}<b>${fa(result.omissions)}</b><span>هدف بدون پاسخ</span></div><div>${icon('clock')}<b>${time(result.durationMs)}</b><span>زمان فعال بازی</span></div><div>${icon('check')}<b>${fa(result.longestStreak)}</b><span>تصمیم درست متوالی</span></div>${game.kind==='reaction'?lt`<div>${icon('pause')}<b>${fa(result.correctRejections)}</b><span>خودداری درست از پاسخ</span></div>`:''}${result.meanReactionMs!==null?`<div>${icon('spark')}<b>${fa(result.meanReactionMs)} <small>ms</small></b><span>${result.reactionMeasure==='decision-interval'?uiText('میانگین زمان انتخاب درست'):uiText('میانگین واکنش درست')}</span></div>`:''}</div>${stroopScorecard(session)}${learningRecap(session)}${game.kind==='reaction'?uiText('<p class="score-note">امتیاز = هدف‌های درست، منهای انتخاب‌های اشتباه؛ حداقل صفر.</p>'):''}${!session.practice || sessionIsBaseline?lt`<p class="local-note">${icon('check')} در حال ثبت نتیجه در سرور مرکز…</p>`:''}<div class="result-actions"></div></section>`, 'result-main');
   if (!session.practice || sessionIsBaseline) {
     const note = document.querySelector('.local-note');
-    note.innerHTML=`${icon('clock')} در حال ثبت نتیجه در سرور مرکز…`;
+    note.innerHTML=lt`${icon('clock')} در حال ثبت نتیجه در سرور مرکز…`;
     const best = (clients.panelSummary&&sessionBestScore!==null?[{score:sessionBestScore,maxScore:result.maxScore}]:comparableRecords(profileRecords(clients),{kind:'training',result}).map(r=>r.result)).sort((a,b)=>b.score-a.score || Number(b.completed)-Number(a.completed))[0];
-    if (Number.isFinite(best?.score)) document.querySelector('.result-main-score').insertAdjacentHTML('afterend', `<p class="best-score">${icon('trophy')} بهترین امتیاز تو در سطح ${LEVELS[result.level].label}: <b>${fa(best.score)} از ${fa(best.maxScore)}</b></p>`);
+    if (Number.isFinite(best?.score)) document.querySelector('.result-main-score').insertAdjacentHTML('afterend', lt`<p class="best-score">${icon('trophy')} بهترین امتیاز تو در سطح ${LEVELS[result.level].label}: <b>${fa(best.score)} از ${fa(best.maxScore)}</b></p>`);
   }
   if(result.variant && result.variant!=='standard')document.querySelector('.result-caption').insertAdjacentHTML('afterend',`<span class="variant-note">${variantLabel(result.variant)}</span>`);
-  document.querySelector('.result-actions').insertAdjacentHTML('beforebegin', `<div class="level-recommendation"><b>سطح پیشنهادی ${sessionIsBaseline?'برای شروع':'برای نوبت بعد'}: ${LEVELS[recommendation.level].label}</b><p>${recommendation.reason}</p><button class="text-button" data-action="recommended-level" data-level="${recommendation.level}">انتخاب سطح و دیدن راهنما ←</button></div>`);
+  document.querySelector('.result-actions').insertAdjacentHTML('beforebegin', lt`<div class="level-recommendation"><b>سطح پیشنهادی ${sessionIsBaseline?uiText('برای شروع'):uiText('برای نوبت بعد')}: ${LEVELS[recommendation.level].label}</b><p>${recommendation.reason}</p><button class="text-button" data-action="recommended-level" data-level="${recommendation.level}">انتخاب سطح و دیدن راهنما ←</button></div>`);
   if(morePractice)document.querySelector('.result-learning')?.setAttribute('open','');
   renderResultActions();
   if(currentUser.role!=='admin')document.querySelector('.level-recommendation button')?.remove();
   announcer.textContent = title;
-  if(needsSave)void persistPending();
+  if(needsSave&&!renderOnly)void persistPending();
 }
 
 function openModal(content, kind) {
@@ -522,13 +532,13 @@ function openModal(content, kind) {
 }
 function about() {
   if (route==='play' && engine){if(!engine.paused)engine.pause();preparationClock?.pause();}
-  openModal(`<button class="modal-close icon-button" data-action="close-modal" aria-label="بستن راهنما">${icon('close')}</button><span class="big-spark">✳</span><h2 id="modal-title">بازی کنیم، کشف کنیم!</h2><p>حواس هفت بازی برای تمرین دقت و حافظه داره. تمرین‌ها و نتیجه‌های هر نفر در حساب خودش ذخیره می‌شن.</p><ol class="modal-steps"><li><b>۱</b><span>از صفحهٔ اصلی، یک بازی انتخاب کن.</span></li><li><b>۲</b><span>با پنج تمرین کوتاه، قانون بازی رو یاد بگیر.</span></li><li><b>۳</b><span>بازی اصلی رو انجام بده و نتیجه‌ات رو ببین.</span></li></ol><p class="modal-small">روی گوشی با لمس بازی کن؛ روی کامپیوتر از ماوس و در بازی‌های واکنشی از کلید فاصله استفاده کن. صدا رو هم می‌تونی از بالای صفحه روشن کنی.</p><button class="button primary full-width" data-action="close-modal">فهمیدم ${icon('check')}</button>`, 'about');
+  openModal(lt`<button class="modal-close icon-button" data-action="close-modal" aria-label="بستن راهنما">${icon('close')}</button><span class="big-spark">✳</span><h2 id="modal-title">بازی کنیم، کشف کنیم!</h2><p>حواس هفت بازی برای تمرین دقت و حافظه داره. تمرین‌ها و نتیجه‌های هر نفر در حساب خودش ذخیره می‌شن.</p><ol class="modal-steps"><li><b>۱</b><span>از صفحهٔ اصلی، یک بازی انتخاب کن.</span></li><li><b>۲</b><span>با پنج تمرین کوتاه، قانون بازی رو یاد بگیر.</span></li><li><b>۳</b><span>بازی اصلی رو انجام بده و نتیجه‌ات رو ببین.</span></li></ol><p class="modal-small">روی گوشی با لمس بازی کن؛ روی کامپیوتر از ماوس و در بازی‌های واکنشی از کلید فاصله استفاده کن. صدا رو هم می‌تونی از بالای صفحه روشن کنی.</p><button class="button primary full-width" data-action="close-modal">فهمیدم ${icon('check')}</button>`, 'about');
 }
 function pause() {
   if (route!=='play'||!engine) return;
   guidance.stop();
   engine.pause(); preparationClock?.pause(); if(engine.done) return finish();
-  openModal(`<span class="pause-emblem">${icon('pause')}</span><h2 id="modal-title">یک نفس تازه کن.</h2><p>بازی و زمان متوقف شده. هر وقت آماده بودی، از همین‌جا ادامه بده.</p>${guideControl(guidanceKey({...gameOptions(),n:engine.n,phase:engine.current?.phase}))}<div class="modal-buttons"><button class="button primary" data-action="resume">ادامهٔ بازی ${icon('play')}</button><button class="button subtle" data-action="restart">از اول شروع کن ${icon('repeat')}</button><button class="text-button" data-action="home">برگشت به بازی‌ها ${icon('home')}</button></div>`, 'pause');
+  openModal(lt`<span class="pause-emblem">${icon('pause')}</span><h2 id="modal-title">یک نفس تازه کن.</h2><p>بازی و زمان متوقف شده. هر وقت آماده بودی، از همین‌جا ادامه بده.</p>${guideControl(guidanceKey({...engine,...gameOptions(),n:engine.n,phase:engine.current?.phase}))}<div class="modal-buttons"><button class="button primary" data-action="resume">ادامهٔ بازی ${icon('play')}</button><button class="button subtle" data-action="restart">از اول شروع کن ${icon('repeat')}</button><button class="text-button" data-action="home">برگشت به بازی‌ها ${icon('home')}</button></div>`, 'pause');
 }
 function closeModal() {
   guidance.stop();
@@ -540,7 +550,7 @@ function closeModal() {
   refreshAdminAfterDialog();
 }
 function syncSoundControls(){
-  document.querySelectorAll('.sound-button').forEach(node=>{node.innerHTML=icon(progress.sound?'sound':'mute');node.setAttribute('aria-pressed',String(progress.sound));node.setAttribute('aria-label',progress.sound?'خاموش‌کردن صدا و راهنمای گویا':'روشن‌کردن صدا و راهنمای گویا');});
+  document.querySelectorAll('.sound-button').forEach(node=>{node.innerHTML=icon(progress.sound?'sound':'mute');node.setAttribute('aria-pressed',String(progress.sound));node.setAttribute('aria-label',progress.sound?uiText('خاموش‌کردن صدا و راهنمای گویا'):uiText('روشن‌کردن صدا و راهنمای گویا'));});
 }
 function narrateEntry(key){
   const identity=`${currentUser?.id}:${clients.activeId}:${selectedGame}`;
@@ -581,7 +591,7 @@ function answer(result,context={}) {
   if(visual){
     visual.dataset.kind=kind;
     const label=visual.querySelector('.feedback-label');
-    if(label)label.textContent=kind==='cleared'?'راه باز شد':good?'آفرین!':!engine.practice&&GAME_MAP[engine.gameId].kind==='adventure'?'۲ ثانیه کمتر':'دوباره ببین';
+    if(label)label.textContent=kind==='cleared'?uiText('راه باز شد'):good?uiText('آفرین!'):!engine.practice&&GAME_MAP[engine.gameId].kind==='adventure'?uiText('۲ ثانیه کمتر'):uiText('دوباره ببین');
     playMotion.toast(visual);
   }
   playMotion.burst(source,kind);
@@ -611,7 +621,7 @@ async function dashboard() {
   if(!currentUser)return showLogin();const view=beginView();if(!await refreshClients(view))return;
   if(!await loadReportData(view))return;
   guideState=null;engine=null;route='reports';if(modal.open)modal.close();setHash('#reports');
-  document.title='گزارش تمرین‌ها — حواس';page(reportsView(clients,reportState,currentUser),'content-main reports-main');
+  document.title=uiText('گزارش تمرین‌ها — حواس');page(reportsView(clients,reportState,currentUser),'content-main reports-main');
 }
 
 function download(data, type, filename) {
@@ -635,16 +645,16 @@ async function exportTrials() {
     if(!currentView(view)){await response.body?.cancel();return;}
     if(!response.ok){
       let error;try{error=await response.json();}catch{}
-      throw new ApiError(typeof error?.error==='string'?error.error:'این فایل در دسترس نیست یا اجازهٔ دریافتش را ندارید.',response.status,typeof error?.code==='string'?error.code:'EXPORT_FAILED');
+      throw new ApiError(typeof error?.error==='string'?error.error:uiText('این فایل در دسترس نیست یا اجازهٔ دریافتش را ندارید.'),response.status,typeof error?.code==='string'?error.code:'EXPORT_FAILED');
     }
     if(response.headers.get('Content-Type')?.split(';',1)[0].trim().toLowerCase()!=='text/csv'){
-      await response.body?.cancel();throw new ApiError('فایل CSV درست دریافت نشد. دوباره تلاش کنید.',response.status,'INVALID_RESPONSE');
+      await response.body?.cancel();throw new ApiError(uiText('فایل CSV درست دریافت نشد. دوباره تلاش کنید.'),response.status,'INVALID_RESPONSE');
     }
     const data=await response.text();if(currentView(view))download('\uFEFF'+data.replace(/^\uFEFF/,''),'text/csv;charset=utf-8','havaas-responses.csv');
   }catch(error){
     if(!currentView(view))return;
     if(error instanceof ApiError){const failure=await accountError(error,view.userId,view.role);if(currentView(view))throw failure;return;}
-    throw new ApiError('فایل دریافت نشد. دوباره تلاش کنید.',0,'NETWORK_ERROR',{cause:error});
+    throw new ApiError(uiText('فایل دریافت نشد. دوباره تلاش کنید.'),0,'NETWORK_ERROR',{cause:error});
   }
 }
 app.addEventListener('submit',event=>{event.preventDefault();void submitForm(event.target).catch(showError);});
@@ -657,9 +667,9 @@ function refreshFailure(error,retry=null){
  if(error.code==='STALE_RESPONSE')return;
  if(error.status===401||error.code==='PASSWORD_CHANGE_REQUIRED')return showError(error);
  if(retry)pendingPanelRefresh={view:{version:viewVersion,userId:currentUser?.id,role:currentUser?.role},retry};
- notify('تغییرات ذخیره شد، اما فهرست به‌روز نشد. برای دیدن آخرین اطلاعات دوباره تلاش کنید.');
+ notify(uiText('تغییرات ذخیره شد، اما فهرست به‌روز نشد. برای دیدن آخرین اطلاعات دوباره تلاش کنید.'));
  const node=document.querySelector('#account-status')||document.querySelector('#app-status');
- if(node&&!node.querySelector('[data-action=refresh-panel]'))node.insertAdjacentHTML('beforeend',' <button class="button subtle" data-action="refresh-panel">دریافت دوبارهٔ اطلاعات</button>');
+ if(node&&!node.querySelector('[data-action=refresh-panel]'))node.insertAdjacentHTML('beforeend',uiText(' <button class="button subtle" data-action="refresh-panel">دریافت دوبارهٔ اطلاعات</button>'));
 }
 async function retryPanelRefresh(){
  const pending=pendingPanelRefresh;pendingPanelRefresh=null;if(pending&&currentView(pending.view))return pending.retry();
@@ -726,7 +736,7 @@ async function loadSessionDetails(details){
   clients.reportPage.selected={...clients.reportPage.selected,result:data.record.result};
   const holder=document.createElement('div');holder.innerHTML=reportsView(clients,reportState,currentUser);const fresh=holder.querySelector('.outcome-details');
   if(fresh)details.innerHTML=fresh.innerHTML;details.dataset.loaded='true';
- }catch(error){if(currentView(view)){if(error.status===401||error.status===403)return showError(error);details.innerHTML='<summary>جزئیات جلسه</summary><p role="alert">جزئیات جلسه دریافت نشد. دوباره تلاش کنید.</p><button class="button subtle" data-action="retry-details">تلاش دوباره</button>';}}
+ }catch(error){if(currentView(view)){if(error.status===401||error.status===403)return showError(error);details.innerHTML=uiText('<summary>جزئیات جلسه</summary><p role="alert">جزئیات جلسه دریافت نشد. دوباره تلاش کنید.</p><button class="button subtle" data-action="retry-details">تلاش دوباره</button>');}}
  finally{if(details.isConnected)details.removeAttribute('aria-busy');}
 }
 async function printReport(){
@@ -756,7 +766,7 @@ async function processForm(form){
   if(form.id==='login-form'){
     if(!api.csrfToken)await request('/auth/session');
     const auth=await request('/auth/login',{method:'POST',body:values});
-    if(pendingSave&&auth.user.id!==pendingSave.ownerId){await request('/auth/logout',{method:'POST'});await request('/auth/session');throw Error('برای ذخیرهٔ نتیجه، با همان حسابی وارد شوید که بازی را با آن انجام دادید.');}
+    if(pendingSave&&auth.user.id!==pendingSave.ownerId){await request('/auth/logout',{method:'POST'});await request('/auth/session');throw Error(uiText('برای ذخیرهٔ نتیجه، با همان حسابی وارد شوید که بازی را با آن انجام دادید.'));}
     currentUser=auth.user;
     if(pendingSave){if(modal.open)modal.close();return persistPending();}
     if(inviteToken){inviteInfo=await request('/invitations/inspect',{method:'POST',body:{token:inviteToken}});return showLogin(inviteInfo);}
@@ -765,7 +775,7 @@ async function processForm(form){
   if(form.id==='accept-form'){
     const auth=await request('/invitations/accept',{method:'POST',body:{...values,token:inviteToken}});history.replaceState?.({},'',location.pathname);return openSignedInHome(auth);
   }
-  if(form.id==='password-form'){const wasForced=currentUser.passwordChangeRequired;const data=await request('/auth/change-password',{method:'POST',body:values});currentUser=data.user;form.reset?.();if(wasForced)return openSignedInHome(data);return notify('رمز تغییر کرد. اگر حواس در دستگاه دیگری باز است، باید آنجا هم دوباره وارد شوید.');}
+  if(form.id==='password-form'){const wasForced=currentUser.passwordChangeRequired;const data=await request('/auth/change-password',{method:'POST',body:values});currentUser=data.user;form.reset?.();if(wasForced)return openSignedInHome(data);return notify(uiText('رمز تغییر کرد. اگر حواس در دستگاه دیگری باز است، باید آنجا هم دوباره وارد شوید.'));}
   if(form.id==='registration-form'){
     const auth=await request('/public/registration/complete',{method:'POST',body:{token:registrationToken,username:values.username,password:values.password,email:values.email,profile:values}});history.replaceState?.({},'',location.pathname);return openSignedInHome(auth);
   }
@@ -780,17 +790,17 @@ async function processForm(form){
   if(form.id==='create-user-form'){
     const view={version:viewVersion,userId:currentUser.id,role:currentUser.role},preview=previewImport,data=await request('/users',{method:'POST',body:{...values,profile:values}});
     acknowledgeForm(form);if(!currentView(view))return false;if(!form.isConnected||!modal.open){scheduleAdminRefresh(view);return;}
-    if(form.dataset.importSource&&preview&&preview===previewImport){const source=form.dataset.importSource;const choices=new Map([...document.querySelectorAll('.import-mapping')].map(row=>[row.dataset.source,row.querySelector('[name=targetId]').value]));if(data.profile&&!clients.profiles.some(p=>p.id===data.profile.id))clients.profiles.push(data.profile);preview.profiles.forEach(p=>p.targetId=p.sourceId===source?data.profile.id:choices.get(p.sourceId)||p.targetId);if(modal.open)modal.close();const target=document.querySelector('#import-preview');if(target)target.innerHTML=importPreviewView(preview,clients.profiles);return notify('کاربر ساخته شد؛ انتقال سوابق را تأیید کنید.');}
-    if(data.url){openModal('<h2 id="modal-title">دعوت مدیر</h2><div id="invitation-result"></div><button class="button subtle" data-action="close-modal">بستن</button>','invitation');showInvitation(data);}else{if(modal.open)modal.close();}notify('کاربر با موفقیت ساخته شد.');void refreshCreatedUsers();return;
+    if(form.dataset.importSource&&preview&&preview===previewImport){const source=form.dataset.importSource;const choices=new Map([...document.querySelectorAll('.import-mapping')].map(row=>[row.dataset.source,row.querySelector('[name=targetId]').value]));if(data.profile&&!clients.profiles.some(p=>p.id===data.profile.id))clients.profiles.push(data.profile);preview.profiles.forEach(p=>p.targetId=p.sourceId===source?data.profile.id:choices.get(p.sourceId)||p.targetId);if(modal.open)modal.close();const target=document.querySelector('#import-preview');if(target)target.innerHTML=importPreviewView(preview,clients.profiles);return notify(uiText('کاربر ساخته شد؛ انتقال سوابق را تأیید کنید.'));}
+    if(data.url){openModal(uiText('<h2 id="modal-title">دعوت مدیر</h2><div id="invitation-result"></div><button class="button subtle" data-action="close-modal">بستن</button>'),'invitation');showInvitation(data);}else{if(modal.open)modal.close();}notify(uiText('کاربر با موفقیت ساخته شد.'));void refreshCreatedUsers();return;
   }
-  if(form.id==='edit-user-form'){const view={version:viewVersion,userId:currentUser.id,role:currentUser.role},body={username:values.username,...(form.dataset.role==='user'?{profile:values}:{name:values.name})};body.expectedRevision=Number(form.dataset.revision);if(body.profile)body.expectedProfileRevision=Number(form.dataset.profileRevision);const data=await request(`/users/${form.dataset.user}`,{method:'PATCH',body});acknowledgeForm(form,data);if(data.user.id===currentUser.id)currentUser=data.user;if(!currentView(view)||!form.isConnected)return false;notify('اطلاعات کاربر ذخیره شد.');try{await inspectUser(data.user.id);notify('اطلاعات کاربر ذخیره شد.');}catch(error){if(currentUser?.id===view.userId)refreshFailure(error);}return;}
-  if(form.id==='report-link-form'){const childId=clients.activeId,version=viewVersion;const data=await request(`/children/${childId}/report-links`,{method:'POST',body:values});acknowledgeForm(form);if(version!==viewVersion||childId!==clients.activeId)return;showInvitation(data);form.hidden=true;document.querySelector('#invitation-result')?.insertAdjacentHTML('beforeend','<button class="button subtle" data-action="new-report-link">ساخت لینک جدید</button>');notify('لینک ساخته شد.');try{await refreshReportLinks({version:viewVersion,userId:currentUser.id,role:currentUser.role},childId);}catch(error){if(version===viewVersion)refreshFailure(error);}return;}
+  if(form.id==='edit-user-form'){const view={version:viewVersion,userId:currentUser.id,role:currentUser.role},body={username:values.username,...(form.dataset.role==='user'?{profile:values}:{name:values.name})};body.expectedRevision=Number(form.dataset.revision);if(body.profile)body.expectedProfileRevision=Number(form.dataset.profileRevision);const data=await request(`/users/${form.dataset.user}`,{method:'PATCH',body});acknowledgeForm(form,data);if(data.user.id===currentUser.id)currentUser=data.user;if(!currentView(view)||!form.isConnected)return false;notify(uiText('اطلاعات کاربر ذخیره شد.'));try{await inspectUser(data.user.id);notify(uiText('اطلاعات کاربر ذخیره شد.'));}catch(error){if(currentUser?.id===view.userId)refreshFailure(error);}return;}
+  if(form.id==='report-link-form'){const childId=clients.activeId,version=viewVersion;const data=await request(`/children/${childId}/report-links`,{method:'POST',body:values});acknowledgeForm(form);if(version!==viewVersion||childId!==clients.activeId)return;showInvitation(data);form.hidden=true;document.querySelector('#invitation-result')?.insertAdjacentHTML('beforeend',uiText('<button class="button subtle" data-action="new-report-link">ساخت لینک جدید</button>'));notify(uiText('لینک ساخته شد.'));try{await refreshReportLinks({version:viewVersion,userId:currentUser.id,role:currentUser.role},childId);}catch(error){if(version===viewVersion)refreshFailure(error);}return;}
   if(form.id==='admin-difficulty-form'){
     const view={version:viewVersion,userId:currentUser.id,role:currentUser.role},childId=clients.activeId,custom=values.level.startsWith('profile:');
     try{
       const data=await request(`/children/${childId}/difficulty`,{method:'PATCH',body:{...policyOptions(values.gameId,values.variant),mode:custom?'fixed':values.mode,level:custom?undefined:values.level,trainingProfileId:custom?values.level.slice(8):null,expectedRevision:Number(form.dataset.revision||0)}});
       if(data.setting){const row=data.setting,setting={gameId:row.game_id??row.gameId,variant:row.variant,protocolVersion:row.protocol??row.protocolVersion,mode:row.mode,level:row.level,revision:row.revision,trainingProfileId:row.trainingProfileId,trainingProfile:row.trainingProfile};clients.difficulties=clients.difficulties.filter(d=>d.gameId!==setting.gameId||d.variant!==setting.variant||d.protocolVersion!==setting.protocolVersion);clients.difficulties.push(setting);form.dataset.revision=String(setting.revision);}
-      acknowledgeForm(form);if(!currentView(view))return false;notify('تنظیم سطح برای جلسهٔ بعد ذخیره شد.');
+      acknowledgeForm(form);if(!currentView(view))return false;notify(uiText('تنظیم سطح برای جلسهٔ بعد ذخیره شد.'));
       try{if(!await refreshClients(view))return;syncPolicyControls(false);await loadProfileAssignmentSummary();}catch(error){if(currentUser?.id===view.userId)refreshFailure(error);}
     }catch(error){if(form.isConnected&&currentView(view))document.querySelector('#policy-profile-error').textContent=error.message;throw error;}return;
   }
@@ -798,10 +808,10 @@ async function processForm(form){
   if(form.id!=='profile-form')return false;
   const validation=validateProfile(values);if(validation.error){document.querySelector('#profile-error').textContent=validation.error;return false;}
   const data=await request(editingProfile?`/children/${editingProfile}`:'/children',{method:editingProfile?'PATCH':'POST',body:{...validation.profile,expectedRevision:Number(form.dataset.revision||1),...(values.ownerUserId?{ownerUserId:values.ownerUserId}:{})}});
-  acknowledgeForm(form,data);clients.activeId=data.profile.id;notify('مشخصات ذخیره شد.');
+  acknowledgeForm(form,data);clients.activeId=data.profile.id;notify(uiText('مشخصات ذخیره شد.'));
   try{
    await refreshClients();if(pendingStart)return continueAfterProfile();
-   if(inspectedUserId){await inspectUser(inspectedUserId);return notify('مشخصات کاربر ذخیره شد.');}return profiles(null,'مشخصات ذخیره شد.');
+   if(inspectedUserId){await inspectUser(inspectedUserId);return notify(uiText('مشخصات کاربر ذخیره شد.'));}return profiles(null,uiText('مشخصات ذخیره شد.'));
   }catch(error){refreshFailure(error);}
 }
 app.addEventListener('change',event=>{void changeInput(event).catch(showError);});
@@ -821,6 +831,7 @@ async function refreshFilteredReport(){
  }
 }
 async function changeInput(event){
+  if(event.target.matches('[data-locale-select]'))return changeLanguage(event.target);
   if(event.target.id==='policy-level'){syncProfileChoice(true);return;}
   if(event.target.matches('[data-birth-part]'))return syncBirthDate(event.target.closest('[data-birth-date]'));
   if(event.target.matches('[data-audit-date-part]'))return syncAuditDate(event.target.closest('[data-audit-date]'));
@@ -847,7 +858,7 @@ async function handleAction(event) {
   }
   const leaving=['home','admin','admin-users','admin-game-settings','admin-invitations','admin-audit','account','profiles','assessment','assessment-next','assess-game','assessment-train','open','inspect-user','review-profile','select-profile','logout','new-user','new-registration','create-mode','close-modal','games','refresh-panel','dashboard','report-links','edit-profile','unresolved-page'];
   if(leaving.includes(action)&&!await navigationGuard.allow(submitForm)){if(button.tagName==='A')event.preventDefault();return;}
-  if(action==='toggle-password'){const input=button.closest('.input-shell')?.querySelector('input');if(input){const show=input.type==='password';input.type=show?'text':'password';button.setAttribute('aria-pressed',String(show));button.setAttribute('aria-label',show?'پنهان‌کردن رمز':'نمایش رمز');button.innerHTML=icon(show?'eye-off':'eye');}return;}
+  if(action==='toggle-password'){const input=button.closest('.input-shell')?.querySelector('input');if(input){const show=input.type==='password';input.type=show?'text':'password';button.setAttribute('aria-pressed',String(show));button.setAttribute('aria-label',show?uiText('پنهان‌کردن رمز'):uiText('نمایش رمز'));button.innerHTML=icon(show?'eye-off':'eye');}return;}
   if(action==='listen-guide'){
     const key=button.dataset.guide==='current'?guidanceKey({...engine,targetCount:engine?.targets?.length||engine?.targetCount,phase:engine?.current?.phase}):button.dataset.guide;
     if(route==='play'&&!modal.open&&(playPhase==='countdown'||playPhase==='playing'&&(!engine?.paused||engine?.transitionClock&&!engine.transitionClock.paused))){pause();if(engine?.done)return;}
@@ -888,7 +899,7 @@ async function handleAction(event) {
   if(fromReactionPointer&&['respond','stimulus-response'].includes(action)){event.preventDefault();return;}
   if(starting&&!['sound','about'].includes(action))return;
   if(route==='play'&&['account','profiles','dashboard','home','assessment','open'].includes(action))engine?.clock.pause();
-  if(pendingSave&&!['retry-save','reauth','sound','close-modal','about'].includes(action)){notify('ابتدا ثبت نتیجهٔ این جلسه را کامل کنید.');return;}
+  if(pendingSave&&!['retry-save','reauth','sound','close-modal','about'].includes(action)){notify(uiText('ابتدا ثبت نتیجهٔ این جلسه را کامل کنید.'));return;}
   if(action==='admin')return adminPanel();
   if(action==='inspect-user')return inspectUser(button.dataset.user);
   if(action==='review-profile'){clients.activeId=button.dataset.id;inspectedUserId=button.dataset.user||null;return inspectedUserId?inspectUser(inspectedUserId):dashboard();}
@@ -905,13 +916,13 @@ async function handleAction(event) {
     button.disabled=true;
     try{
       const copied=await copyTextField(field);if(!card.isConnected)return;
-      button.textContent=copied?'لینک کپی شد':'کپی لینک';
-      card.querySelector('[data-copy-status]').textContent=copied?'لینک با موفقیت کپی شد.':'لینک انتخاب شده، ولی کپی نشد. از گزینهٔ «کپی» مرورگر یا کلیدهای Ctrl+C استفاده کنید.';
+      button.textContent=copied?uiText('لینک کپی شد'):uiText('کپی لینک');
+      card.querySelector('[data-copy-status]').textContent=copied?uiText('لینک با موفقیت کپی شد.'):uiText('لینک انتخاب شده، ولی کپی نشد. از گزینهٔ «کپی» مرورگر یا کلیدهای Ctrl+C استفاده کنید.');
     }finally{button.disabled=false;}
     return;
   }
   if(action==='reset-link'){const version=viewVersion,data=await request('/invitations',{method:'POST',body:{userId:button.dataset.user,purpose:button.dataset.purpose||'reset'}});if(version===viewVersion)return showInvitation(data);return;}
-  if(action==='toggle-user'){const view={version:viewVersion,userId:currentUser.id,role:currentUser.role};await viewRequest(view,`/users/${button.dataset.user}`,{method:'PATCH',body:{active:button.dataset.active==='true',expectedRevision:Number(button.dataset.revision||inspectedRevision)}});if(!currentView(view))return;if(button.dataset.user===currentUser.id&&button.dataset.active==='false')return prepareLogin('حساب شما غیرفعال شد.');return inspectUser(button.dataset.user);}
+  if(action==='toggle-user'){const view={version:viewVersion,userId:currentUser.id,role:currentUser.role};await viewRequest(view,`/users/${button.dataset.user}`,{method:'PATCH',body:{active:button.dataset.active==='true',expectedRevision:Number(button.dataset.revision||inspectedRevision)}});if(!currentView(view))return;if(button.dataset.user===currentUser.id&&button.dataset.active==='false')return prepareLogin(uiText('حساب شما غیرفعال شد.'));return inspectUser(button.dataset.user);}
   if(action==='import-browser')return previewLegacy(()=>readClients());
   if(action==='commit-import')return commitLegacy();
   if(action==='adaptive-level'){await request(`/children/${clients.activeId}/difficulty`,{method:'PATCH',body:{...gameOptions(),mode:'adaptive',level:selectedLevel}});await refreshClients();return detail(selectedGame,false);}
@@ -1011,7 +1022,7 @@ document.addEventListener('keydown', event=>{
 document.addEventListener('visibilitychange', ()=>{ if(document.hidden&&route==='play'&&engine&&(!engine.paused||engine.transitionClock||playPhase==='countdown')) { if(modal.open) { engine.pause();preparationClock?.pause(); } else pause(); } });
 window.addEventListener('orientationchange',()=>{if(route==='play'&&engine&&(!engine.paused||engine.transitionClock||playPhase==='countdown')&&!modal.open)pause();});
 function gameOptions(){
- const options={gameId:selectedGame,clientExperienceVersion:EXPERIENCE_VERSION,view:'panel',level:selectedLevel,theme:selectedTheme,material:selectedMaterial,layout:selectedLayout,trafficMode:selectedTrafficMode,targetCount:selectedGame==='search'?(selectedSearchMode==='dual'?2:1):(selectedHuntMode==='divided'?2:1)};
+ const options={gameId:selectedGame,locale:getLocale(),experienceVersion:EXPERIENCE_VERSION,clientExperienceVersion:EXPERIENCE_VERSION,view:'panel',level:selectedLevel,theme:selectedTheme,material:selectedMaterial,layout:selectedLayout,trafficMode:selectedTrafficMode,targetCount:selectedGame==='search'?(selectedSearchMode==='dual'?2:1):(selectedHuntMode==='divided'?2:1)};
  const key=timingIdentity({...options,variant:currentVariant()}),cached=clients.gameTimings;
  if(cached?.childId===clients.activeId&&['gameId','variant','timingFamily'].every(field=>cached.identity[field]===key[field])){options.timing={...cached.levels.find(row=>row.level===selectedLevel).timing};if(cached.trainingProfile)options.trainingProfile={...cached.trainingProfile};}
  return options;
@@ -1021,8 +1032,8 @@ async function refreshClients(view=null){
  const valid=()=>currentUser?.id===viewerId&&currentUser?.role===viewerRole&&(!view||currentView(view));let data;
  try{data=await request(`/bootstrap?view=panel${clients.activeId?'&childId='+encodeURIComponent(clients.activeId):''}`);}catch(error){if(!valid())return false;throw error;}
  if(!valid())return false;
- if(data.user.id!==viewerId||data.user.role!==viewerRole)throw new ApiError('حساب این مرورگر تغییر کرده است؛ دوباره وارد شوید.',401,'ACCOUNT_CHANGED');
- currentUser=data.user;Object.assign(clients,data);delete clients.reportPage;return true;
+ if(data.user.id!==viewerId||data.user.role!==viewerRole)throw new ApiError(uiText('حساب این مرورگر تغییر کرده است؛ دوباره وارد شوید.'),401,'ACCOUNT_CHANGED');
+ currentUser=data.user;Object.assign(clients,data,{locale:getLocale()});delete clients.reportPage;return true;
 }
 function showLogin(invite=null){
   route=invite?'invitation':'auth';engine=null;cancelAnimationFrame(frame);if(modal.open)modal.close();
@@ -1036,13 +1047,13 @@ function clearPrivateData(){
  Object.assign(clients,{activeId:null,profiles:[],records:[],difficulties:[]});Object.assign(reportState,{tab:'admin',game:'',level:'',variant:'',kind:'training',recordId:null});
 }
 function connectionError(error){
- route='connection-error';engine=null;if(modal.open)modal.close();document.title='تلاش دوباره برای اتصال — حواس';
- page(`<section class="surface empty-state"><h1>ارتباط با مرکز برقرار نشد</h1><p>${esc(error.message||'اطلاعات حساب دریافت نشد.')}</p><p>وقتی اتصال برقرار شد، از همین‌جا ادامه بده. لازم نیست دوباره ثبت‌نام کنی یا رمز بسازی.</p><button class="button primary" data-action="retry-connect">تلاش دوباره</button></section>`,'auth-main');
+ route='connection-error';engine=null;if(modal.open)modal.close();document.title=uiText('تلاش دوباره برای اتصال — حواس');
+ page(lt`<section class="surface empty-state"><h1>ارتباط با مرکز برقرار نشد</h1><p>${esc(error.message||uiText('اطلاعات حساب دریافت نشد.'))}</p><p>وقتی اتصال برقرار شد، از همین‌جا ادامه بده. لازم نیست دوباره ثبت‌نام کنی یا رمز بسازی.</p><button class="button primary" data-action="retry-connect">تلاش دوباره</button></section>`,'auth-main');
 }
 async function openSignedInHome(auth){
  currentUser=auth.user;clearPrivateData();inviteToken=null;inviteInfo=null;registrationToken=null;
  if(currentUser.passwordChangeRequired)return forcedPassword();
- route='connecting';document.title='ورود به حواس';page('<section class="surface empty-state"><h1>در حال دریافت اطلاعات حساب…</h1></section>','auth-main');
+ route='connecting';document.title=uiText('ورود به حواس');page(uiText('<section class="surface empty-state"><h1>در حال دریافت اطلاعات حساب…</h1></section>'),'auth-main');
  if(currentUser.role==='admin')return adminPanel();
  const view={version:viewVersion,userId:currentUser.id,role:currentUser.role};
  try{if(await refreshClients(view))return home();}catch(error){if(currentView(view))showError(error);}
@@ -1054,8 +1065,22 @@ async function prepareLogin(message=''){
  try{await request('/auth/session');}finally{delete form.dataset.waiting;form.querySelectorAll('input,button').forEach(control=>control.disabled=false);}
 }
 function publicReportMessage(title,message,retry=false){
- publicReportData={};route='public-report-message';engine=null;if(modal.open)modal.close();document.title='گزارش خانواده — حواس';
- page(`<section class="surface empty-state"><h1>${esc(title)}</h1><p>${esc(message)}</p>${retry?'<button class="button primary" data-action="retry-connect">تلاش دوباره</button>':''}</section>`,'auth-main');
+ publicReportData={};route='public-report-message';engine=null;if(modal.open)modal.close();document.title=uiText('گزارش خانواده — حواس');
+ page(`<section class="surface empty-state"><h1>${esc(title)}</h1><p>${esc(message)}</p>${retry?uiText('<button class="button primary" data-action="retry-connect">تلاش دوباره</button>'):''}</section>`,'auth-main');
+}
+async function changeLanguage(select){
+ const desired=select.value;
+ if(!['fa','en'].includes(desired)||desired===getLocale())return;
+ if(route==='play'&&engine&&!engine.done){pendingLocale=desired;select.value=getLocale();notify(uiText('زبان انتخاب‌شده پس از پایان بازی اعمال می‌شود.'));return;}
+ const forms=[...document.querySelectorAll('form')].map(form=>({id:form.id,fields:[...form.querySelectorAll('[name]')].filter(input=>input.type!=='file').map(input=>({name:input.name,value:input.value,checked:input.checked}))}));
+ const files=[...document.querySelectorAll('input[type=file]')].filter(input=>input.files?.length).map(input=>({id:input.id,input}));
+ setLocale(desired);clients.locale=desired;guidance.stop();
+ const url=new URL(location.href);if(url.searchParams.has('lang')){url.searchParams.set('lang',desired);history.replaceState?.({},'',url);}
+ if(currentUser&&clients.activeId)await refreshClients();
+ if(route==='result')finish({renderOnly:true});else await navigate();
+ for(const saved of forms){const form=document.getElementById(saved.id);if(!form)continue;for(const field of saved.fields){const input=[...form.querySelectorAll('[name]')].find(input=>input.name===field.name);if(input){input.value=field.value;if(['checkbox','radio'].includes(input.type))input.checked=field.checked;}}}
+ for(const saved of files)document.getElementById(saved.id)?.replaceWith(saved.input);
+ navigationGuard.sync();
 }
 async function navigate(){
  const id=location.hash.slice(1),shared=id.match(/^report\/([a-f0-9]{64})$/);
@@ -1064,8 +1089,8 @@ async function navigate(){
  if(id.startsWith('register/'))return showRegistration(id.slice(9));
  registrationToken=null;
  if(id.startsWith('report/')){
-  publicReportMessage('در حال دریافت گزارش','لطفاً کمی صبر کنید.');
-  if(!shared)throw Error('لینک گزارش معتبر نیست؛ لینک کامل را از فرستنده دریافت کنید.');
+  publicReportMessage(uiText('در حال دریافت گزارش'),uiText('لطفاً کمی صبر کنید.'));
+  if(!shared)throw Error(uiText('لینک گزارش معتبر نیست؛ لینک کامل را از فرستنده دریافت کنید.'));
   const view=beginView();Object.assign(reportState,{tab:'parents',game:'',level:'',variant:'',kind:'',recordId:null});const data=await viewRequest(view,'/public/report',{method:'POST',body:{token:shared[1],view:'panel',kind:''}});if(!currentView(view))return;publicReportData=data;return renderPublicReport();
  }
  publicReportData=null;
@@ -1080,7 +1105,7 @@ async function initialize(){
   if(/^#(?:register|invite)\//.test(location.hash))return await navigate();
   if(currentUser?.role==='user'&&!currentUser.passwordChangeRequired&&!location.hash.startsWith('#report/'))await refreshClients();
   return await navigate();
- }catch(error){if(location.hash.startsWith('#report/'))return publicReportMessage('گزارش در دسترس نیست',error.message,true);connectionError(error);}
+ }catch(error){if(location.hash.startsWith('#report/'))return publicReportMessage(uiText('گزارش در دسترس نیست'),error.message,true);connectionError(error);}
 }
 function notify(message){
   let node=document.querySelector('#account-status')||document.querySelector('#app-status');
@@ -1093,15 +1118,15 @@ function showError(error){
     const form=document.querySelector('#edit-user-form')||document.querySelector('form#profile-form');
     let node=form&&!form.closest('[hidden]')?form.querySelector('#profile-error,#account-error'):null;
     if(node)node.textContent=error.message;else{notify(error.message);node=document.querySelector('#account-status')||document.querySelector('#app-status');}
-    node?.insertAdjacentHTML('beforeend','<button type="button" class="button subtle" data-action="reload-conflict">دیدن آخرین اطلاعات</button>');return;
+    node?.insertAdjacentHTML('beforeend',uiText('<button type="button" class="button subtle" data-action="reload-conflict">دیدن آخرین اطلاعات</button>'));return;
   }
-  if(location.hash.startsWith('#report/'))return publicReportMessage('گزارش در دسترس نیست',error.message,true);
+  if(location.hash.startsWith('#report/'))return publicReportMessage(uiText('گزارش در دسترس نیست'),error.message,true);
   if(error.code==='PASSWORD_CHANGE_REQUIRED'&&currentUser){currentUser.passwordChangeRequired=true;return forcedPassword();}
   if(error.status===401&&!pendingSave&&currentUser){void prepareLogin(error.message).catch(showError);return;}
   if(['connecting','connection-error'].includes(route))return connectionError(error);
   const candidates=[...(modal.open?modal.querySelectorAll('#account-error,#profile-error'):[]),...app.querySelectorAll('#account-error,#profile-error')];
   const node=candidates.find(field=>!field.closest('[hidden]'));
-  if(node)node.textContent=error.message||'درخواست انجام نشد. دوباره تلاش کنید.';else notify(error.message||'درخواست انجام نشد. دوباره تلاش کنید.');
+  if(node)node.textContent=error.message||uiText('درخواست انجام نشد. دوباره تلاش کنید.');else notify(error.message||uiText('درخواست انجام نشد. دوباره تلاش کنید.'));
 }
 async function persistPending(){
   const pending=pendingSave;if(!pending||pending.saving)return;
@@ -1109,50 +1134,50 @@ async function persistPending(){
   try {
     data=await request(`/children/${pending.childId}/sessions/${pending.run.id}/complete`,{method:'POST',body:{result:pending.result,view:'panel'}});
   }catch(error){
-    pending.saving=false;const note=document.querySelector('.local-note');if(note)note.innerHTML=`<span>${icon('info')} نتیجه هنوز ذخیره نشده: ${esc(error.message)} تا وقتی این صفحه باز است، نتیجه نگه داشته می‌شود.</span><button class="button subtle" data-action="retry-save">تلاش دوباره برای ثبت</button><button class="text-button" data-action="reauth">ورود با حسابی که بازی را انجام داده</button>`;
+    pending.saving=false;const note=document.querySelector('.local-note');if(note)note.innerHTML=lt`<span>${icon('info')} نتیجه هنوز ذخیره نشده: ${esc(error.message)} تا وقتی این صفحه باز است، نتیجه نگه داشته می‌شود.</span><button class="button subtle" data-action="retry-save">تلاش دوباره برای ثبت</button><button class="text-button" data-action="reauth">ورود با حسابی که بازی را انجام داده</button>`;
     return;
   }
   // The completion acknowledgement is authoritative even if the following refresh fails.
   sessionRecordId=data.record.id;completedRecord=data.record;pendingSave=null;if(data.panelSummary)clients.panelSummary=data.panelSummary;
   const index=clients.records.findIndex(record=>record.id===data.record.id);if(index<0)clients.records.push(data.record);else clients.records[index]=data.record;
-  const note=document.querySelector('.local-note');if(note)note.innerHTML=`${icon('check')} نتیجه ذخیره شد.`;
+  const note=document.querySelector('.local-note');if(note)note.innerHTML=lt`${icon('check')} نتیجه ذخیره شد.`;
   renderResultActions();
   if(data.record.kind==='training'){
-    const content=`بهترین امتیاز این سطح: <b>${fa(data.bestScore??Math.max(...comparableRecords(profileRecords(clients),data.record).map(r=>r.result.score)))} از ${fa(data.record.result.maxScore)}</b>`,best=document.querySelector('.best-score');
+    const content=lt`بهترین امتیاز این سطح: <b>${fa(data.bestScore??Math.max(...comparableRecords(profileRecords(clients),data.record).map(r=>r.result.score)))} از ${fa(data.record.result.maxScore)}</b>`,best=document.querySelector('.best-score');
     if(best)best.innerHTML=content;else document.querySelector('.result-main-score')?.insertAdjacentHTML('afterend',`<p class="best-score">${content}</p>`);
   }
   const view={version:viewVersion,userId:currentUser?.id,role:currentUser?.role};
   try{await refreshClients(view);}catch(error){
     if(!currentView(view))return;
     if(error.status===401||error.code==='PASSWORD_CHANGE_REQUIRED')return showError(error);
-    if(note?.isConnected)note.insertAdjacentHTML('beforeend','<span>نتیجه ذخیره شد، اما تنظیمات جدید دریافت نشد.</span>');
+    if(note?.isConnected)note.insertAdjacentHTML('beforeend',uiText('<span>نتیجه ذخیره شد، اما تنظیمات جدید دریافت نشد.</span>'));
   }
 }
 async function account(){
  if(!currentUser)return showLogin();if(currentUser.passwordChangeRequired)return forcedPassword();const view=beginView();if(!await refreshClients(view))return;
  if(currentUser.role==='admin'){const data=await viewRequest(view,`/children?view=panel&owner=unassigned&page=${unresolvedPage}`);if(!currentView(view))return;unresolvedProfiles=data.profiles;unresolvedPage=data.pagination.page;unresolvedPages=data.pagination.pages;}
- guideState=null;engine=null;route='account';setHash(currentUser.role==='admin'?'#admin/settings':'#account');if(modal.open)modal.close();page(accountView(currentUser,unresolvedProfiles),'content-main account-main');if(unresolvedPages>1)document.querySelector('.import-section')?.insertAdjacentHTML('beforeend',`<div class="pagination"><button class="button subtle" data-action="unresolved-page" data-page="${unresolvedPage-1}" ${unresolvedPage<=1?'disabled':''}>قبلی</button><button class="button subtle" data-action="unresolved-page" data-page="${unresolvedPage+1}" ${unresolvedPage>=unresolvedPages?'disabled':''}>بعدی</button></div>`);
+ guideState=null;engine=null;route='account';setHash(currentUser.role==='admin'?'#admin/settings':'#account');if(modal.open)modal.close();page(accountView(currentUser,unresolvedProfiles),'content-main account-main');if(unresolvedPages>1)document.querySelector('.import-section')?.insertAdjacentHTML('beforeend',lt`<div class="pagination"><button class="button subtle" data-action="unresolved-page" data-page="${unresolvedPage-1}" ${unresolvedPage<=1?'disabled':''}>قبلی</button><button class="button subtle" data-action="unresolved-page" data-page="${unresolvedPage+1}" ${unresolvedPage>=unresolvedPages?'disabled':''}>بعدی</button></div>`);
  if(currentUser.role==='admin')await loadTrainingProfiles();
 }
 async function gameSettings(){
  if(currentUser?.role!=='admin')return home();if(currentUser.passwordChangeRequired)return forcedPassword();
- beginView();inspectedUserId=null;guideState=null;engine=null;route='game-settings';setHash('#admin/game-settings');if(modal.open)modal.close();document.title='تنظیمات بازی‌ها — حواس';
+ beginView();inspectedUserId=null;guideState=null;engine=null;route='game-settings';setHash('#admin/game-settings');if(modal.open)modal.close();document.title=uiText('تنظیمات بازی‌ها — حواس');
  page(gameSettingsView(),'content-main admin-main');await loadTrainingProfiles();
 }
 async function adminUsers(){
  if(currentUser?.role!=='admin')return home();const view=beginView(),query=new URLSearchParams({...adminState,pageSize:20});const data=await viewRequest(view,`/users?${query}`);if(!currentView(view))return;
- members=data.users;adminState.page=data.pagination.page;inspectedUserId=null;engine=null;route='admin-users';if(modal.open)modal.close();setHash('#admin/users');document.title='کاربران — حواس';page(adminUsersView(data.users,adminState,data.pagination),'content-main admin-main');
+ members=data.users;adminState.page=data.pagination.page;inspectedUserId=null;engine=null;route='admin-users';if(modal.open)modal.close();setHash('#admin/users');document.title=uiText('کاربران — حواس');page(adminUsersView(data.users,adminState,data.pagination),'content-main admin-main');
 }
 async function refreshCreatedUsers(){
  if(currentUser?.role!=='admin')return;const view=beginView();
  try{
   const query=new URLSearchParams({...adminState,pageSize:20}),data=await viewRequest(view,`/users?${query}`);if(!currentView(view))return;
-  pendingPanelRefresh=null;members=data.users;adminState.page=data.pagination.page;inspectedUserId=null;engine=null;route='admin-users';setHash('#admin/users');document.title='کاربران — حواس';page(adminUsersView(data.users,adminState,data.pagination),'content-main admin-main');notify('کاربر با موفقیت ساخته شد.');
+  pendingPanelRefresh=null;members=data.users;adminState.page=data.pagination.page;inspectedUserId=null;engine=null;route='admin-users';setHash('#admin/users');document.title=uiText('کاربران — حواس');page(adminUsersView(data.users,adminState,data.pagination),'content-main admin-main');notify(uiText('کاربر با موفقیت ساخته شد.'));
  }catch(error){if(currentView(view))refreshFailure(error,refreshCreatedUsers);}
 }
 async function adminInvitations(){
  if(currentUser?.role!=='admin')return home();const view=beginView(),data=await viewRequest(view,'/registration-links');if(!currentView(view))return;
- inspectedUserId=null;engine=null;route='invitations';if(modal.open)modal.close();setHash('#admin/invitations');document.title='دعوت‌ها — حواس';page(invitationsView(data.links),'content-main admin-main');
+ inspectedUserId=null;engine=null;route='invitations';if(modal.open)modal.close();setHash('#admin/invitations');document.title=uiText('دعوت‌ها — حواس');page(invitationsView(data.links),'content-main admin-main');
 }
 function scheduleAdminRefresh(view){
  if(!currentView(view)||!['admin','admin-users','invitations'].includes(route))return;
@@ -1173,23 +1198,23 @@ function toggleAdminMenu(force){
 function syncSidebarAccess(){const sidebar=document.querySelector('.admin-sidebar');if(sidebar){const small=matchMedia('(max-width:1023px)').matches;if(!small){document.body.classList.remove('admin-menu-open');document.querySelector('.sidebar-shade')?.setAttribute('hidden','');document.querySelector('.menu-toggle')?.setAttribute('aria-expanded','false');}const hidden=small&&!document.body.classList.contains('admin-menu-open');sidebar.inert=hidden;sidebar.setAttribute('aria-hidden',String(hidden));}}
 window.addEventListener('resize',syncSidebarAccess);
 async function showAccountInvitation(raw){
- inviteToken=raw;inviteInfo=null;registrationToken=null;publicReportData=null;route='invitation';engine=null;if(modal.open)modal.close();document.title='پذیرش دعوت — حواس';page('<section class="surface empty-state"><h1>در حال بررسی لینک…</h1></section>','auth-main');const view=beginView();
- try{if(!/^[a-f0-9]{64}$/.test(raw))throw Error('لینک دعوت یا بازیابی کامل نیست.');const data=await viewRequest(view,'/invitations/inspect',{method:'POST',body:{token:raw}});if(!currentView(view))return;inviteInfo=data;showLogin(data);}
- catch(error){if(currentView(view))page(`<section class="surface empty-state"><h1>دعوت در دسترس نیست</h1><p>${esc(error.message)}</p><p>از مدیر مرکز بخواهید لینک کامل یا یک لینک تازه برایتان بفرستد.</p></section>`,'auth-main');}
+ inviteToken=raw;inviteInfo=null;registrationToken=null;publicReportData=null;route='invitation';engine=null;if(modal.open)modal.close();document.title=uiText('پذیرش دعوت — حواس');page(uiText('<section class="surface empty-state"><h1>در حال بررسی لینک…</h1></section>'),'auth-main');const view=beginView();
+ try{if(!/^[a-f0-9]{64}$/.test(raw))throw Error(uiText('لینک دعوت یا بازیابی کامل نیست.'));const data=await viewRequest(view,'/invitations/inspect',{method:'POST',body:{token:raw}});if(!currentView(view))return;inviteInfo=data;showLogin(data);}
+ catch(error){if(currentView(view))page(lt`<section class="surface empty-state"><h1>دعوت در دسترس نیست</h1><p>${esc(error.message)}</p><p>از مدیر مرکز بخواهید لینک کامل یا یک لینک تازه برایتان بفرستد.</p></section>`,'auth-main');}
 }
 async function showRegistration(raw){
- registrationToken=raw;publicReportData=null;route='registration';engine=null;if(modal.open)modal.close();document.title='ثبت‌نام در حواس';page('<section class="surface dashboard-empty"><h1>در حال بررسی دعوت…</h1></section>','auth-main');const view=beginView();
- try{if(!/^[a-f0-9]{64}$/.test(raw))throw Error('لینک ثبت‌نام معتبر نیست.');await viewRequest(view,'/public/registration/inspect',{method:'POST',body:{token:raw}});if(currentView(view))page(registrationView(),'auth-main registration-main');}
- catch(error){if(currentView(view))page(`<section class="surface dashboard-empty"><h1>ثبت‌نام در دسترس نیست</h1><p>${esc(error.message)}</p><p>از مدیر مرکز یک لینک تازه بگیرید.</p></section>`,'auth-main');}
+ registrationToken=raw;publicReportData=null;route='registration';engine=null;if(modal.open)modal.close();document.title=uiText('ثبت‌نام در حواس');page(uiText('<section class="surface dashboard-empty"><h1>در حال بررسی دعوت…</h1></section>'),'auth-main');const view=beginView();
+ try{if(!/^[a-f0-9]{64}$/.test(raw))throw Error(uiText('لینک ثبت‌نام معتبر نیست.'));await viewRequest(view,'/public/registration/inspect',{method:'POST',body:{token:raw}});if(currentView(view))page(registrationView(),'auth-main registration-main');}
+ catch(error){if(currentView(view))page(lt`<section class="surface dashboard-empty"><h1>ثبت‌نام در دسترس نیست</h1><p>${esc(error.message)}</p><p>از مدیر مرکز یک لینک تازه بگیرید.</p></section>`,'auth-main');}
 }
 function showInvitation(data){
  const target=modal.open?modal.querySelector('#invitation-result'):document.querySelector('#invitation-result');if(!target)return;
- target.innerHTML=`<section class="surface invitation-card"><h2>لینک آماده است</h2><label>${data.expiresAt?'لینک یک‌بارمصرف':'لینک گزارش (فعال تا زمان لغو)'}<input id="invitation-url" readonly dir="ltr" value="${esc(data.url)}"></label><button type="button" class="button subtle" data-action="copy-invitation">کپی لینک</button><p data-copy-status role="status" aria-live="polite" aria-atomic="true"></p><p>${data.expiresAt?'اعتبار تا '+new Intl.DateTimeFormat('fa-IR',{dateStyle:'medium',timeStyle:'short'}).format(new Date(data.expiresAt)):'این لینک فقط همین بار نمایش داده می‌شود. آن را کپی کنید و نگه دارید.'}</p></section>`;
+ target.innerHTML=lt`<section class="surface invitation-card"><h2>لینک آماده است</h2><label>${data.expiresAt?uiText('لینک یک‌بارمصرف'):uiText('لینک گزارش (فعال تا زمان لغو)')}<input id="invitation-url" readonly dir="ltr" value="${esc(data.url)}"></label><button type="button" class="button subtle" data-action="copy-invitation">کپی لینک</button><p data-copy-status role="status" aria-live="polite" aria-atomic="true"></p><p>${data.expiresAt?uiText('اعتبار تا ')+new Intl.DateTimeFormat(numberLocale(),{timeZone:'Asia/Tehran',dateStyle:'medium',timeStyle:'short'}).format(new Date(data.expiresAt)):uiText('این لینک فقط همین بار نمایش داده می‌شود. آن را کپی کنید و نگه دارید.')}</p></section>`;
 }
-function forcedPassword(){route='password';engine=null;setHash('#change-password');page(`<div class="page-title"><h1>خوش آمدید، ${esc(currentUser.name)}</h1><p>نام کاربری: <b dir="ltr">${esc(currentUser.username)}</b></p></div>${passwordView(currentUser,true)}`,'content-main auth-main');}
+function forcedPassword(){route='password';engine=null;setHash('#change-password');page(lt`<div class="page-title"><h1>خوش آمدید، ${esc(currentUser.name)}</h1><p>نام کاربری: <b dir="ltr">${esc(currentUser.username)}</b></p></div>${passwordView(currentUser,true)}`,'content-main auth-main');}
 async function adminPanel(){
  if(currentUser?.role!=='admin')return home();const view=beginView(),data=await viewRequest(view,`/admin/dashboard?days=${dashboardDays}`);if(!currentView(view))return;
- inspectedUserId=null;reportState.tab='admin';engine=null;route='admin';if(modal.open)modal.close();setHash('#admin');document.title='نمای کلی مرکز — حواس';page(adminOverview(data,currentUser),'content-main admin-main');
+ inspectedUserId=null;reportState.tab='admin';engine=null;route='admin';if(modal.open)modal.close();setHash('#admin');document.title=uiText('نمای کلی مرکز — حواس');page(adminOverview(data,currentUser),'content-main admin-main');
 }
 async function inspectUser(id){
  if(currentUser?.role!=='admin')return home();const view=beginView(),data=await viewRequest(view,`/users/${id}`);if(!currentView(view))return;
@@ -1198,7 +1223,7 @@ async function inspectUser(id){
  if(data.profile){if(!await refreshClients(view))return;}else{delete clients.panelSummary;delete clients.reportPage;clients.profiles=[];clients.records=[];clients.difficulties=[];}
  const evaluation=clients.panelSummary?{steps:clients.panelSummary.assessmentSteps}:data.profile?await viewRequest(view,`/children/${data.profile.id}/assessment`):null;if(!currentView(view))return;
  const catalog=await viewRequest(view,'/admin/training-profiles');if(!currentView(view))return;clients.trainingProfiles=catalog.profiles;
- route='admin-user';engine=null;editingProfile=data.profile?.id||null;if(modal.open)modal.close();setHash(`#admin/user/${id}`);document.title=`بررسی ${data.user.name} — حواس`;
+ route='admin-user';engine=null;editingProfile=data.profile?.id||null;if(modal.open)modal.close();setHash(`#admin/user/${id}`);document.title=lt`بررسی ${data.user.name} — حواس`;
  page(userDetailsView(data.user,data.profile,evaluation,userTab,''),'content-main admin-main');syncPolicyControls();navigationGuard.sync();
  return loadUserTab();
 }
@@ -1211,7 +1236,7 @@ function renderPublicReport(){
  route='public-report';engine=null;const id='shared-report',adapt=r=>r?{id:r.ref,profileId:id,kind:r.kind,result:r.result}:null;
  const data={activeId:id,profiles:[{id,firstName:publicReportData.displayName,lastName:''}],records:publicReportData.pagination?[]:publicReportData.sessions.map(r=>({id:String(r.number),profileId:id,kind:r.kind,result:r.result}))};
  if(publicReportData.pagination)data.reportPage={...publicReportData,records:publicReportData.records.map(adapt),selected:adapt(publicReportData.selected),trend:publicReportData.trend.map(adapt)};
- page(reportsView(data,reportState,{role:'public'}),'content-main reports-main public-report');document.title='گزارش خانواده — حواس';
+ page(reportsView(data,reportState,{role:'public'}),'content-main reports-main public-report');document.title=uiText('گزارش خانواده — حواس');
 }
 
 function syncCreateControls(){
@@ -1236,7 +1261,7 @@ function syncProfileChoice(preview=false){
  const form=document.querySelector('#admin-difficulty-form');if(!form)return;const custom=form.elements.level.value.startsWith('profile:');
  form.elements.mode.disabled=custom;if(custom)form.elements.mode.value='fixed';
  if(preview)void previewProfileChoice(form).catch(showError);
- const summary=document.querySelector('#policy-profile-summary');if(!custom&&preview)summary.textContent=`سطح پیش‌فرض ${LEVELS[form.elements.level.value].label}؛ با زمان‌بندی عمومی همین سطح اجرا می‌شود.`;if(custom){const profile=(clients.trainingProfiles||[]).find(profile=>profile.id===form.elements.level.value.slice(8));summary.textContent=`پروفایل ${profile?.name||'انتخاب‌شده'} با سطح ثابت اجرا می‌شود. اگر پروفایل را در تنظیمات بازی‌ها تغییر دهید، از جلسهٔ بعد اعمال می‌شود.`;}
+ const summary=document.querySelector('#policy-profile-summary');if(!custom&&preview)summary.textContent=lt`سطح پیش‌فرض ${LEVELS[form.elements.level.value].label}؛ با زمان‌بندی عمومی همین سطح اجرا می‌شود.`;if(custom){const profile=(clients.trainingProfiles||[]).find(profile=>profile.id===form.elements.level.value.slice(8));summary.textContent=lt`پروفایل ${profile?.name||uiText('انتخاب‌شده')} با سطح ثابت اجرا می‌شود. اگر پروفایل را در تنظیمات بازی‌ها تغییر دهید، از جلسهٔ بعد اعمال می‌شود.`;}
 }
 async function changePolicySelection(select){
  const form=select.form,previous=form.policySelection;if(!previous)return syncPolicyControls(select.id==='policy-game');
@@ -1251,7 +1276,7 @@ async function previewProfileChoice(form){
  const data=await request(`/admin/training-profiles/${encodeURIComponent(id)}`);
  if(currentUser?.id!==viewer||!form.isConnected||form.previewAttempt!==attempt||form.elements.level.value!==value||form.elements.gameId.value!==key.gameId||form.elements.variant.value!==key.variant)return;
  const entry=profileEntry(data.profile.settings,key.gameId,key.variant);
- document.querySelector('#policy-profile-summary').innerHTML=`پروفایل «${esc(data.profile.name)}» · سطح پایهٔ ${LEVELS[entry.level].label} · ثابت<br>`+profileFamilies(key.gameId).map(family=>`${family==='moving'?'متحرک: ':family==='static'?'ثابت: ':''}${timingFields(key.gameId).map(field=>`${field==='visibleMs'?'نمایش':field==='intervalMs'?'هر نوبت':field==='previewMs'?'حفظ نمونه':field==='searchMs'?'جست‌وجو':'مهلت مأموریت'}: ${(entry.timings[family][field]/1000).toLocaleString('fa-IR')} ثانیه`).join(' · ')}`).join('<br>');
+ document.querySelector('#policy-profile-summary').innerHTML=lt`پروفایل «${esc(data.profile.name)}» · سطح پایهٔ ${LEVELS[entry.level].label} · ثابت<br>`+profileFamilies(key.gameId).map(family=>`${family==='moving'?uiText('متحرک: '):family==='static'?uiText('ثابت: '):''}${timingFields(key.gameId).map(field=>lt`${field==='visibleMs'?uiText('نمایش'):field==='intervalMs'?uiText('هر نوبت'):field==='previewMs'?uiText('حفظ نمونه'):field==='searchMs'?uiText('جست‌وجو'):uiText('مهلت مأموریت')}: ${(entry.timings[family][field]/1000).toLocaleString(numberLocale())} ثانیه`).join(' · ')}`).join('<br>');
 }
 async function loadProfileAssignmentSummary(){
  const form=document.querySelector('#admin-difficulty-form');if(!form||currentUser?.role!=='admin')return;
@@ -1283,7 +1308,7 @@ async function saveTrainingProfile(form,values){
   form.dataset.profile=data.profile.id;form.dataset.revision=String(data.profile.revision);acknowledgeForm(form);
   if(currentUser?.id!==viewer||!form.isConnected||!holder.isConnected)return;
   const {settings:ignored,...metadata}=data.profile;clients.trainingProfiles=(clients.trainingProfiles||[]).filter(profile=>profile.id!==metadata.id);clients.trainingProfiles.push(metadata);
-  holder.querySelector('#training-profile-list').innerHTML=trainingProfilesList(clients.trainingProfiles);form.outerHTML=trainingProfileEditor(data.profile);navigationGuard.sync();if(currentView(view))notify('پروفایل تمرین ذخیره شد.');
+  holder.querySelector('#training-profile-list').innerHTML=trainingProfilesList(clients.trainingProfiles);form.outerHTML=trainingProfileEditor(data.profile);navigationGuard.sync();if(currentView(view))notify(uiText('پروفایل تمرین ذخیره شد.'));
  }catch(error){if(form.isConnected&&currentUser?.id===viewer)form.querySelector('#training-profile-error').textContent=error.message;throw error;}
 }
 async function archiveTrainingProfile(button){
@@ -1291,14 +1316,14 @@ async function archiveTrainingProfile(button){
  const data=await viewRequest(view,`/admin/training-profiles/${encodeURIComponent(button.dataset.id)}`,{method:'PATCH',body:{archived:button.dataset.archived==='true',expectedRevision:Number(button.dataset.revision)}});
  if(!currentView(view)||!holder.isConnected||!data)return;
  const editor=holder.querySelector('#training-profile-form');if(editor?.dataset.profile===data.profile.id)editor.outerHTML=trainingProfileEditor(data.profile);
- await loadTrainingProfiles();navigationGuard.sync();notify(data.profile.archived?'پروفایل بایگانی شد. کاربرانی که از قبل این پروفایل را دارند، همچنان از آن استفاده می‌کنند.':'پروفایل دوباره قابل انتخاب است.');
+ await loadTrainingProfiles();navigationGuard.sync();notify(data.profile.archived?uiText('پروفایل بایگانی شد. کاربرانی که از قبل این پروفایل را دارند، همچنان از آن استفاده می‌کنند.'):uiText('پروفایل دوباره قابل انتخاب است.'));
 }
 
 async function previewLegacy(readDocument){
   const container=document.querySelector('#import-preview');if(currentUser?.role!=='admin'||!container)return;
   const attempt={},view={version:viewVersion,userId:currentUser.id,role:currentUser.role};importAttempt=attempt;previewImport=null;
   const valid=()=>importAttempt===attempt&&currentView(view)&&container.isConnected;
-  container.innerHTML='<p class="status-message" role="status">در حال بررسی فایل…</p>';
+  container.innerHTML=uiText('<p class="status-message" role="status">در حال بررسی فایل…</p>');
   try{
     const documentData=await readDocument();if(!valid())return;
     const preview=await request('/imports/preview',{method:'POST',body:{document:documentData}});if(!valid())return;
@@ -1306,7 +1331,7 @@ async function previewLegacy(readDocument){
   }catch(error){
     if(!valid())return;
     if(error.status===401||error.code==='PASSWORD_CHANGE_REQUIRED')return showError(error);
-    container.innerHTML=`<div class="form-error" role="alert">${esc(error instanceof SyntaxError?'فایل JSON درست خوانده نشد. قالب فایل را بررسی کنید.':error.message||'فایل خوانده نشد. دوباره تلاش کنید.')}</div>`;
+    container.innerHTML=`<div class="form-error" role="alert">${esc(error instanceof SyntaxError?uiText('فایل JSON درست خوانده نشد. قالب فایل را بررسی کنید.'):error.message||uiText('فایل خوانده نشد. دوباره تلاش کنید.'))}</div>`;
   }finally{if(importAttempt===attempt)importAttempt=null;}
 }
 async function loadImportTargets(search='',pageNumber=1,existingView=null){
@@ -1318,7 +1343,7 @@ async function loadImportTargets(search='',pageNumber=1,existingView=null){
  const choices=data.users.filter(u=>u.childId).map(u=>({id:u.childId,ownerUserId:u.id,firstName:u.name,lastName:''}));
  for(const profile of preview.profiles.filter(p=>p.targetId&&!choices.some(c=>c.id===p.targetId))){const known=clients.profiles.find(p=>p.id===profile.targetId);if(known)choices.push(known);else{const found=await read(`/children/${profile.targetId}`);if(!valid())return;if(found?.profile)choices.push(found.profile);}}
  clients.profiles=[...clients.profiles.filter(p=>p.id===clients.activeId),...choices.filter(p=>p.id!==clients.activeId)];preview.targetSearch=search;
- const filter=`<form id="import-target-filter" class="admin-filters"><label>جست‌وجوی کاربر برای انتقال سوابق<input name="search" value="${esc(search)}"></label><button class="button subtle">جست‌وجو</button><button type="button" class="button subtle" data-action="import-target-page" data-page="${data.pagination.page-1}" ${data.pagination.page<=1?'disabled':''}>قبلی</button><button type="button" class="button subtle" data-action="import-target-page" data-page="${data.pagination.page+1}" ${data.pagination.page>=data.pagination.pages?'disabled':''}>بعدی</button></form>`;
+ const filter=lt`<form id="import-target-filter" class="admin-filters"><label>جست‌وجوی کاربر برای انتقال سوابق<input name="search" value="${esc(search)}"></label><button class="button subtle">جست‌وجو</button><button type="button" class="button subtle" data-action="import-target-page" data-page="${data.pagination.page-1}" ${data.pagination.page<=1?'disabled':''}>قبلی</button><button type="button" class="button subtle" data-action="import-target-page" data-page="${data.pagination.page+1}" ${data.pagination.page>=data.pagination.pages?'disabled':''}>بعدی</button></form>`;
  const container=document.querySelector('#import-preview');if(container)container.innerHTML=filter+importPreviewView(preview,clients.profiles);
 }
 
@@ -1326,8 +1351,8 @@ async function commitLegacy(){
   if(!previewImport?.id)return;
   const view={version:viewVersion,userId:currentUser.id,role:currentUser.role},preview=previewImport;
   const mapping=[...document.querySelectorAll('.import-mapping')].map(row=>({sourceId:row.dataset.source,targetId:row.querySelector('[name="targetId"]').value||null,ownerUserId:null}));
-  if(mapping.some(m=>!m.targetId)){notify('کاربری را برای انتقال سوابق انتخاب کنید یا با این مشخصات یک حساب تازه بسازید.');return;}
-  const data=await viewRequest(view,'/imports/commit',{method:'POST',body:{previewId:preview.id,mapping,requireUser:true}});if(!currentView(view)||preview!==previewImport)return;previewImport=null;document.querySelector('#import-preview').innerHTML=`<p class="status-message">${fa(data.importedRecords)} نتیجه منتقل شد.</p>`;try{if(!await refreshClients(view))return;await account();if(route==='account')notify(`${fa(data.importedRecords)} نتیجه منتقل شد.`);}catch(error){refreshFailure(error);}
+  if(mapping.some(m=>!m.targetId)){notify(uiText('کاربری را برای انتقال سوابق انتخاب کنید یا با این مشخصات یک حساب تازه بسازید.'));return;}
+  const data=await viewRequest(view,'/imports/commit',{method:'POST',body:{previewId:preview.id,mapping,requireUser:true}});if(!currentView(view)||preview!==previewImport)return;previewImport=null;document.querySelector('#import-preview').innerHTML=lt`<p class="status-message">${fa(data.importedRecords)} نتیجه منتقل شد.</p>`;try{if(!await refreshClients(view))return;await account();if(route==='account')notify(lt`${fa(data.importedRecords)} نتیجه منتقل شد.`);}catch(error){refreshFailure(error);}
 }
 window.addEventListener('beforeunload',event=>{if(pendingSave||navigationGuard.hasChanges()){event.preventDefault();event.returnValue='';}});
 const pwa=setupPwa({formTracker,canUpdate:()=>route!=='play'&&!pendingSave&&!starting&&!navigationGuard.hasChanges()});

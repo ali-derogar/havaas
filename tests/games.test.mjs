@@ -49,7 +49,7 @@ test('all hunt themes have exactly thirty real targets',()=>{
   for(const theme of Object.keys(THEMES)) for(let seed=0;seed<35;seed++) {
     const s=FACTORIES.hunt({level:'hard',theme,random:seededRandom(seed)});
     assert.equal(s.trials.length,150);assert.equal(s.trials.filter(t=>t.target).length,30);
-    for(const trial of s.trials) assert.equal(JSON.stringify(trial.stimulus)===JSON.stringify(s.target),trial.target);
+    for(const trial of s.trials) assert.equal(JSON.stringify(trial.stimulus)===JSON.stringify(s.targetsByPhase[trial.phase][0]),trial.target);
   }
 });
 test('n-back target flags match actual sequence, without accidental matches',()=>{
@@ -180,15 +180,15 @@ test('direct stimulus input validates visibility, trial identity and one respons
 test('two-target hunt preserves 150 stimuli and exactly 15 appearances of each target',()=>{
   for(const theme of Object.keys(THEMES))for(const level of Object.keys(LEVELS))for(let seed=0;seed<25;seed++) {
     const s=FACTORIES.hunt({level,theme,targetCount:2,random:seededRandom(seed)});assert.equal(s.trials.length,150);assert.equal(s.targets.length,2);assert.equal(s.variant,'divided');
-    for(const target of s.targets)assert.equal(s.trials.filter(t=>JSON.stringify(t.stimulus)===JSON.stringify(target)).length,15);
-    for(const trial of s.trials)assert.equal(trial.target,s.targets.some(target=>JSON.stringify(trial.stimulus)===JSON.stringify(target)));
+    for(const [phase,targets]of s.targetsByPhase.entries())for(const target of targets)assert.equal(s.trials.filter(t=>t.phase===phase&&JSON.stringify(t.stimulus)===JSON.stringify(target)).length,[2,5,8][phase]);
+    for(const trial of s.trials)assert.equal(trial.target,s.targetsByPhase[trial.phase].some(target=>JSON.stringify(trial.stimulus)===JSON.stringify(target)));
   }
 });
 test('hunt difficulty increases visual similarity and varies position, size and background',()=>{
   const expected=[0,72,108];let previousSize=Infinity;
   for(const [index,level] of Object.keys(LEVELS).entries()) {
     const {session:s}=create('hunt',level);const setting=HUNT_SETTINGS[level];
-    assert.equal(s.trials.filter(t=>!t.target&&t.stimulus.color==='blue').length,expected[index]);assert.ok(setting.size<previousSize);previousSize=setting.size;
+    assert.equal(s.trials.filter(t=>!t.target&&t.stimulus.color===s.targetsByPhase[t.phase][0].color).length,expected[index]);assert.ok(setting.size<previousSize);previousSize=setting.size;
     assert.ok(new Set(s.trials.map(t=>`${t.position.x}:${t.position.y}`)).size>1);
     assert.ok(s.trials.every(t=>setting.positions.some(p=>p.x===t.position.x&&p.y===t.position.y)&&t.size===setting.size));
     assert.equal(s.background,level==='hard'?'abstract':'garden');
@@ -279,7 +279,7 @@ test('hunt displays multiple simultaneous distractors with exactly one target in
       assert.equal(trial.choices.length,HUNT_SETTINGS[level].sceneItems);
       assert.equal(trial.choices.filter(c=>c.target).length,Number(trial.target));
       assert.equal(new Set(trial.choices.map(c=>`${c.position.x}:${c.position.y}`)).size,trial.choices.length);
-      for(const c of trial.choices)assert.equal(c.target,s.targets.some(target=>JSON.stringify(target)===JSON.stringify(c.stimulus)));
+      for(const c of trial.choices)assert.equal(c.target,s.targetsByPhase[trial.phase].some(target=>JSON.stringify(target)===JSON.stringify(c.stimulus)));
       const size=Math.min(trial.size,360*.18),width=300,height=220;
       for(let i=0;i<trial.choices.length;i++)for(let j=i+1;j<trial.choices.length;j++) {
         const a=trial.choices[i].position,b=trial.choices[j].position;
@@ -300,7 +300,7 @@ test('clicking a hunt distractor during a target scene is one wrong selection, n
 test('all hunt levels complete with direct selection of the target among distractors',()=>{
   for(const level of Object.keys(LEVELS))for(const targetCount of [1,2]) {
     const t=clock(),s=FACTORIES.hunt({level,targetCount,now:t.now,random:seededRandom(1)});
-    while(!s.done){if(s.gate)s.acknowledge();t.advance(50);if(s.current.target)assert.equal(s.respondToStimulus(s.index,s.current.choices.findIndex(c=>c.target)),true);t.advance(s.intervalMs-50);s.tick();}
+    while(!s.done){if(s.transitionClock){t.advance(3000);s.tick();}else if(s.gate)s.acknowledge();t.advance(50);if(s.current.target)assert.equal(s.respondToStimulus(s.index,s.current.choices.findIndex(c=>c.target)),true);t.advance(s.intervalMs-50);s.tick();}
     assert.equal(s.result.hits,30);assert.equal(s.result.omissions,0);assert.equal(s.result.falseSelections,0);assert.equal(s.result.outcomes.length,150);
   }
 });

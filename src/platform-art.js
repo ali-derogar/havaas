@@ -1,3 +1,5 @@
+import {numberLocale} from './i18n.js';
+import {lt} from './i18n.js';
 // Original, local vector illustrations for the platform, never game stimuli.
 export function compassArt() {
  return `<svg class="explorer-compass" viewBox="0 0 180 200" fill="none" aria-hidden="true">
@@ -22,7 +24,7 @@ const spark = (x,y,color,size=7) => `<path d="m${x} ${y-size} 2 ${size-2} ${size
 
 export function explorerScene({completed=0}={}) {
  const count=Math.max(0,Math.min(7,Number(completed)||0));
- return `<div class="journey-art explorer-scene" aria-hidden="true">
+ return lt`<div class="journey-art explorer-scene" aria-hidden="true">
   <svg class="explorer-landscape" viewBox="0 0 620 420" fill="none">
    <circle cx="320" cy="195" r="169" fill="#e6e1f6"/><circle cx="320" cy="195" r="145" stroke="#d3cbea" stroke-dasharray="3 10"/>
    <circle cx="489" cy="74" r="30" fill="#ffda80"/><circle cx="489" cy="74" r="44" stroke="#efcb79" stroke-dasharray="2 9"/>
@@ -61,10 +63,10 @@ export function sectionArt(kind='progress') {
 
 export function assessmentMap(steps) {
  const positions=[[650,121],[550,82],[450,128],[350,83],[250,128],[150,83],[50,121]];
- return `<div class="exploration-map" data-reveal><svg viewBox="0 0 700 205" fill="none" role="img" aria-label="مسیر هفت ایستگاه ارزیابی؛ وضعیت هر بخش در کارت‌های پایین آمده است">
+ return lt`<div class="exploration-map" data-reveal><svg viewBox="0 0 700 205" fill="none" role="img" aria-label="مسیر هفت ایستگاه ارزیابی؛ وضعیت هر بخش در کارت‌های پایین آمده است">
   <path d="M650 121C605 121 595 82 550 82S495 128 450 128s-55-45-100-45-55 45-100 45-55-45-100-45-55 38-100 38" stroke="#e2d9ed" stroke-width="15" stroke-linecap="round"/>
   <path class="map-trail" d="M650 121C605 121 595 82 550 82S495 128 450 128s-55-45-100-45-55 45-100 45-55-45-100-45-55 38-100 38" stroke="#b4a0ce" stroke-width="3" stroke-dasharray="5 9" stroke-linecap="round"/>
-  ${steps.map(({baseline},i)=>{const [x,y]=positions[i];return `<g class="map-stop ${baseline?'map-done':''}" style="--stop-index:${i}"><circle cx="${x}" cy="${y+5}" r="26" fill="${baseline?'#87b3a1':'#d2bddf'}"/><circle cx="${x}" cy="${y}" r="26" fill="${baseline?'#bce3cb':'#fffaf0'}" stroke="${baseline?'#6d9d86':'#c8b6d8'}" stroke-width="2"/><text x="${x}" y="${y+7}" text-anchor="middle" fill="#344c55" font-size="21" font-weight="700">${baseline?'✓':(i+1).toLocaleString('fa-IR')}</text></g>`;}).join('')}
+  ${steps.map(({baseline},i)=>{const [x,y]=positions[i];return `<g class="map-stop ${baseline?'map-done':''}" style="--stop-index:${i}"><circle cx="${x}" cy="${y+5}" r="26" fill="${baseline?'#87b3a1':'#d2bddf'}"/><circle cx="${x}" cy="${y}" r="26" fill="${baseline?'#bce3cb':'#fffaf0'}" stroke="${baseline?'#6d9d86':'#c8b6d8'}" stroke-width="2"/><text x="${x}" y="${y+7}" text-anchor="middle" fill="#344c55" font-size="21" font-weight="700">${baseline?'✓':(i+1).toLocaleString(numberLocale())}</text></g>`;}).join('')}
   ${spark(625,55,'#dfac51',9)}${spark(78,42,'#dfac51',8)}${spark(379,167,'#8a79b0',8)}
  </svg><span class="map-caption">هر ایستگاه، یک بازی</span></div>`;
 }

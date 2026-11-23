@@ -7,7 +7,7 @@ import { assessmentSteps, nextAssessmentGame } from '../src/core/assessment.js';
 import { addRecord, readClients, writeClients } from '../src/core/clients.js';
 
 const clients=()=>({version:1,activeId:'a',profiles:[{id:'a',firstName:'سارا',lastName:'الف'},{id:'b',firstName:'علی',lastName:'ب'}],records:[]});
-const baseline=(id,overrides={})=>({gameId:id,level:'easy',variant:'standard',protocolVersion:id==='hunt'?3:2,score:2,maxScore:2,hits:2,correctResponses:5,correctRejections:3,omissions:0,falseSelections:0,meanReactionMs:300,longestStreak:5,completed:true,durationMs:5000,finishedAt:new Date().toISOString(),...overrides});
+const baseline=(id,overrides={})=>({experienceVersion:4,locale:'fa',gameId:id,level:'easy',variant:'standard',protocolVersion:id==='hunt'?3:2,score:2,maxScore:2,hits:2,correctResponses:5,correctRejections:3,omissions:0,falseSelections:0,meanReactionMs:300,longestStreak:5,completed:true,durationMs:5000,finishedAt:new Date().toISOString(),...overrides});
 test('Stroop untimed examples teach both responding and withholding for all four rules',()=>{
   const lesson=createLesson('stroop');assert.equal(lesson.length,8);
   for(let phase=0;phase<4;phase++){

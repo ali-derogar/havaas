@@ -41,8 +41,8 @@ export function inspectLegacy(input){
     const result=r?.result,id=r?.id||digest(JSON.stringify(result)),profileId=r?.profileId||input.profile?.id;
     if(!r||typeof id!=='string'||id.length>150||!ids.has(profileId)||!['baseline','training'].includes(r.kind)||!result||typeof result.gameId!=='string'||!Object.hasOwn(GAME_MAP,result.gameId)||typeof result.level!=='string'||!Object.hasOwn(LEVELS,result.level)||!Number.isInteger(result.protocolVersion)||result.protocolVersion<1||result.protocolVersion>100||!validTimestamp(result.finishedAt)||typeof result.completed!=='boolean'||['score','maxScore','hits','correctResponses','correctRejections','omissions','falseSelections','longestStreak','durationMs'].some(k=>!Number.isFinite(result[k])||result[k]<0)||result.score>result.maxScore||result.hits>result.maxScore||!(result.meanReactionMs===null||Number.isFinite(result.meanReactionMs)&&result.meanReactionMs>=0)||result.outcomes!==undefined&&!Array.isArray(result.outcomes)||seen.has(`${profileId}:${id}`))errors.push(`نتیجهٔ شمارهٔ ${i+1} درست نیست یا در فایل تکرار شده است.`);
     if(result&&(typeof (result.variant||'standard')!=='string'||String(result.variant||'standard').length>100||result.inventory!==undefined&&(!Array.isArray(result.inventory)||result.inventory.some(v=>typeof v!=='string'))||result.mission!==undefined&&typeof result.mission!=='string'))errors.push(`اطلاعات تکمیلی نتیجهٔ ${i+1} معتبر نیستند.`);
-    if(result&&result.experienceVersion!==undefined&&![1,2,3].includes(result.experienceVersion))errors.push(`نسخهٔ تجربهٔ نتیجهٔ ${i+1} معتبر نیست.`);
-    if(result?.experienceVersion===3){try{validateTiming(result.gameId,result.timing);}catch{errors.push(`زمان‌بندی نتیجهٔ ${i+1} معتبر نیست.`);}}
+    if(result&&result.experienceVersion!==undefined&&![1,2,3,4].includes(result.experienceVersion))errors.push(`نسخهٔ تجربهٔ نتیجهٔ ${i+1} معتبر نیست.`);
+    if(result?.experienceVersion>=3){try{validateTiming(result.gameId,result.timing);}catch{errors.push(`زمان‌بندی نتیجهٔ ${i+1} معتبر نیست.`);}}
     if(result&&[result.stimulusFamily,result.settingsSnapshot?.theme].some(value=>value!==undefined&&value!==null&&(typeof value!=='string'||value.length>100)))errors.push(`خانوادهٔ محرک نتیجهٔ ${i+1} باید متن معتبر باشد.`);
     if(typeof profileId==='string'&&typeof id==='string')seen.add(`${profileId}:${id}`);
     if(Array.isArray(result?.outcomes)&&!result.outcomes.every(validLegacyOutcome))errors.push(`پاسخ‌های نتیجهٔ ${i+1} معتبر نیستند.`);
@@ -77,8 +77,8 @@ export function registerImports(app,pool,{role,childAccess}){
         await db.query('INSERT INTO legacy_profiles(source_key,child_id) VALUES($1,$2) ON CONFLICT DO NOTHING',[sourceKey,id]);targets.set(p.id,id);
       }
       for(const r of document.records){
-        const id=targets.get(r.profileId),result={...r.result,source:'legacy',legacyId:r.id},settings={...(result.experienceVersion===3?{experienceVersion:3,timing:validateTiming(result.gameId,result.timing),timingKey:timingKey(result.timing)}:{}),gameId:result.gameId,variant:result.variant||'standard',level:result.level,protocolVersion:result.protocolVersion,imported:true};
-        if(result.experienceVersion===3)result.timingKey=timingKey(result.timing);
+        const id=targets.get(r.profileId),result={...r.result,source:'legacy',legacyId:r.id},settings={...(result.experienceVersion>=3?{experienceVersion:result.experienceVersion,locale:result.locale||'fa',stimulusPlan:result.stimulusPlan,timing:validateTiming(result.gameId,result.timing),timingKey:timingKey(result.timing)}:{}),gameId:result.gameId,variant:result.variant||'standard',level:result.level,protocolVersion:result.protocolVersion,imported:true};
+        if(result.experienceVersion>=3)result.timingKey=timingKey(result.timing);
         const added=await db.query('INSERT INTO game_sessions(id,child_id,actor_id,kind,settings,difficulty_revision,result,started_at,finished_at,legacy_id,import_key) VALUES($1,$2,$3,$4,$5,0,$6,$7,$7,$8,$9) ON CONFLICT DO NOTHING',[randomUUID(),id,req.user.id,r.kind,settings,result,new Date(result.finishedAt).toISOString(),r.id,digest(`${r.profileId}:${r.id}`)]);importedRecords+=added.rowCount;
       }
       for(const id of new Set(targets.values())){

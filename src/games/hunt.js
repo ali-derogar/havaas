@@ -1,6 +1,7 @@
 import { ReactionSession } from '../core/reaction.js';
-import { pick, shuffle, targetMask } from '../core/random.js';
+import { pick, shuffle, targetMask,seededRandom } from '../core/random.js';
 import { HUNT_SETTINGS, LEGACY_HUNT_SETTINGS, MOVING_THEMES, PRESENTATION_VERSION, PROTOCOL } from '../config.js';
+import {stimulusPlanFor} from '../stimulus-plan.js';
 
 export function createHunt(options) {
   const random = options.random ?? Math.random, theme = options.theme || 'star';
@@ -33,8 +34,18 @@ export function createHunt(options) {
     }
   }
   const session = new ReactionSession({ ...options, gameId:'hunt', protocolVersion:3, variant:targetCount===2?'divided':'standard' },trials);
+  const plan=stimulusPlanFor({...options,gameId:'hunt'});
+  if(plan){
+    for(let phase=0;phase<blockLengths.length;phase++){const scored=trials.filter(trial=>trial.phase===phase&&trial.target),order=shuffle(Array.from({length:scored.length},(_,i)=>targets[i%targets.length]),seededRandom((options.seed||0)^phase^0x328ac));for(const [i,trial]of scored.entries()){trial.stimulus=order[i];for(const choice of trial.choices)if(choice.target)choice.stimulus=order[i];}}
+    const base=['blue','red','green','yellow','purple'];
+    const phaseMaps=plan.colorsByPhase.map(colors=>Object.fromEntries(base.map((color,i)=>[color,[...colors,...base.filter(value=>!colors.includes(value))][i]])));
+    const recolor=(stimulus,phase)=>({...stimulus,color:phaseMaps[phase][stimulus.color]});
+    for(const trial of trials){trial.stimulus=recolor(trial.stimulus,trial.phase);trial.choices=trial.choices.map(choice=>({...choice,stimulus:recolor(choice.stimulus,trial.phase)}));}
+    session.targetsByPhase=phaseMaps.map((_map,phase)=>targets.map(target=>recolor(target,phase)));
+    session.onPhaseChange=phase=>{session.targets=session.targetsByPhase[phase];session.target=session.targets[0];};
+  }
   if(moving&&revision>=7)session.choiceSelectable=choice=>huntOnScreen(choice,session.clock.elapsed-session.onset,session.visibleMs);
-  session.moving=moving;session.targets=targets;session.target=targets[0];session.theme=theme;session.background=settings.background;session.blockLengths=blockLengths;return session;
+  session.moving=moving;session.targets=session.targetsByPhase?.[0]||targets;session.target=session.targets[0];session.theme=theme;session.background=settings.background;session.blockLengths=blockLengths;return session;
 }
 
 export function huntPosition(choice,elapsedMs,visibleMs){

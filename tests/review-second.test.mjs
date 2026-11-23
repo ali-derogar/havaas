@@ -33,7 +33,7 @@ test('N-back walkthrough reveals one stimulus at a time and keeps the reference 
 
 test('every Stroop lesson uses the voice and pictorial cue for its own rule',()=>{
  for(const [index,step] of createLesson('stroop').entries()){
-  const phase=Math.floor(index/2);assert.equal(step.phase,phase);assert.equal(lessonGuidanceKey('stroop',step),`stroop-${phase}`);
+  const phase=Math.floor(index/2);assert.equal(step.phase,phase);assert.equal(lessonGuidanceKey('stroop',step),`stroop-${phase}-yellow`);
   const {document}=parseHTML(stroopRulePicture(phase));assert.equal(document.querySelector('[data-rule-phase]').dataset.rulePhase,String(phase));
   if(phase===0)assert.ok(document.querySelector('.rule-picture-target>.symbol'));
   if(phase===1||phase===3)assert.ok(document.querySelector('.rule-swatch'));
@@ -81,8 +81,8 @@ test('spoken playback tracks only its own key and stopping removes the active ke
 test('the shipped recordings cover every guidance script and explain reviews without asking for unavailable actions',async()=>{
  const manifest=JSON.parse(await readFile(new URL('../assets/audio/scripts.json',import.meta.url),'utf8'));
  assert.deepEqual(manifest.scripts,GUIDANCE);
- assert.equal(manifest.voice,'user-provided-recordings');assert.equal(manifest.revision,3);
- assert.deepEqual(Object.keys(manifest.clips),Object.keys(GUIDANCE));
+ assert.equal(manifest.voice,'user-provided-recordings');assert.equal(manifest.revision,4);
+ assert.deepEqual([...Object.keys(manifest.clips),...Object.keys(manifest.generated)].sort(),Object.keys(GUIDANCE).sort());
  assert.equal(Object.keys(manifest.recordings).length,5);
  const counts=new Map(),ends=new Map();
  for(const clip of Object.values(manifest.clips)){

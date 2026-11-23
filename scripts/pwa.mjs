@@ -10,7 +10,9 @@ export async function createServiceWorker(root){
  const template=await readFile(resolve(root,'src/service-worker.js'),'utf8');
  // The seven current worlds use SVGs; legacy painted backdrops need not make
  // every installation download the previous artwork collection as well.
- const files=[...['index.html','offline.html','manifest.webmanifest'].map(path=>resolve(root,path)),...(await Promise.all(['src','assets'].map(path=>filesUnder(resolve(root,path))))).flat()].filter(path=>path!==resolve(root,'src/service-worker.js')&&!(path.startsWith(resolve(root,'assets/worlds')+sep)&&/\.(png|jpe?g)$/i.test(path))).sort();
+ const entryFiles=['index.html','offline.html','manifest.webmanifest'];try{await readFile(resolve(root,'manifest.en.webmanifest'));entryFiles.push('manifest.en.webmanifest');}catch(error){if(error.code!=='ENOENT')throw error;}
+ const files=[...entryFiles.map(path=>resolve(root,path)),...(await Promise.all(['src','assets'].map(path=>filesUnder(resolve(root,path))))).flat()].filter(path=>path!==resolve(root,'src/service-worker.js')&&!(path.startsWith(resolve(root,'assets/worlds')+sep)&&/\.(png|jpe?g)$/i.test(path))).sort();
+
  const hash=createHash('sha256').update(template),assets=[];
  for(const path of files){const url='/'+relative(root,path).split(sep).map(encodeURIComponent).join('/');hash.update(url).update('\0').update(await readFile(path)).update('\0');assets.push(url);}
  const version=hash.digest('hex').slice(0,20);

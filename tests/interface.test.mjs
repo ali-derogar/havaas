@@ -397,7 +397,7 @@ test('interface: untimed dual search teaches exact matching, retries mistakes an
 test('interface: divided hunt correctly teaches responding to the red target',async()=>{
  const ui=await fixture();await ui.click('open','[data-game="hunt"]');await ui.click('hunt-mode','[data-mode="divided"]');
  await ui.click('lesson-answer','[data-response="true"]');await ui.click('lesson-next');await ui.click('lesson-answer','[data-response="false"]');await ui.click('lesson-next');
- assert.ok(ui.document.querySelector('#lesson-box>p').textContent.includes('قرمز'));await ui.click('lesson-answer','[data-response="true"]');assert.ok(ui.document.querySelector('.lesson-feedback.good'));
+ assert.ok(ui.document.querySelector('#lesson-box>p').textContent.includes('دو نمونه'));assert.ok(ui.document.querySelector('#lesson-box .symbol')); await ui.click('lesson-answer','[data-response="true"]');assert.ok(ui.document.querySelector('.lesson-feedback.good'));
 });
 test('interface: response is timed at pointer-down and a late pointer click never answers the next trial',async()=>{
  const ui=await fixture();await ui.click('open','[data-game="traffic"]');await ui.click('practice');await finishReaction(ui,true);await ui.click('main-game');

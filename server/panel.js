@@ -1,3 +1,4 @@
+import {compatibleBaseline} from '../src/stimulus-plan.js';
 import {GAMES,GAME_PROTOCOLS} from '../src/config.js';
 import {assessmentSteps} from '../src/core/assessment.js';
 import {variantOf} from '../src/core/clients.js';
@@ -7,24 +8,24 @@ import {pagination} from './management.js';
 import {requireValue as check,uuid} from './security.js';
 
 // Never transfer outcomes or arbitrary imported metadata from PostgreSQL to a panel.
-const keys=['version','experienceVersion','trainingProfile','timing','timingKey','stimulusVersion','protocolVersion','gameId','level','variant','feedbackMode','roundFlow','reactionMeasure','stimulusFamily','score','maxScore','hits','correctResponses','correctRejections','omissions','falseSelections','meanReactionMs','longestStreak','durationMs','completed','finishedAt','targetsPerRound','rounds','obstaclesCleared','departed'];
+const keys=['version','experienceVersion','locale','stimulusPlan','trafficRouteVersion','journey','trainingProfile','timing','timingKey','stimulusVersion','protocolVersion','gameId','level','variant','feedbackMode','roundFlow','reactionMeasure','stimulusFamily','score','maxScore','hits','correctResponses','correctRejections','omissions','falseSelections','meanReactionMs','longestStreak','durationMs','completed','finishedAt','targetsPerRound','rounds','obstaclesCleared','departed'];
 const projection=`jsonb_build_object(${keys.map(key=>`'${key}',result->'${key}'`).join(',')},'settingsSnapshot',jsonb_build_object('theme',result->'settingsSnapshot'->'theme'))`;
 export async function summaryRows(pool,childId){
  return (await pool.query(`SELECT id,child_id,report_ref,kind,${projection} AS result FROM game_sessions WHERE child_id=$1 AND result IS NOT NULL ORDER BY finished_at,id`,[childId])).rows.map(row=>({...row,result:reportResult(row.result)}));
 }
 const record=row=>({id:row.id,profileId:row.child_id,kind:row.kind,result:row.result});
 const publicRecord=row=>({ref:row.report_ref,kind:row.kind,result:row.result});
-export async function panelSummary(pool,childId){
+export async function panelSummary(pool,childId,locale='fa'){
  const rows=childId?await summaryRows(pool,childId):[],records=rows.map(record),baselines=new Map(),latest=new Map();
  for(const r of records){
   if((r.result.protocolVersion||2)!==GAME_PROTOCOLS[r.result.gameId])continue;
   const key=r.result.gameId+':'+variantOf(r.result);latest.set(key,r);
-  if(r.kind==='baseline')baselines.set(key,r);
+  if(r.kind==='baseline'&&compatibleBaseline(r.result,{locale}))baselines.set(key,r);
  }
  return {trainingTotal:records.filter(r=>r.kind==='training').length,lastActivityAt:records.at(-1)?.result.finishedAt||null,
   games:GAMES.map(game=>{const training=records.filter(r=>r.kind==='training'&&r.result.gameId===game.id);return {id:game.id,count:training.length,lastPlayedAt:training.at(-1)?.result.finishedAt||null};}),
   baselines:[...baselines.values()],latestResults:[...latest.values()],
-  assessmentSteps:assessmentSteps({activeId:childId,records}).map(s=>({gameId:s.game.id,baseline:s.baseline,recommendation:s.recommendation})),
+  assessmentSteps:assessmentSteps({activeId:childId,records,locale}).map(s=>({gameId:s.game.id,baseline:s.baseline,recommendation:s.recommendation})),
  };
 }
 export async function bestScoreFor(pool,childId,result,kind='training'){
@@ -45,6 +46,6 @@ export async function panelReport(pool,child,user,input={}){
  if(selected&&user.role==='admin'){const extra=(await pool.query("SELECT result->'mission' AS mission,result->'inventory' AS inventory FROM game_sessions WHERE id=$1 AND child_id=$2",[selected.id,child.id])).rows[0];if(typeof extra?.mission==='string')selected.result.mission=extra.mission;if(Array.isArray(extra?.inventory))selected.result.inventory=extra.inventory.filter(value=>typeof value==='string');}
  const pages=Math.max(1,Math.ceil(filtered.length/pageSize)),effective=Math.min(page,pages),print=input.view==='print';
  const visible=print?filtered:[...filtered].reverse().slice((effective-1)*pageSize,effective*pageSize).reverse(),dto=publicView?publicRecord:user.role==='admin'?record:row=>({...record(row),result:reportResult(row.result)});
- const common={records:visible.map(dto),selected:selected?dto(selected):null,trend:rows.filter(r=>ids.has(r.id)).map(dto),progress:selected?progressText(all,selectedRecord):'',narrative:selected?parentNarrative(selectedRecord,all):'',variants,trainingTotal:rows.filter(r=>r.kind==='training').length,pagination:{page:effective,pageSize,total:filtered.length,pages}};
+ const common={records:visible.map(dto),selected:selected?dto(selected):null,trend:rows.filter(r=>ids.has(r.id)).map(dto),progress:selected?progressText(all,selectedRecord,input.locale):'',narrative:selected?parentNarrative(selectedRecord,all,input.locale):'',variants,trainingTotal:rows.filter(r=>r.kind==='training').length,pagination:{page:effective,pageSize,total:filtered.length,pages}};
  return publicView?{...common,displayName:`${child.profile.firstName} ${child.profile.lastName}`,generatedAt:new Date().toISOString()}:{...common,profileId:child.id};
 }

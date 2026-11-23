@@ -117,7 +117,7 @@ export class PlayMotion {
     if(road){
       const target=Number(road.dataset.progress)||0,visual=this.traffic.sample(target,elapsed,reduced);
       road.dataset.visualProgress=String(visual);road.dataset.moving=String(target-visual>.00001);
-      road.querySelector('.road-car')?.setAttribute('transform',`translate(${TRAFFIC_TRAVEL*visual} 0)`);
+      road.querySelector('.road-car')?.setAttribute('transform',`translate(${(Number(road.dataset.travel)||TRAFFIC_TRAVEL)*visual} 0)`);
       road.querySelectorAll('.car-wheel').forEach((wheel,i)=>wheel.setAttribute('transform',`rotate(${visual*3600} ${i?123:64} 79)`));
       const chassis=road.querySelector('.car-chassis');if(chassis)chassis.style.transform=`translateY(${reduced?0:-Math.sin(clamp((elapsed-this.traffic.startedAt)/420)*Math.PI)*2}px)`;
       const town=road.closest('.traffic-town'),cameraRoom=Math.max(0,(road.clientWidth||0)-(town?.clientWidth||0));
