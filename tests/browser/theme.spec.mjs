@@ -138,7 +138,7 @@ test('all seven games retain their scored fields and state when the chrome chang
   const auth = await (await page.request.get('/api/auth/session')).json(), headers = {'X-CSRF-Token': auth.csrfToken};
   const games = ['hunt', 'ark', 'space', 'traffic', 'search', 'nback', 'stroop'];
   for (const gameId of games) {
-    const response = await page.request.post(`/api/children/${seed.children[1].id}/sessions`, {headers, data: {gameId, kind: 'baseline'}});
+    const response = await page.request.post(`/api/children/${seed.children[1].id}/sessions`, {headers, data: {clientExperienceVersion:4,gameId, kind: 'baseline'}});
     expect(response.ok()).toBe(true);const run = await response.json();
     expect((await page.request.post(`/api/children/${seed.children[1].id}/sessions/${run.id}/complete`, {headers, data: {result: playSession(run)}})).ok()).toBe(true);
   }

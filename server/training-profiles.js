@@ -1,3 +1,4 @@
+import {t as uiText} from '../src/i18n.js';
 import {isDeepStrictEqual} from 'node:util';
 import {randomUUID} from 'node:crypto';
 import {LEVELS} from '../src/config.js';
@@ -9,18 +10,18 @@ import {requireValue as check,textOf,uuid} from './security.js';
 export const trainingProfileSummary=row=>({id:row.id,name:row.name,revision:row.revision,archived:row.archived});
 const profileDTO=row=>({...trainingProfileSummary(row),description:row.description,builtin:false,settings:row.settings});
 export async function readBuiltinProfile(db,level){
- check(Object.hasOwn(LEVELS,level),'پروفایل پیدا نشد.',404);
+ check(Object.hasOwn(LEVELS,level),uiText('پروفایل پیدا نشد.'),404);
  const rows=(await db.query('SELECT game_id,variant,timing_family,protocol,timing,revision FROM game_timing_defaults WHERE level=$1',[level])).rows;
  const settings=createProfileSettings(level);
  for(const entry of settings)for(const family of profileFamilies(entry.gameId)){
   const row=rows.find(row=>row.game_id===entry.gameId&&row.variant===entry.variant&&row.protocol===entry.protocolVersion&&row.timing_family===family);
   if(row?.timing)entry.timings[family]=row.timing;
  }
- return {id:`builtin:${level}`,name:LEVELS[level].label,description:'سطح پیش‌فرض؛ می‌توانید آن را به‌صورت ثابت یا تطبیقی انتخاب کنید',builtin:true,builtinLevel:level,archived:false,revision:1+rows.reduce((sum,row)=>sum+row.revision,0),settings};
+ return {id:`builtin:${level}`,name:LEVELS[level].label,description:uiText('سطح پیش‌فرض؛ می‌توانید آن را به‌صورت ثابت یا تطبیقی انتخاب کنید'),builtin:true,builtinLevel:level,archived:false,revision:1+rows.reduce((sum,row)=>sum+row.revision,0),settings};
 }
 export async function readTrainingProfile(db,id){
  if(typeof id==='string'&&id.startsWith('builtin:'))return readBuiltinProfile(db,id.slice(8));
- uuid(id);const row=(await db.query('SELECT * FROM training_profiles WHERE id=$1',[id])).rows[0];check(row,'پروفایل پیدا نشد.',404);return profileDTO(row);
+ uuid(id);const row=(await db.query('SELECT * FROM training_profiles WHERE id=$1',[id])).rows[0];check(row,uiText('پروفایل پیدا نشد.'),404);return profileDTO(row);
 }
 export async function listTrainingProfiles(db){
  const builtins=[];for(const level of Object.keys(LEVELS)){const {settings,...profile}=await readBuiltinProfile(db,level);builtins.push(profile);}
@@ -39,8 +40,8 @@ export function registerTrainingProfiles(app,pool,{role}){
    if(previous)guardRevision(req.body.expectedRevision,previous.revision,previous);
    if(previous?.builtin){
     let settings;try{settings=validateProfileSettings(req.body.settings);}catch(error){check(false,error.message);}
-    check(settings.every(entry=>entry.level===previous.builtinLevel),'سطح پایهٔ پروفایل پیش‌فرض قابل تغییر نیست.');
-    check((req.body.name===undefined||req.body.name===previous.name)&&!req.body.archived,'نام و وضعیت پروفایل پیش‌فرض قابل تغییر نیست.');
+    check(settings.every(entry=>entry.level===previous.builtinLevel),uiText('سطح پایهٔ پروفایل پیش‌فرض قابل تغییر نیست.'));
+    check((req.body.name===undefined||req.body.name===previous.name)&&!req.body.archived,uiText('نام و وضعیت پروفایل پیش‌فرض قابل تغییر نیست.'));
     if(isDeepStrictEqual(settings,previous.settings))return previous;
     for(const entry of settings)for(const family of profileFamilies(entry.gameId)){
      const prior=profileEntry(previous.settings,entry.gameId,entry.variant).timings[family],timing=entry.timings[family];if(timingKey(prior)===timingKey(timing))continue;
@@ -50,13 +51,13 @@ export function registerTrainingProfiles(app,pool,{role}){
     }
     await auditProfile(db,req,previous.id,['settings']);return readBuiltinProfile(db,previous.builtinLevel);
    }
-   const name=textOf(req.body.name??previous?.name,'نام پروفایل معتبر وارد کنید.'),description=textOf(req.body.description??previous?.description??'','توضیحات معتبر وارد کنید.');
-   check(name.length>=2&&name.length<=120&&description.length<=500,'نام باید بین ۲ تا ۱۲۰ کاراکتر داشته باشد. توضیحات هم نباید بیشتر از ۵۰۰ کاراکتر باشند.');
-   check(!Object.values(LEVELS).some(level=>level.label===name),'این نام متعلق به یکی از سطح‌های پیش‌فرض است. نام دیگری انتخاب کنید.');
-   check(req.body.archived===undefined||typeof req.body.archived==='boolean','وضعیت بایگانی معتبر نیست.');
+   const name=textOf(req.body.name??previous?.name,uiText('نام پروفایل معتبر وارد کنید.')),description=textOf(req.body.description??previous?.description??'',uiText('توضیحات معتبر وارد کنید.'));
+   check(name.length>=2&&name.length<=120&&description.length<=500,uiText('نام باید بین ۲ تا ۱۲۰ کاراکتر داشته باشد. توضیحات هم نباید بیشتر از ۵۰۰ کاراکتر باشند.'));
+   check(!Object.values(LEVELS).some(level=>level.label===name),uiText('این نام متعلق به یکی از سطح‌های پیش‌فرض است. نام دیگری انتخاب کنید.'));
+   check(req.body.archived===undefined||typeof req.body.archived==='boolean',uiText('وضعیت بایگانی معتبر نیست.'));
    const archived=req.body.archived??previous?.archived??false;let settings;
    try{settings=validateProfileSettings(req.body.settings??previous?.settings);}catch(error){check(false,error.message);}
-   if(!archived)check(!(await db.query('SELECT 1 FROM training_profiles WHERE lower(name)=lower($1) AND NOT archived AND id IS DISTINCT FROM $2::uuid',[name,previous?.id||null])).rowCount,'قبلاً پروفایل فعالی با این نام ساخته شده است. نام دیگری انتخاب کنید.',409,'PROFILE_NAME_EXISTS');
+   if(!archived)check(!(await db.query('SELECT 1 FROM training_profiles WHERE lower(name)=lower($1) AND NOT archived AND id IS DISTINCT FROM $2::uuid',[name,previous?.id||null])).rowCount,uiText('قبلاً پروفایل فعالی با این نام ساخته شده است. نام دیگری انتخاب کنید.'),409,'PROFILE_NAME_EXISTS');
    const fields=['name','description','settings','archived'].filter(field=>!isDeepStrictEqual(previous?.[field],{name,description,settings,archived}[field]));
    if(previous&&!fields.length)return previous;
    const id=previous?.id||randomUUID();
@@ -76,18 +77,18 @@ export async function difficultySettings(db,childId){
 export async function assignedTrainingProfile(db,childId,key){
  const row=(await db.query('SELECT p.* FROM difficulty d JOIN training_profiles p ON p.id=d.training_profile_id WHERE d.child_id=$1 AND d.game_id=$2 AND d.variant=$3 AND d.protocol=$4',[childId,key.gameId,key.variant,key.protocolVersion])).rows[0];
  if(!row)return null;
- const entry=profileEntry(row.settings,key.gameId,key.variant);check(entry,'تنظیم این بازی در پروفایل کامل نیست.',409,'PROFILE_INCOMPLETE');return {profile:trainingProfileSummary(row),entry};
+ const entry=profileEntry(row.settings,key.gameId,key.variant);check(entry,uiText('تنظیم این بازی در پروفایل کامل نیست.'),409,'PROFILE_INCOMPLETE');return {profile:trainingProfileSummary(row),entry};
 }
 export async function prepareProfileAssignment(db,req,key,current){
  const explicit=Object.hasOwn(req.body,'trainingProfileId');
- if(!explicit){check(!current?.training_profile_id,'برای تغییر پروفایل، برنامه را به‌روزرسانی کنید.',409,'CLIENT_UPDATE_REQUIRED');return {mode:req.body.mode,level:req.body.level,id:null};}
+ if(!explicit){check(!current?.training_profile_id,uiText('برای تغییر پروفایل، برنامه را به‌روزرسانی کنید.'),409,'CLIENT_UPDATE_REQUIRED');return {mode:req.body.mode,level:req.body.level,id:null};}
  guardRevision(req.body.expectedRevision,current?.revision||0,current||{},true);
  let selection={mode:req.body.mode,level:req.body.level,id:null};
  if(req.body.trainingProfileId!==null){
-  const profile=await readTrainingProfile(db,uuid(req.body.trainingProfileId));check(!profile.archived||current?.training_profile_id===profile.id,'برای انتخاب این پروفایل برای کاربر جدید، اول آن را از بایگانی برگردانید.',409,'PROFILE_ARCHIVED');
+  const profile=await readTrainingProfile(db,uuid(req.body.trainingProfileId));check(!profile.archived||current?.training_profile_id===profile.id,uiText('برای انتخاب این پروفایل برای کاربر جدید، اول آن را از بایگانی برگردانید.'),409,'PROFILE_ARCHIVED');
   selection={mode:'fixed',level:profileEntry(profile.settings,key.gameId,key.variant).level,id:profile.id};
  }
- check(['fixed','adaptive'].includes(selection.mode)&&Object.hasOwn(LEVELS,selection.level),'سطح و روش معتبر انتخاب کنید.');
+ check(['fixed','adaptive'].includes(selection.mode)&&Object.hasOwn(LEVELS,selection.level),uiText('سطح و روش معتبر انتخاب کنید.'));
  let cleared=0;
  if(!selection.id)cleared=(await db.query('UPDATE child_game_timing_overrides SET timing=NULL,revision=revision+1,updated_by=$5,updated_at=now() WHERE child_id=$1 AND game_id=$2 AND variant=$3 AND protocol=$4 AND timing IS NOT NULL',[req.params.id,key.gameId,key.variant,key.protocolVersion,req.user.id])).rowCount;
  if(current?.training_profile_id!==selection.id&&(current?.training_profile_id||selection.id)||cleared){

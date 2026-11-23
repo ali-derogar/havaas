@@ -10,7 +10,7 @@ const advance=(page,ms)=>page.evaluate(ms=>window.advanceStudio(ms),ms);
 const click=(page,action)=>page.locator(`[data-action="${action}"]:visible`).first().click();
 async function login(page){await page.goto('/');await page.locator('#login-form [name=identifier]').fill(seed.users.otherUser.username);await page.locator('#login-form [name=password]').fill(seed.password);await page.locator('#login-form button[type=submit]').click();await expect(page.locator('.hero')).toBeVisible();}
 async function setup(page,level){
- const auth=await(await page.request.get('/api/auth/session')).json(),run=await(await page.request.post(`/api/children/${seed.children[1].id}/sessions`,{headers:{'X-CSRF-Token':auth.csrfToken},data:{gameId:'stroop',kind:'baseline'}})).json();
+ const auth=await(await page.request.get('/api/auth/session')).json(),run=await(await page.request.post(`/api/children/${seed.children[1].id}/sessions`,{headers:{'X-CSRF-Token':auth.csrfToken},data:{clientExperienceVersion:4,gameId:'stroop',kind:'baseline'}})).json();
  expect((await page.request.post(`/api/children/${seed.children[1].id}/sessions/${run.id}/complete`,{headers:{'X-CSRF-Token':auth.csrfToken},data:{result:playSession(run)}})).ok()).toBe(true);
  const api=await request.newContext({baseURL:'http://127.0.0.1:4181'});
  try{let auth=await(await api.get('/api/auth/session')).json();auth=await(await api.post('/api/auth/login',{headers:{'X-CSRF-Token':auth.csrfToken},data:{identifier:seed.users.admin.username,password:seed.password}})).json();expect((await api.patch(`/api/children/${seed.children[1].id}/difficulty`,{headers:{'X-CSRF-Token':auth.csrfToken},data:{gameId:'stroop',level,mode:'fixed'}})).ok()).toBe(true);}finally{await api.dispose();}

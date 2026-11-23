@@ -4,8 +4,10 @@ export const LOCALE_KEY='havaas:locale:v1';
 const valid=value=>value==='en'||value==='fa';
 let locale='fa';
 try{const query=new URL(globalThis.location?.href||'http://localhost').searchParams.get('lang');const saved=globalThis.localStorage?.getItem(LOCALE_KEY);locale=valid(query)?query:valid(saved)?saved:'fa';}catch{}
-export const getLocale=()=>locale;
-export const numberLocale=()=>locale==='en'?'en-US':'fa-IR';
+let localeProvider=()=>null;
+export const setLocaleProvider=provider=>{localeProvider=provider;};
+export const getLocale=()=>localeProvider()||locale;
+export const numberLocale=()=>getLocale()==='en'?'en-US':'fa-IR';
 export const formatNumber=(value,options={})=>Number(value).toLocaleString(numberLocale(),options);
 export const formatDate=(value,options={})=>new Intl.DateTimeFormat(numberLocale(),{timeZone:'Asia/Tehran',timeZone:'Asia/Tehran',...options}).format(new Date(value));
 export function setLocale(value){
@@ -17,18 +19,18 @@ export function setLocale(value){
 }
 // Translate authored source fragments only. User input is never scanned or replaced.
 const persian=/[\u0600-\u06ff][\u0600-\u06ff\u200c\u200f\s؛،؟«»…:.!()٬٫٪0-9\-–—+\/]*[\u0600-\u06ff؟.!…»)]?/gu;
-export function fragment(text,language=locale){
+export function fragment(text,language=getLocale()){
  if(language!=='en')return text;
  return text.replace(persian,value=>{const trimmed=value.trim();return value.replace(trimmed,EN[trimmed]??trimmed);});
 }
-export function translate(text,language=locale){
+export function translate(text,language=getLocale()){
  if(typeof text!=='string'||language!=='en')return text;
  return EN[text]??fragment(text,language);
 }
 export const t=text=>translate(text);
 export function lt(strings,...values){
  const pattern=strings.reduce((text,part,i)=>text+part+(i<values.length?`{${i}}`:''),'');
- if(locale==='en'&&EN[pattern])return EN[pattern].replace(/\{(\d+)\}/g,(_match,index)=>String(values[Number(index)]??''));
+ if(getLocale()==='en'&&EN[pattern])return EN[pattern].replace(/\{(\d+)\}/g,(_match,index)=>String(values[Number(index)]??''));
  return strings.reduce((text,part,i)=>text+fragment(part)+(i<values.length?String(values[i]??''):''),'');
 }
 const proxies=new WeakMap();
@@ -39,4 +41,4 @@ export function localized(value){
 }
 export function languageSelector(){return `<label class="theme-switcher language-switcher"><span>${locale==='en'?'Language':'زبان'}</span><select data-locale-select aria-label="${locale==='en'?'Language':'زبان'}"><option value="fa"${locale==='fa'?' selected':''}>فارسی</option><option value="en"${locale==='en'?' selected':''}>English</option></select></label>`;}
 
-export function colorName(color,language=locale){const names={blue:'آبی',green:'سبز',red:'قرمز',yellow:'زرد',purple:'بنفش',pink:'صورتی'};return translate(names[color]||'',language);}
+export function colorName(color,language=getLocale()){const names={blue:'آبی',green:'سبز',red:'قرمز',yellow:'زرد',purple:'بنفش',pink:'صورتی'};return translate(names[color]||'',language);}

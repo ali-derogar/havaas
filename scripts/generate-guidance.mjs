@@ -13,7 +13,7 @@ if(keys.some(key=>!Object.hasOwn(GUIDANCE,key)))throw Error('Unknown guidance ke
 if(new Set(keys).size!==keys.length)throw Error('Guidance keys must be unique.');
 if((values.preview||values.only)&&!values.output)values.output='.local/voice-preview';
 const output=resolve(values.output||(values.locale==='en'?'assets/audio/en':'assets/audio')),{rate,pitch}=GUIDANCE_VOICE,voice=values.locale==='en'?'en-US-JennyNeural':GUIDANCE_VOICE.voice;
-if(keys.length!==Object.keys(GUIDANCE).length&&output===resolve('assets/audio'))throw Error('Partial builds must use a separate output directory.');
+if(keys.length!==Object.keys(GUIDANCE).length&&[resolve('assets/audio'),resolve('assets/audio/en')].includes(output))throw Error('Partial builds must use a separate output directory.');
 const command=process.env.EDGE_TTS_BIN||'edge-tts';
 await mkdir(output,{recursive:true});
 const staging=await mkdtemp(join(output,'.voice-build-'));

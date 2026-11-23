@@ -1,6 +1,6 @@
 import {getLocale,setLocale,fragment,t,languageSelector} from './i18n.js';
 const main=document.querySelector('main'),original=main.innerHTML;
-function render(){setLocale(getLocale());main.innerHTML=fragment(original);main.insertAdjacentHTML('afterbegin',languageSelector());document.title=getLocale()==='en'?'Havaas — Reconnect':'حواس — اتصال دوباره';}
+function render(){setLocale(getLocale());main.innerHTML=fragment(original);main.insertAdjacentHTML('afterbegin',languageSelector());document.title=getLocale()==='en'?'Havaas — Reconnect':'حواس — اتصال دوباره';window.HavaasTheme?.sync();}
 render();
 document.addEventListener('change',event=>{if(event.target.matches('[data-locale-select]')){setLocale(event.target.value);render();}});
 document.addEventListener('click',async event=>{

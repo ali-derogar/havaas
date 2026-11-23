@@ -1,3 +1,8 @@
+import {t as uiText} from '../src/i18n.js';
+import {AsyncLocalStorage} from 'node:async_hooks';
+import {setLocaleProvider} from '../src/i18n.js';
+const localeContext=new AsyncLocalStorage();
+setLocaleProvider(()=>localeContext.getStore());
 import {translate} from '../src/i18n.js';
 import {createStimulusPlan} from '../src/stimulus-plan.js';
 import {registerTrainingProfiles,difficultySettings,prepareProfileAssignment} from './training-profiles.js';
@@ -26,11 +31,11 @@ import {EXPERIENCE_VERSION} from '../src/config.js';
 import {registerGameTimings,sessionTiming} from './game-timing.js';
 
 const PgStore=connectPg(session);
-const role=(req,roles)=>check(roles.includes(req.user.role),'اجازهٔ این عملیات را ندارید.',403,'FORBIDDEN');
+const role=(req,roles)=>check(roles.includes(req.user.role),uiText('اجازهٔ این عملیات را ندارید.'),403,'FORBIDDEN');
 export async function childAccess(db,user,id,write=false){
-  uuid(id);if(write)check(user.role==='admin','فقط مدیر مرکز به این بخش دسترسی دارد.',403,'FORBIDDEN');
+  uuid(id);if(write)check(user.role==='admin',uiText('فقط مدیر مرکز به این بخش دسترسی دارد.'),403,'FORBIDDEN');
   const child=(await db.query("SELECT * FROM children WHERE id=$1 AND ($2='admin' OR owner_user_id=$3)",[id,user.role,user.id])).rows[0];
-  check(child,'مشخصات کاربر پیدا نشد یا به آن دسترسی ندارید.',404,'NOT_FOUND');return child;
+  check(child,uiText('مشخصات کاربر پیدا نشد یا به آن دسترسی ندارید.'),404,'NOT_FOUND');return child;
 }
 export function profileDTO(child,user){const profile=user.role==='admin'?{...child.profile}:Object.fromEntries(['firstName','lastName','birthDate','grade','school'].map(key=>[key,child.profile[key]]));return {...profile,revision:child.revision,id:child.id,ownerUserId:child.owner_user_id,createdAt:child.created_at};}
 export function recordDTO(row,user){return {id:row.id,profileId:row.child_id,kind:row.kind,result:user.role==='admin'?row.result:reportResult(row.result),...(user.role==='admin'?{actorId:row.actor_id,legacyId:row.legacy_id}:{}),startedAt:row.started_at};}
@@ -39,6 +44,7 @@ export function createApp({pool,secret=process.env.SESSION_SECRET,production=pro
   check(typeof secret==='string'&&secret.length>=32&&!secret.includes('replace-with'),'SESSION_SECRET must contain at least 32 characters',500);
   normalizeAppOrigin(process.env.APP_ORIGIN);
   const app=express();app.disable('x-powered-by');if(trustProxy)app.set('trust proxy',1);
+  app.use((req,_res,next)=>localeContext.run(req.get('X-App-Locale')==='en'?'en':'fa',next));
   app.use(helmet({contentSecurityPolicy:{directives:{defaultSrc:["'self'"],scriptSrc:["'self'"],workerSrc:["'self'"],manifestSrc:["'self'"],styleSrc:["'self'","'unsafe-inline'"],fontSrc:["'self'"],imgSrc:["'self'",'data:'],connectSrc:["'self'"],objectSrc:["'none'"],frameAncestors:["'none'"],upgradeInsecureRequests:production?[]:null}},strictTransportSecurity:production?undefined:false}));
   registerPwa(app,staticRoot);
   app.get('/health',async(_req,res)=>{try{await pool.query('SELECT 1');res.json({ok:true});}catch{res.status(503).json({ok:false});}});
@@ -47,14 +53,14 @@ export function createApp({pool,secret=process.env.SESSION_SECRET,production=pro
   app.use('/api',session({name:'havaas.sid',secret,resave:false,saveUninitialized:false,store:new PgStore({pool,tableName:'auth_sessions',createTableIfMissing:false}),cookie:{httpOnly:true,sameSite:'lax',secure:production,maxAge:8*60*60*1000}}));
   app.use('/api',(req,res,next)=>{res.set('Cache-Control','no-store');req.session.csrf ||= token();if(!['GET','HEAD','OPTIONS'].includes(req.method)){
     const origin=req.get('Origin');const expected=appOrigin(req);
-    if((origin&&origin!==expected)||req.get('X-CSRF-Token')!==req.session.csrf)return next(new HttpError(403,'درخواست معتبر نیست؛ صفحه را تازه کنید.','CSRF'));
+    if((origin&&origin!==expected)||req.get('X-CSRF-Token')!==req.session.csrf)return next(new HttpError(403,uiText('درخواست معتبر نیست؛ صفحه را تازه کنید.'),'CSRF'));
   }next();});
   app.use('/api',async(req,_res,next)=>{
     if(req.session.userId){const user=(await pool.query('SELECT * FROM users WHERE id=$1',[req.session.userId])).rows[0];if(user?.active&&user.auth_version===req.session.authVersion)req.user=user;else {delete req.session.userId;delete req.session.authVersion;}}
     next();
   });
-  const authLimit=rateLimit({windowMs:15*60*1000,limit:loginLimit,skipSuccessfulRequests:true,keyGenerator:req=>`${req.route.path}:${ipKeyGenerator(req.ip)}`,standardHeaders:true,legacyHeaders:false,message:{error:'تلاش‌های زیادی انجام شده؛ کمی بعد دوباره امتحان کنید.',code:'RATE_LIMITED'}});
-  registerPublicReport(app,pool,rateLimit({windowMs:60*1000,limit:120,standardHeaders:true,legacyHeaders:false,message:{error:'کمی بعد دوباره تلاش کنید.'}}));
+  const authLimit=rateLimit({windowMs:15*60*1000,limit:loginLimit,skipSuccessfulRequests:true,keyGenerator:req=>`${req.route.path}:${ipKeyGenerator(req.ip)}`,standardHeaders:true,legacyHeaders:false,message:{error:uiText('تلاش‌های زیادی انجام شده؛ کمی بعد دوباره امتحان کنید.'),code:'RATE_LIMITED'}});
+  registerPublicReport(app,pool,rateLimit({windowMs:60*1000,limit:120,standardHeaders:true,legacyHeaders:false,message:{error:uiText('کمی بعد دوباره تلاش کنید.')}}));
   registerAccounts(app,pool,{authLimit,role,profileDTO});
   registerReportLinks(app,pool,childAccess);
   registerAudit(app,pool,role);
@@ -71,10 +77,10 @@ export function createApp({pool,secret=process.env.SESSION_SECRET,production=pro
   app.post('/api/children',async(req,res)=>{
     role(req,['admin']);const validation=validateProfile(req.body);check(!validation.error,validation.error);
     const ownerId=req.body.ownerUserId?uuid(req.body.ownerUserId):null;
-    if(ownerId)check((await pool.query("SELECT 1 FROM users WHERE id=$1 AND role='user'",[ownerId])).rowCount,'کاربر معتبر انتخاب کنید.');
+    if(ownerId)check((await pool.query("SELECT 1 FROM users WHERE id=$1 AND role='user'",[ownerId])).rowCount,uiText('کاربر معتبر انتخاب کنید.'));
     const child=await managedTransaction(pool,req,async db=>{
       const name=`${validation.profile.firstName} ${validation.profile.lastName}`;
-      if(ownerId)check(name.length>=2&&name.length<=120,'نام و نام خانوادگی روی هم باید بین ۲ تا ۱۲۰ کاراکتر باشند.');
+      if(ownerId)check(name.length>=2&&name.length<=120,uiText('نام و نام خانوادگی روی هم باید بین ۲ تا ۱۲۰ کاراکتر باشند.'));
       const created=(await db.query('INSERT INTO children(id,owner_user_id,profile) VALUES($1,$2,$3) RETURNING *',[randomUUID(),ownerId,validation.profile])).rows[0];
       if(ownerId)await db.query('UPDATE users SET name=$1 WHERE id=$2',[name,ownerId]);
       return created;
@@ -87,13 +93,13 @@ export function createApp({pool,secret=process.env.SESSION_SECRET,production=pro
       const child=(await db.query('SELECT * FROM children WHERE id=$1 FOR UPDATE',[req.params.id])).rows[0];
       guardRevision(req.body.expectedRevision,child.revision,{profile:profileDTO(child,req.user)});
       const validation=validateProfile({...child.profile,...req.body});check(!validation.error,validation.error);
-      check(!Object.hasOwn(req.body,'ownerUserId')||req.body.ownerUserId===child.owner_user_id,'برای وصل‌کردن مشخصات به کاربر، از بخش ساخت حساب استفاده کنید.');
+      check(!Object.hasOwn(req.body,'ownerUserId')||req.body.ownerUserId===child.owner_user_id,uiText('برای وصل‌کردن مشخصات به کاربر، از بخش ساخت حساب استفاده کنید.'));
       const result=(await db.query('UPDATE children SET profile=$1 WHERE id=$2 RETURNING *',[validation.profile,child.id])).rows[0];
-      if(child.owner_user_id){const name=`${validation.profile.firstName} ${validation.profile.lastName}`;check(name.length>=2&&name.length<=120,'نام و نام خانوادگی روی هم باید بین ۲ تا ۱۲۰ کاراکتر باشند.');await db.query('UPDATE users SET name=$1 WHERE id=$2',[name,child.owner_user_id]);}
+      if(child.owner_user_id){const name=`${validation.profile.firstName} ${validation.profile.lastName}`;check(name.length>=2&&name.length<=120,uiText('نام و نام خانوادگی روی هم باید بین ۲ تا ۱۲۰ کاراکتر باشند.'));await db.query('UPDATE users SET name=$1 WHERE id=$2',[name,child.owner_user_id]);}
       return result;
     });res.json({profile:profileDTO(updated,req.user)});
   });
-  app.delete('/api/children/:id',async(req,res)=>{await childAccess(pool,req.user,req.params.id,true);throw new HttpError(409,'برای حفظ سوابق، حساب کاربر را غیرفعال کنید.','ARCHIVE_REQUIRED');});
+  app.delete('/api/children/:id',async(req,res)=>{await childAccess(pool,req.user,req.params.id,true);throw new HttpError(409,uiText('برای حفظ سوابق، حساب کاربر را غیرفعال کنید.'),'ARCHIVE_REQUIRED');});
   app.get('/api/bootstrap',async(req,res)=>{
     if(req.query.view==='panel'){
       const child=req.query.childId?await childAccess(pool,req.user,req.query.childId):(await pool.query("SELECT * FROM children WHERE $1='admin' OR owner_user_id=$2 ORDER BY created_at,id LIMIT 1",[req.user.role,req.user.id])).rows[0];
@@ -119,7 +125,7 @@ export function createApp({pool,secret=process.env.SESSION_SECRET,production=pro
     const row=await managedTransaction(pool,req,async db=>{
       const current=(await db.query('SELECT * FROM difficulty WHERE child_id=$1 AND game_id=$2 AND variant=$3 AND protocol=$4 FOR UPDATE',[req.params.id,s.gameId,s.variant,s.protocolVersion])).rows[0];
       const selection=await prepareProfileAssignment(db,req,s,current);
-      check(['fixed','adaptive'].includes(selection.mode)&&['easy','medium','hard'].includes(selection.level),'سطح و روش معتبر انتخاب کنید.');
+      check(['fixed','adaptive'].includes(selection.mode)&&['easy','medium','hard'].includes(selection.level),uiText('سطح و روش معتبر انتخاب کنید.'));
       return (await db.query(`INSERT INTO difficulty(child_id,game_id,variant,protocol,mode,level,updated_by,training_profile_id) VALUES($1,$2,$3,$4,$5,$6,$7,$8)
         ON CONFLICT(child_id,game_id,variant,protocol) DO UPDATE SET mode=EXCLUDED.mode,level=EXCLUDED.level,training_profile_id=EXCLUDED.training_profile_id,revision=difficulty.revision+1,updated_by=EXCLUDED.updated_by,updated_at=now()
         WHERE difficulty.mode IS DISTINCT FROM EXCLUDED.mode OR difficulty.level IS DISTINCT FROM EXCLUDED.level OR difficulty.training_profile_id IS DISTINCT FROM EXCLUDED.training_profile_id OR $9::boolean RETURNING *`,[req.params.id,s.gameId,s.variant,s.protocolVersion,selection.mode,selection.level,req.user.id,selection.id,Boolean(selection.cleared)])).rows[0]||current;
@@ -129,24 +135,24 @@ export function createApp({pool,secret=process.env.SESSION_SECRET,production=pro
     await childAccess(pool,req.user,req.params.id);
     // Cached clients predating timing negotiation still run the original engine.
     const clientVersion=req.body.clientExperienceVersion??1;
-    check([1,2,3,EXPERIENCE_VERSION].includes(clientVersion),'نسخهٔ برنامه با سرور سازگار نیست؛ برنامه را به‌روزرسانی کنید.',409,'CLIENT_VERSION_UNSUPPORTED');
-    const s=normalizeSettings(req.body,{experienceVersion:clientVersion}),kind=req.body.kind;check(['baseline','training'].includes(kind),'نوع جلسه معتبر نیست.');
+    check([1,2,3,EXPERIENCE_VERSION].includes(clientVersion),uiText('نسخهٔ برنامه با سرور سازگار نیست؛ برنامه را به‌روزرسانی کنید.'),409,'CLIENT_VERSION_UNSUPPORTED');
+    const s=normalizeSettings(req.body,{experienceVersion:clientVersion}),kind=req.body.kind;check(['baseline','training'].includes(kind),uiText('نوع جلسه معتبر نیست.'));
     const run=await transaction(pool,async db=>{
-      if(kind==='training')check((await db.query("SELECT 1 FROM game_sessions WHERE child_id=$1 AND kind='baseline' AND result->>'gameId'=$2 AND COALESCE(result->>'variant','standard')=$3 AND (result->>'protocolVersion')::int=$4 AND result IS NOT NULL AND ($5::boolean=false OR COALESCE((result->>'experienceVersion')::int,1)>=4) AND ($6::text='' OR COALESCE(result->>'locale','fa')=$6)",[req.params.id,s.gameId,s.variant,s.protocolVersion,clientVersion>=4&&['hunt','traffic','stroop'].includes(s.gameId),s.gameId==='stroop'?s.locale:''])).rowCount,'اول ارزیابی پایه را انجام دهید.',409,'BASELINE_REQUIRED');
+      if(kind==='training')check((await db.query("SELECT 1 FROM game_sessions WHERE child_id=$1 AND kind='baseline' AND result->>'gameId'=$2 AND COALESCE(result->>'variant','standard')=$3 AND (result->>'protocolVersion')::int=$4 AND result IS NOT NULL AND ($5::boolean=false OR COALESCE((result->>'experienceVersion')::int,1)>=4) AND ($6::text='' OR COALESCE(result->>'locale','fa')=$6)",[req.params.id,s.gameId,s.variant,s.protocolVersion,clientVersion>=4&&['hunt','traffic','stroop'].includes(s.gameId),s.gameId==='stroop'?s.locale:''])).rowCount,uiText('اول ارزیابی پایه را انجام دهید.'),409,'BASELINE_REQUIRED');
       await db.query('INSERT INTO difficulty(child_id,game_id,variant,protocol) VALUES($1,$2,$3,$4) ON CONFLICT DO NOTHING',[req.params.id,s.gameId,s.variant,s.protocolVersion]);
       const difficulty=(await db.query('SELECT * FROM difficulty WHERE child_id=$1 AND game_id=$2 AND variant=$3 AND protocol=$4 FOR UPDATE',[req.params.id,s.gameId,s.variant,s.protocolVersion])).rows[0];
-      check(kind==='baseline'||clientVersion>=3||!difficulty.training_profile_id,'برای اجرای پروفایل تمرین، برنامه را به‌روزرسانی کنید.',409,'CLIENT_UPDATE_REQUIRED');
+      check(kind==='baseline'||clientVersion>=3||!difficulty.training_profile_id,uiText('برای اجرای پروفایل تمرین، برنامه را به‌روزرسانی کنید.'),409,'CLIENT_UPDATE_REQUIRED');
       const settings={...s,level:kind==='baseline'?'easy':difficulty.level,seed:randomBytes(4).readUInt32BE(),practice:kind==='baseline',reviewEnabled:kind==='baseline'};
       if(clientVersion>=4){settings.stimulusPlan=createStimulusPlan({...settings,practice:kind==='baseline'});if(s.gameId==='traffic')settings.trafficRouteVersion=1;}
       if(clientVersion>=3)Object.assign(settings,await sessionTiming(db,req.params.id,settings,kind));
       return (await db.query('INSERT INTO game_sessions(id,child_id,actor_id,kind,settings,difficulty_revision) VALUES($1,$2,$3,$4,$5,$6) RETURNING *',[randomUUID(),req.params.id,req.user.id,kind,settings,difficulty.revision])).rows[0];
     });const reference={...run.settings,feedbackMode:kind==='baseline'?'guided':'continuous',stimulusFamily:run.settings.theme};res.status(201).json({id:run.id,settings:run.settings,kind:run.kind,...(req.body.view==='panel'?{bestScore:await bestScoreFor(pool,req.params.id,reference,kind)}:{})});
   });
-  app.get('/api/children/:id/sessions/:sessionId',async(req,res)=>{await childAccess(pool,req.user,req.params.id);uuid(req.params.sessionId);const row=(await pool.query('SELECT * FROM game_sessions WHERE id=$1 AND child_id=$2',[req.params.sessionId,req.params.id])).rows[0];check(row,'جلسه پیدا نشد.',404);res.json({record:recordDTO(row,req.user)});});
+  app.get('/api/children/:id/sessions/:sessionId',async(req,res)=>{await childAccess(pool,req.user,req.params.id);uuid(req.params.sessionId);const row=(await pool.query('SELECT * FROM game_sessions WHERE id=$1 AND child_id=$2',[req.params.sessionId,req.params.id])).rows[0];check(row,uiText('جلسه پیدا نشد.'),404);res.json({record:recordDTO(row,req.user)});});
   app.post('/api/children/:id/sessions/:sessionId/complete',async(req,res)=>{
     await childAccess(pool,req.user,req.params.id);uuid(req.params.sessionId);
     const row=await transaction(pool,async db=>{
-      const run=(await db.query('SELECT * FROM game_sessions WHERE id=$1 AND child_id=$2 FOR UPDATE',[req.params.sessionId,req.params.id])).rows[0];check(run&&run.actor_id===req.user.id,'جلسهٔ متعلق به این حساب پیدا نشد.',404);
+      const run=(await db.query('SELECT * FROM game_sessions WHERE id=$1 AND child_id=$2 FOR UPDATE',[req.params.sessionId,req.params.id])).rows[0];check(run&&run.actor_id===req.user.id,uiText('جلسهٔ متعلق به این حساب پیدا نشد.'),404);
       if(run.result)return run;
       const result=canonicalResult(run,req.body.result),s=run.settings;
       await db.query(`UPDATE difficulty SET level=$1,revision=revision+1,updated_at=now() WHERE child_id=$2 AND game_id=$3 AND variant=$4 AND protocol=$5 AND mode='adaptive' AND revision=$6`,[recommendLevel(result).level,run.child_id,s.gameId,s.variant,s.protocolVersion,run.difficulty_revision]);
@@ -155,14 +161,14 @@ export function createApp({pool,secret=process.env.SESSION_SECRET,production=pro
   });
   app.get('/api/children/:id/export',async(req,res)=>{const child=await childAccess(pool,req.user,req.params.id,true),records=(await recordsFor(req)).map(r=>recordDTO(r,req.user));res.attachment('havaas-profile.json').json({version:1,exportedAt:new Date().toISOString(),profile:profileDTO(child,req.user),records});});
   app.get('/api/children/:id/sessions/:sessionId/export',async(req,res)=>{
-    await childAccess(pool,req.user,req.params.id,true);uuid(req.params.sessionId);const row=(await pool.query('SELECT * FROM game_sessions WHERE id=$1 AND child_id=$2 AND result IS NOT NULL',[req.params.sessionId,req.params.id])).rows[0];check(row,'جلسه پیدا نشد.',404);
+    await childAccess(pool,req.user,req.params.id,true);uuid(req.params.sessionId);const row=(await pool.query('SELECT * FROM game_sessions WHERE id=$1 AND child_id=$2 AND result IS NOT NULL',[req.params.sessionId,req.params.id])).rows[0];check(row,uiText('جلسه پیدا نشد.'),404);
     const outcomes=Array.isArray(row.result.outcomes)?row.result.outcomes:[];
-    const lines=[['ردیف','هدف','پاسخ','درست','زمان پاسخ','زمان فعال','وسیله','دور','مرحله'],...outcomes.map((source,index)=>{const o=source&&typeof source==='object'?source:{};return [Number.isInteger(o.number)&&o.number>=0?o.number:index+1,o.target,o.response,o.correct,o.reactionMs??'',o.atMs,o.item??'',o.round??'',o.phase??''];})];
+    const lines=[[uiText('ردیف'),uiText('هدف'),uiText('پاسخ'),uiText('درست'),uiText('زمان پاسخ'),uiText('زمان فعال'),uiText('وسیله'),uiText('دور'),uiText('مرحله')],...outcomes.map((source,index)=>{const o=source&&typeof source==='object'?source:{};return [Number.isInteger(o.number)&&o.number>=0?o.number:index+1,o.target,o.response,o.correct,o.reactionMs??'',o.atMs,o.item??'',o.round??'',o.phase??''];})];
     res.type('text/csv; charset=utf-8').attachment('havaas-responses.csv').send(serializeCsv(req.get('X-App-Locale')==='en'?lines.map((line,index)=>index===0?line.map(value=>translate(value,'en')):line.map((value,column)=>column===6?translate(value,'en'):value)):lines));
   });
   registerImports(app,pool,{role,childAccess,profileDTO});
-  app.use('/api',(_req,res)=>res.status(404).json({error:'مسیر پیدا نشد.',code:'NOT_FOUND'}));
+  app.use('/api',(_req,res)=>res.status(404).json({error:uiText('مسیر پیدا نشد.'),code:'NOT_FOUND'}));
   app.use('/assets',express.static(resolve(staticRoot,'assets')));app.use('/src',express.static(resolve(staticRoot,'src')));app.get(['/', '/index.html'],(_req,res)=>res.sendFile(resolve(staticRoot,'index.html')));
-  app.use((error,_req,res,_next)=>{const status=error.status||(error.code==='23505'?409:(error.type==='entity.too.large')?413:500);if(status>=500)console.error('Request failed:',error.code||error.name);res.status(status).json({error:status>=500?'مشکلی در مرکز پیش آمده است. کمی بعد دوباره تلاش کنید.':error.code==='23505'?'این نام کاربری، ایمیل یا مشخصات قبلاً به یک حساب متصل شده است.':error.message,code:error.code||'SERVER_ERROR',...(error.details&&status<500?{details:error.details}:{})});});
+  app.use((error,_req,res,_next)=>{const status=error.status||(error.code==='23505'?409:(error.type==='entity.too.large')?413:500);if(status>=500)console.error('Request failed:',error.code||error.name);res.status(status).json({error:status>=500?uiText('مشکلی در مرکز پیش آمده است. کمی بعد دوباره تلاش کنید.'):error.code==='23505'?uiText('این نام کاربری، ایمیل یا مشخصات قبلاً به یک حساب متصل شده است.'):error.message,code:error.code||'SERVER_ERROR',...(error.details&&status<500?{details:error.details}:{})});});
   return app;
 }

@@ -9,7 +9,7 @@ const fa=n=>Number(n).toLocaleString(numberLocale(),{useGrouping:false});
 const option=(value,label,selected)=>`<option value="${value}"${value===selected?' selected':''}>${label}</option>`;
 const dayOptions=(count,selected)=>uiText('<option value="">روز</option>')+Array.from({length:count},(_,i)=>option(i+1,fa(i+1),selected)).join('');
 
-function auditDateField(name,label,value=''){
+export function auditDateField(name,label,value=''){
  if(getLocale()==='en')return `<fieldset class="audit-date-field"><legend>${label}</legend><input type="date" name="${name}" value="${esc(value)}" aria-label="${label}"></fieldset>`;
  const selected=gregorianToJalali(value)||{},year=Number(new Intl.DateTimeFormat('en-US',{calendar:'persian',numberingSystem:'latn',year:'numeric',timeZone:'Asia/Tehran'}).formatToParts(new Date()).find(part=>part.type==='year').value);
  const firstYear=Math.min(year-100,selected.year||year),lastYear=Math.max(year+1,selected.year||year);

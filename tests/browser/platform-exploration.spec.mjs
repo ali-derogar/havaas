@@ -53,7 +53,7 @@ test('a real saved assessment updates the island markers, map and PDF without ch
  await login(page);const {csrfToken}=await(await page.request.get('/api/auth/session')).json();
  const headers={'X-CSRF-Token':csrfToken},child=explorerChild;
  for(const gameId of ['hunt','ark','space']){
-  const response=await page.request.post(`/api/children/${child}/sessions`,{headers,data:{gameId,kind:'baseline'}});expect(response.ok()).toBe(true);
+  const response=await page.request.post(`/api/children/${child}/sessions`,{headers,data:{clientExperienceVersion:4,gameId,kind:'baseline'}});expect(response.ok()).toBe(true);
   const run=await response.json();expect((await page.request.post(`/api/children/${child}/sessions/${run.id}/complete`,{headers,data:{result:playSession(run)}})).ok()).toBe(true);
  }
  const trainingResponse=await page.request.post(`/api/children/${child}/sessions`,{headers,data:{gameId:'ark',kind:'training'}});expect(trainingResponse.ok()).toBe(true);
@@ -72,7 +72,7 @@ test('new styling has zero pixel impact on the introduction, arena and result of
  await login(page);const {csrfToken}=await(await page.request.get('/api/auth/session')).json(),headers={'X-CSRF-Token':csrfToken},child=explorerChild;
  const games=['hunt','ark','space','traffic','search','nback','stroop'];
  for(const gameId of games){
-  const response=await page.request.post(`/api/children/${child}/sessions`,{headers,data:{gameId,kind:'baseline'}});expect(response.ok()).toBe(true);
+  const response=await page.request.post(`/api/children/${child}/sessions`,{headers,data:{clientExperienceVersion:4,gameId,kind:'baseline'}});expect(response.ok()).toBe(true);
   const run=await response.json();expect((await page.request.post(`/api/children/${child}/sessions/${run.id}/complete`,{headers,data:{result:playSession(run)}})).ok()).toBe(true);
  }
  async function unchanged(game,stage){

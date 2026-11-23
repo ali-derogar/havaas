@@ -7,6 +7,7 @@ import {createStimulusPlan,compatibleBaseline} from '../src/stimulus-plan.js';
 import {isStroopTarget} from '../src/games/stroop.js';
 import {trafficJourney} from '../src/games/traffic.js';
 import {canonicalResult,normalizeSettings,summaryResult} from '../server/domain.js';
+import {inspectLegacy} from '../server/imports.js';
 import {reportResult} from '../server/report-data.js';
 import {playSession} from './helpers/play-session.mjs';
 import {getLocale,setLocale,t,lt} from '../src/i18n.js';
@@ -73,4 +74,10 @@ test('English views translate authored text while retaining personal data and ph
   assert.match(symbol({shape:'butterfly',color:'green'}),/class="butterfly-orientation" transform="rotate\(90 32 32\)"/);
   const record={kind:'training',result:{gameId:'traffic',hits:3,maxScore:30,correctResponses:120,omissions:27,falseSelections:3,longestStreak:5,meanReactionMs:500}};assert.doesNotMatch(parentNarrative(record,[record],'en'),/[\u0600-\u06ff]/);
  }finally{setLocale('fa');}assert.equal(getLocale(),'fa');
+});
+
+test('v4 exports retain session language and color plans, and malformed imported metadata is rejected',()=>{
+ const settings={...normalizeSettings({gameId:'hunt',locale:'en',targetCount:2}),seed:7,level:'easy'},run={id:'import-v4',kind:'baseline',settings},result=canonicalResult(run,playSession(run));
+ const profile={id:'source',firstName:'آبی',lastName:'آزمون',birthDate:'2016-01-01',grade:'3',school:'school'},document={version:1,profile,records:[{id:'source-session',kind:'baseline',result}]};
+ assert.deepEqual(inspectLegacy(document).errors,[]);for(const patch of [{locale:'unknown'},{stimulusPlan:{colorsByPhase:[['blue']] }},{stimulusPlan:{colorsByPhase:[['blue','invalid']]}}])assert.ok(inspectLegacy({...document,records:[{...document.records[0],result:{...result,...patch}}]}).errors.length);
 });

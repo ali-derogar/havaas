@@ -1,4 +1,4 @@
-import {getLocale,translate} from './i18n.js';
+import {getLocale} from './i18n.js';
 import {colorAt} from './stimulus-plan.js';
 // Scripts are shipped as local audio; no account data or microphone access is used.
 const legacyGuidance={

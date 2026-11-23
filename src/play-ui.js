@@ -122,7 +122,7 @@ export function reviewView(session) {
     else if(session.gameId==='nback') {
       text=trial.target?lt`محرک فعلی با ${fa(session.n)} محرک قبل یکسان بود؛ باید پاسخ می‌دادی.`:lt`محرک فعلی با ${fa(session.n)} محرک قبل فرق داشت؛ باید صبر می‌کردی.`;
       sample=memoryExample([...trial.history,trial.stimulus],session.n);
-    } else {sample=`<div class="studio-review-sample">${stroopRulePicture(trial.phase)}<div class="studio-review-paper">${sample}</div></div>`;text=lt`قانون این مرحله: ${STROOP_RULES[trial.phase].text} ${trial.target?uiText('این محرک شرط را داشت؛ باید پاسخ می‌دادی.'):uiText('این محرک شرط را نداشت؛ باید صبر می‌کردی.')}`;}
+    } else {sample=`<div class="studio-review-sample">${stroopRulePicture(trial.phase,session)}<div class="studio-review-paper">${sample}</div></div>`;text=lt`قانون این مرحله: ${stroopRules(session)[trial.phase].text} ${trial.target?uiText('این محرک شرط را داشت؛ باید پاسخ می‌دادی.'):uiText('این محرک شرط را نداشت؛ باید صبر می‌کردی.')}`;}
     if(outcome.response&&outcome.selectedTarget===false&&trial.target)text+=uiText(' هدف در صحنه بود، اما شکلی که انتخاب کردی مزاحم بود.');
   } else if(review.kind==='search') {
     const decisions=session.outcomes.filter(o=>o.round===session.index+1), errors=decisions.filter(o=>!o.correct).length;
@@ -149,7 +149,7 @@ export function transitionView(session) {
   const hunt=session.gameId==='hunt', phase=session.current.phase;
   const completed=session.outcomes.filter(o=>o.phase===phase-1),correct=completed.filter(o=>o.correct).length;
   const rule=hunt?{title:lt`${fa(session.blockLengths[phase]*(session.intervalMs||1000)/1000)} ثانیه توجه پیوسته`,text:uiText('هدف‌ها همان‌اند. این بار مدت بیشتری آن‌ها را دنبال کن؛ هر وقت آماده‌ای ادامه بده.')}:STROOP_RULES[phase];
-  const examples=hunt?`<div class="rule-example">${tokens(session.targets)}</div>`:`<div class="rule-examples">${createLesson('stroop').slice(phase*2,phase*2+2).map(step=>`<div class="rule-sample">${symbol(step.stimuli[0])}<b>${step.expected?uiText('پاسخ بده'):uiText('صبر کن')}</b><small>${step.explanation}</small></div>`).join('')}</div>`;
+  const examples=hunt?`<div class="rule-example">${tokens(session.targets)}</div>`:`<div class="rule-examples">${createLesson('stroop',session).slice(phase*2,phase*2+2).map(step=>`<div class="rule-sample">${symbol(step.stimuli[0])}<b>${step.expected?uiText('پاسخ بده'):uiText('صبر کن')}</b><small>${step.explanation}</small></div>`).join('')}</div>`;
   return lt`<div class="rule-transition"><span class="section-kicker">${hunt?uiText('یک نفس تازه، یک دور تازه'):uiText('حالا قانون عوض می‌شود')}</span>${hunt?lt`<span class="checkpoint-result">${fa(correct)} تصمیم درست از ${fa(completed.length)} نوبت قبلی</span>`:''}<h2>${rule.title}</h2>${hunt?'':stroopRulePicture(phase,session)}<p>${rule.text}</p>${examples}${guideControl(guidanceKey({...session,phase,targetCount:session.targets?.length}))}<button class="button primary" data-action="acknowledge">آماده‌ام ${icon('play')}</button></div>`;
 }
 export function stroopStages(phase) { return stroopPhasePath(phase);

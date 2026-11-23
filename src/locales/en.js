@@ -509,7 +509,7 @@ export const EN={
   "بین شکل‌های رنگارنگ، فقط هدف خودت رو شکار کن. به چشم‌هات اعتماد کن و به‌موقع واکنش نشون بده!": "Between colorful shapes, just hunt your target. Trust your eyes and react in time!",
   "تا": "to",
   "تا از صحنه نرفته، پیدایش کن": "Find him before he leaves the stage",
-  "تا تاریخ": "to date",
+  "تا تاریخ": "To date",
   "تا ستاره‌ها بریم؟": "Shall we go to the stars?",
   "تا ستاره‌ها، با دقت تو": "To the stars, with your care",
   "تا قبله": "Up to Qiblah",
@@ -1871,5 +1871,15 @@ export const EN={
   "دست‌انداز؛ صبر کن": "Speed bump: wait",
   "برای حرکت دوباره منتظر سبز تازه باش": "Wait for a fresh green light to move again",
   " روی دست‌انداز صبر کن؛ برای حرکت دوباره، به نشانهٔ حرکت تازه پاسخ بده.": " Wait at the speed bump. Respond to a fresh go signal to move again.",
-  "روی دست‌انداز صبر کن؛ برای حرکت دوباره، به نشانهٔ حرکت تازه پاسخ بده.": "Wait at the speed bump. Respond to a fresh go signal to move again."
+  "روی دست‌انداز صبر کن؛ برای حرکت دوباره، به نشانهٔ حرکت تازه پاسخ بده.": "Wait at the speed bump. Respond to a fresh go signal to move again.",
+  "حواس — اتصال دوباره": "Havaas — Reconnect",
+  "در چهار بخش، قانون و نمونهٔ رنگی همان بخش را دنبال کن؛ رنگ هدف در شروع بخش بعد عوض می‌شود.": "Follow the rule and color sample in each of four sections. The target color changes at the next section.",
+  "بخش اول: به دایره‌های هم‌رنگ نمونه پاسخ بده.": "First section: respond to circles that match the sample color.",
+  "بخش دوم: رنگ نوشته باید مثل نمونه باشد؛ بخش سوم: معنی کلمه باید نام رنگ نمونه باشد.": "Second section: match the ink color to the sample. Third section: read the word and match its meaning to the sample color.",
+  "بخش آخر: هم نام رنگ و هم رنگ نوشته باید با نمونهٔ همان بخش مطابق باشند.": "Last section: both the word and its ink color must match this section’s sample.",
+  "اول نمونهٔ هدف رو خوب نگاه کن. در حالت دوهدفه، هر دو نمونه هدف هستن. رنگ هدف در شروع هر بخش عوض می‌شود.": "Look carefully at the target sample. In two-target mode, both samples count. Target colors change at the start of each section.",
+  "روی دست‌انداز به نشانهٔ توقف پاسخ نده؛ برای حرکت دوباره، منتظر نشانهٔ حرکت تازه باش.": "At a speed bump, wait without responding to the stop signal. Respond to a fresh go signal to move again.",
+  "زبان اجرای نتیجه معتبر نیست.": "The result has an invalid session language.",
+  "برنامهٔ رنگ‌های نتیجه معتبر نیست.": "The result has an invalid target color plan.",
+  "نتیجهٔ شما ثبت شده؛ تنظیمات تازه پس از برقراری ارتباط دریافت می‌شود.": "Your result has been saved. Updated settings will be loaded when the connection is restored."
 };

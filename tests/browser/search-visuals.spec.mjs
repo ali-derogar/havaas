@@ -10,7 +10,7 @@ const click=(page,action)=>page.locator(`[data-action="${action}"]:visible`).fir
 async function login(page){await page.goto('/');await page.locator('#login-form [name=identifier]').fill(seed.users.otherUser.username);await page.locator('#login-form [name=password]').fill(seed.password);await page.locator('#login-form button[type=submit]').click();await expect(page.locator('.hero')).toBeVisible();}
 async function setupMain(page,level,options={}){
  const {csrfToken}=await(await page.request.get('/api/auth/session')).json();
- const run=await(await page.request.post(`/api/children/${seed.children[1].id}/sessions`,{headers:{'X-CSRF-Token':csrfToken},data:{gameId:'search',kind:'baseline',...options}})).json();
+ const run=await(await page.request.post(`/api/children/${seed.children[1].id}/sessions`,{headers:{'X-CSRF-Token':csrfToken},data:{clientExperienceVersion:4,gameId:'search',kind:'baseline',...options}})).json();
  expect((await page.request.post(`/api/children/${seed.children[1].id}/sessions/${run.id}/complete`,{headers:{'X-CSRF-Token':csrfToken},data:{result:playSession(run)}})).ok()).toBe(true);
  const admin=await request.newContext({baseURL:'http://127.0.0.1:4181'});
  try{

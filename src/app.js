@@ -10,10 +10,10 @@ import {gameSettingsView,trainingProfilesList,trainingProfileEditor,profileAssig
 import {timingIdentity,defaultTiming,TIMING_VARIANTS,timingFields,timingPath} from './game-timing.js';
 import {createNavigationGuard,handleTabKey} from './navigation-guard.js';
 import {createHistoryNavigation} from './history-navigation.js';
-import {auditView,syncAuditDate} from './audit-ui.js';
+import {auditView,syncAuditDate,auditDateField} from './audit-ui.js';
 import { ApiClient,ApiError } from './api.js';
 import {setupPwa} from './pwa.js';
-import {syncBirthDate} from './birth-date.js';
+import {syncBirthDate,birthDateField} from './birth-date.js';
 import {copyTextField} from './clipboard.js';
 import { preloadWorld,worldBackground,gameArtwork } from './worlds.js';
 import { GuidancePlayer, guidanceKey, lessonGuidanceKey } from './guidance.js';
@@ -43,7 +43,7 @@ import { FACTORIES } from './games/index.js';
 import { searchVariant } from './games/search.js';
 import { assessmentSteps, nextAssessmentGame } from './core/assessment.js';
 import { createLesson } from './lessons.js';
-import { STROOP_RULES } from './games/stroop.js';
+import { STROOP_RULES,stroopRules } from './games/stroop.js';
 import { readProgress, writeProgress } from './core/storage.js';
 import { activeProfile, readClients, profileRecords, latestBaseline, validateProfile, escapeHTML as esc, variantOf } from './core/clients.js';
 import { describeStimulus } from './stimuli.js';
@@ -458,7 +458,7 @@ function renderArena(game) {
     if (game.id === 'hunt') { cue = huntTargetCue(engine); button = uiText('پیداش کردم'); }
     if(game.id==='traffic'){cue=trafficRulePicture(engine.variant==='signs');button=uiText('حرکت!');}
     if (game.id === 'nback') { cue = memoryRule(engine); button = lt`مثل ${fa(engine.n)} تا قبله`; }
-    if (game.id === 'stroop') { cue = lt`${stroopRulePicture(engine.current.phase)}<span class="sr-only">مرحلهٔ ${fa(engine.current.phase+1)}: ${STROOP_RULES[engine.current.phase].title}</span>`; button = uiText('این هدفه'); }
+    if (game.id === 'stroop') { cue = lt`${stroopRulePicture(engine.current.phase,engine)}<span class="sr-only">مرحلهٔ ${fa(engine.current.phase+1)}: ${stroopRules(engine)[engine.current.phase].title}</span>`; button = uiText('این هدفه'); }
     instruction.innerHTML = cue;
     if (engine.gate) {
       arena.innerHTML=transitionView(engine);
@@ -538,7 +538,7 @@ function pause() {
   if (route!=='play'||!engine) return;
   guidance.stop();
   engine.pause(); preparationClock?.pause(); if(engine.done) return finish();
-  openModal(lt`<span class="pause-emblem">${icon('pause')}</span><h2 id="modal-title">یک نفس تازه کن.</h2><p>بازی و زمان متوقف شده. هر وقت آماده بودی، از همین‌جا ادامه بده.</p>${guideControl(guidanceKey({...engine,...gameOptions(),n:engine.n,phase:engine.current?.phase}))}<div class="modal-buttons"><button class="button primary" data-action="resume">ادامهٔ بازی ${icon('play')}</button><button class="button subtle" data-action="restart">از اول شروع کن ${icon('repeat')}</button><button class="text-button" data-action="home">برگشت به بازی‌ها ${icon('home')}</button></div>`, 'pause');
+  openModal(lt`<span class="pause-emblem">${icon('pause')}</span><h2 id="modal-title">یک نفس تازه کن.</h2><p>بازی و زمان متوقف شده. هر وقت آماده بودی، از همین‌جا ادامه بده.</p>${guideControl(guidanceKey({...engine,...gameOptions(),n:engine.n,phase:engine.current?.phase}))}${languageSelector()}<div class="modal-buttons"><button class="button primary" data-action="resume">ادامهٔ بازی ${icon('play')}</button><button class="button subtle" data-action="restart">از اول شروع کن ${icon('repeat')}</button><button class="text-button" data-action="home">برگشت به بازی‌ها ${icon('home')}</button></div>`, 'pause');
 }
 function closeModal() {
   guidance.stop();
@@ -1071,14 +1071,14 @@ function publicReportMessage(title,message,retry=false){
 async function changeLanguage(select){
  const desired=select.value;
  if(!['fa','en'].includes(desired)||desired===getLocale())return;
- if(route==='play'&&engine&&!engine.done){pendingLocale=desired;select.value=getLocale();notify(uiText('زبان انتخاب‌شده پس از پایان بازی اعمال می‌شود.'));return;}
+ if(route==='play'&&engine&&!engine.done){pendingLocale=desired;select.value=getLocale();const message=uiText('زبان انتخاب‌شده پس از پایان بازی اعمال می‌شود.');select.setAttribute('aria-description',message);setText('feedback',message);announcer.textContent=message;const url=new URL(location.href);if(url.searchParams.has('lang')){url.searchParams.set('lang',desired);history.replaceState?.({},'',url);}return;}
  const forms=[...document.querySelectorAll('form')].map(form=>({id:form.id,fields:[...form.querySelectorAll('[name]')].filter(input=>input.type!=='file').map(input=>({name:input.name,value:input.value,checked:input.checked}))}));
  const files=[...document.querySelectorAll('input[type=file]')].filter(input=>input.files?.length).map(input=>({id:input.id,input}));
  setLocale(desired);clients.locale=desired;guidance.stop();
  const url=new URL(location.href);if(url.searchParams.has('lang')){url.searchParams.set('lang',desired);history.replaceState?.({},'',url);}
  if(currentUser&&clients.activeId)await refreshClients();
  if(route==='result')finish({renderOnly:true});else await navigate();
- for(const saved of forms){const form=document.getElementById(saved.id);if(!form)continue;for(const field of saved.fields){const input=[...form.querySelectorAll('[name]')].find(input=>input.name===field.name);if(input){input.value=field.value;if(['checkbox','radio'].includes(input.type))input.checked=field.checked;}}}
+ for(const saved of forms){const form=document.getElementById(saved.id);if(!form)continue;for(const field of saved.fields){const input=[...form.querySelectorAll('[name]')].find(input=>input.name===field.name);if(input){if(field.name==='birthDate'&&input.closest('[data-birth-date]')){input.closest('[data-birth-date]').outerHTML=birthDateField(field.value);continue;}if(['from','to'].includes(field.name)&&input.closest('.audit-date-field')){input.closest('.audit-date-field').outerHTML=auditDateField(field.name,uiText(field.name==='from'?'از تاریخ':'تا تاریخ'),field.value);continue;}input.value=field.value;if(['checkbox','radio'].includes(input.type))input.checked=field.checked;}}}
  for(const saved of files)document.getElementById(saved.id)?.replaceWith(saved.input);
  navigationGuard.sync();
 }
@@ -1150,7 +1150,7 @@ async function persistPending(){
   try{await refreshClients(view);}catch(error){
     if(!currentView(view))return;
     if(error.status===401||error.code==='PASSWORD_CHANGE_REQUIRED')return showError(error);
-    if(note?.isConnected)note.insertAdjacentHTML('beforeend',uiText('<span>نتیجه ذخیره شد، اما تنظیمات جدید دریافت نشد.</span>'));
+    if(note?.isConnected)note.insertAdjacentHTML('beforeend',uiText('<span>نتیجهٔ شما ثبت شده؛ تنظیمات تازه پس از برقراری ارتباط دریافت می‌شود.</span>'));
   }
 }
 async function account(){

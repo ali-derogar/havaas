@@ -10,7 +10,7 @@ const advance=(page,ms)=>page.evaluate(ms=>window.advanceHunt(ms),ms);
 const click=(page,action)=>page.locator(`[data-action="${action}"]:visible`).first().click();
 async function login(page){await page.goto('/');await page.locator('#login-form [name=identifier]').fill(seed.users.otherUser.username);await page.locator('#login-form [name=password]').fill(seed.password);await page.locator('#login-form button[type=submit]').click();await expect(page.locator('.hero')).toBeVisible();}
 async function setup(page,level,options){
- const auth=await(await page.request.get('/api/auth/session')).json(),run=await(await page.request.post(`/api/children/${seed.children[1].id}/sessions`,{headers:{'X-CSRF-Token':auth.csrfToken},data:{gameId:'hunt',kind:'baseline',...options}})).json();
+ const auth=await(await page.request.get('/api/auth/session')).json(),run=await(await page.request.post(`/api/children/${seed.children[1].id}/sessions`,{headers:{'X-CSRF-Token':auth.csrfToken},data:{clientExperienceVersion:4,gameId:'hunt',kind:'baseline',...options}})).json();
  expect((await page.request.post(`/api/children/${seed.children[1].id}/sessions/${run.id}/complete`,{headers:{'X-CSRF-Token':auth.csrfToken},data:{result:playSession(run)}})).ok()).toBe(true);
  const api=await request.newContext({baseURL:'http://127.0.0.1:4181'});
  try{let auth=await(await api.get('/api/auth/session')).json();auth=await(await api.post('/api/auth/login',{headers:{'X-CSRF-Token':auth.csrfToken},data:{identifier:seed.users.admin.username,password:seed.password}})).json();expect((await api.patch(`/api/children/${seed.children[1].id}/difficulty`,{headers:{'X-CSRF-Token':auth.csrfToken},data:{gameId:'hunt',level,mode:'fixed',...options}})).ok()).toBe(true);}finally{await api.dispose();}
@@ -42,8 +42,9 @@ test('trail: all five themes, both target modes and five practice reviews preser
 });
 
 test('trail: 150 dual moving rounds keep paths, keyboard choices, pauses, continuous blocks and recorded scores',async({page})=>{
- const errors=[];page.on('pageerror',error=>errors.push(error.message));await clock(page);await login(page);const options={theme:'butterfly',targetCount:2};await setup(page,'hard',options);await start(page,false,options);await begin(page);const goals=await targets(page);let wrong=false,omitted=false,gates=0,hits=0;
+ const errors=[];page.on('pageerror',error=>errors.push(error.message));await clock(page);await login(page);const options={theme:'butterfly',targetCount:2};await setup(page,'hard',options);await start(page,false,options);await begin(page);let goals=await targets(page);let wrong=false,omitted=false,gates=0,hits=0;
  for(let trial=0;trial<150;trial++){
+  if(trial===20||trial===70){await expect(page.locator('.automatic-rule-notice')).toBeVisible();gates++;await advance(page,3000);goals=await targets(page);}
   await expect(page.locator('.hunt-intermission,.practice-review')).toHaveCount(0);
   const field=await choices(page),target=field.find(choice=>goals.includes(choice.html));let elapsed=50;
   if(trial===0){
@@ -62,7 +63,7 @@ test('trail: 150 dual moving rounds keep paths, keyboard choices, pauses, contin
   if(target&&(!omitted||hits)){await expect(page.locator('.response-button')).toBeDisabled();}
   await advance(page,(await trialMs(page))-elapsed);if(trial<149)await expect(page.locator('.play-effects')).toHaveCount(0);
  }
- expect(gates).toBe(0);expect(hits).toBe(28);await expect(page.locator('.result-main-score>b')).toHaveText('۲۷');await expect(page.locator('.local-note')).toContainText('ذخیره شد');expect(await page.locator('.hunt-result-stop').evaluateAll(nodes=>nodes.map(node=>Number(node.dataset.total)))).toEqual([20,50,80]);expect(await page.locator('.hunt-result-stop').evaluateAll(nodes=>nodes.reduce((sum,node)=>sum+Number(node.dataset.correct),0))).toBe(148);await page.setViewportSize({width:1440,height:1400});await page.screenshot({path:'.local/verification/hunt_result.png',fullPage:true,animations:'disabled'});expect(errors).toEqual([]);
+ expect(gates).toBe(2);expect(hits).toBe(28);await expect(page.locator('.result-main-score>b')).toHaveText('۲۷');await expect(page.locator('.local-note')).toContainText('ذخیره شد');expect(await page.locator('.hunt-result-stop').evaluateAll(nodes=>nodes.map(node=>Number(node.dataset.total)))).toEqual([20,50,80]);expect(await page.locator('.hunt-result-stop').evaluateAll(nodes=>nodes.reduce((sum,node)=>sum+Number(node.dataset.correct),0))).toBe(148);await page.setViewportSize({width:1440,height:1400});await page.screenshot({path:'.local/verification/hunt_result.png',fullPage:true,animations:'disabled'});expect(errors).toEqual([]);
 });
 
 test('trail: departure clips animals, prevents invisible clicks and reduced motion preserves scored routes',async({page})=>{

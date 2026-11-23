@@ -408,3 +408,9 @@ apiTest('server: unsupported client timing versions cannot create a session',asy
  }
  assert.deepEqual((await db.pool.query('SELECT count(*) FROM game_sessions WHERE child_id=$1',[child])).rows,before.rows);
 });
+
+apiTest('server: concurrent language contexts localize errors and reports while preserving profile data',async()=>{
+ const replies=await Promise.all(Array.from({length:12},(_,i)=>user.call(`/children/${seed.children[0].id}/sessions`,{method:'POST',headers:{'X-App-Locale':i%2?'en':'fa'},body:{gameId:'invalid',kind:'baseline',clientExperienceVersion:4}})));
+ for(const [i,response]of replies.entries()){assert.equal(response.status,400);assert.equal(/[\u0600-\u06ff]/.test(response.data.error),i%2===0);}
+ const english=await user.call(`/children/${seed.children[0].id}/reports?view=panel`,{headers:{'X-App-Locale':'en'}});assert.equal(english.status,200);assert.doesNotMatch(english.data.narrative,/[\u0600-\u06ff]/);assert.equal(english.data.profile.firstName,seed.children[0].firstName);
+});

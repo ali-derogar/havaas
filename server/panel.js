@@ -1,3 +1,4 @@
+import {t as uiText} from '../src/i18n.js';
 import {compatibleBaseline} from '../src/stimulus-plan.js';
 import {GAMES,GAME_PROTOCOLS} from '../src/config.js';
 import {assessmentSteps} from '../src/core/assessment.js';
@@ -35,11 +36,11 @@ export async function bestScoreFor(pool,childId,result,kind='training'){
 export async function panelReport(pool,child,user,input={}){
  const {page,pageSize}=pagination(input),rows=await summaryRows(pool,child.id),publicView=user.role==='public';
  const filters={game:input.game||'',level:input.level||'',variant:input.variant||'',kind:input.kind??'training'};
- check(!filters.game||GAMES.some(g=>g.id===filters.game),'بازی معتبر انتخاب کنید.');
- check(['','easy','medium','hard'].includes(filters.level)&&['','baseline','training'].includes(filters.kind),'فیلتر گزارش معتبر نیست.');
- const variants=[...new Set(rows.map(r=>variantOf(r.result)))];check(typeof filters.variant==='string'&&(!filters.variant||variants.includes(filters.variant)),'حالت معتبر انتخاب کنید.');
+ check(!filters.game||GAMES.some(g=>g.id===filters.game),uiText('بازی معتبر انتخاب کنید.'));
+ check(['','easy','medium','hard'].includes(filters.level)&&['','baseline','training'].includes(filters.kind),uiText('فیلتر گزارش معتبر نیست.'));
+ const variants=[...new Set(rows.map(r=>variantOf(r.result)))];check(typeof filters.variant==='string'&&(!filters.variant||variants.includes(filters.variant)),uiText('حالت معتبر انتخاب کنید.'));
  const reference=input.recordRef||input.recordId;
- if(reference){uuid(reference);check(rows.some(row=>(publicView?row.report_ref:row.id)===reference),'جلسه پیدا نشد.',404);}
+ if(reference){uuid(reference);check(rows.some(row=>(publicView?row.report_ref:row.id)===reference),uiText('جلسه پیدا نشد.'),404);}
  const filtered=rows.filter(r=>(!filters.game||r.result.gameId===filters.game)&&(!filters.level||r.result.level===filters.level)&&(!filters.variant||variantOf(r.result)===filters.variant)&&(!filters.kind||r.kind===filters.kind));
  const selected=filtered.find(row=>(publicView?row.report_ref:row.id)===reference)||filtered.at(-1),all=filtered.map(record),selectedRecord=selected&&record(selected);
  const cohort=selected?comparableRecords(all,selectedRecord):[],ids=new Set(cohort.slice(-20).map(r=>r.id));

@@ -14,7 +14,7 @@ test.beforeAll(async()=>{
   const response=await guest.post('/api/public/registration/complete',{headers:{'X-CSRF-Token':session.csrfToken},data:{token:issued.url.split('/').at(-1),username:`lifecycle-${randomUUID().slice(0,12)}`,password,profile:{firstName:'آزمون',lastName:'ورودی',birthDate:'2016-01-01',grade:'پایهٔ ۳',school:'آزمون'}}});expect(response.status()).toBe(201);
   player=(await response.json()).user;
   const own=await(await guest.get('/api/bootstrap')).json(),authSession=await(await guest.get('/api/auth/session')).json(),headers={'X-CSRF-Token':authSession.csrfToken},childId=own.profiles[0].id;
-  for(const gameId of ['traffic','stroop']){const run=await(await guest.post(`/api/children/${childId}/sessions`,{headers,data:{gameId,kind:'baseline'}})).json();expect((await guest.post(`/api/children/${childId}/sessions/${run.id}/complete`,{headers,data:{result:playSession(run)}})).ok()).toBe(true);}
+  for(const gameId of ['traffic','stroop']){const run=await(await guest.post(`/api/children/${childId}/sessions`,{headers,data:{clientExperienceVersion:4,gameId,kind:'baseline'}})).json();expect((await guest.post(`/api/children/${childId}/sessions/${run.id}/complete`,{headers,data:{result:playSession(run)}})).ok()).toBe(true);}
  }finally{await admin.dispose();await guest.dispose();}
 });
 const action=(page,name)=>page.locator(`[data-action="${name}"]:visible`).first();

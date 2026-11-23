@@ -17,7 +17,8 @@
     "test:e2e": "playwright test",
     "setup:env": "node scripts/setup-env.mjs",
     "admin:reset-link": "node --env-file-if-exists=.env scripts/admin-reset-link.mjs",
-    "test:docker": "node scripts/smoke-docker.mjs"
+    "test:docker": "node scripts/smoke-docker.mjs",
+    "check:i18n": "node scripts/localize-source.mjs --check"
   },
   "engines": {
     "node": ">=24"

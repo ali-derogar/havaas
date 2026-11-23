@@ -21,7 +21,7 @@ test.beforeAll(async () => {
     child = (await (await guest.get('/api/bootstrap')).json()).profiles[0];
     const own = await (await guest.get('/api/auth/session')).json(), headers = {'X-CSRF-Token': own.csrfToken};
     for (const gameId of games.filter(id => id !== 'hunt')) {
-      const response = await guest.post(`/api/children/${child.id}/sessions`, {headers, data: {gameId, kind: 'baseline'}});
+      const response = await guest.post(`/api/children/${child.id}/sessions`, {headers, data: {clientExperienceVersion:4,gameId, kind: 'baseline'}});
       expect(response.ok()).toBe(true);const run = await response.json();
       expect((await guest.post(`/api/children/${child.id}/sessions/${run.id}/complete`, {headers, data: {result: playSession(run)}})).ok()).toBe(true);
     }
@@ -79,7 +79,7 @@ test('dark navigation, badges, account descriptions and admin tables use paired 
   await page.locator('[data-action=open][data-game=hunt]').first().click();await expect(page.locator('.intro-layout')).toBeVisible();
   await bothWidths(page, 'game before initial assessment');
   const auth = await (await page.request.get('/api/auth/session')).json(), headers = {'X-CSRF-Token': auth.csrfToken};
-  const response = await page.request.post(`/api/children/${child.id}/sessions`, {headers, data: {gameId: 'hunt', kind: 'baseline'}});
+  const response = await page.request.post(`/api/children/${child.id}/sessions`, {headers, data: {clientExperienceVersion:4,gameId: 'hunt', kind: 'baseline'}});
   expect(response.ok()).toBe(true);const run = await response.json();
   expect((await page.request.post(`/api/children/${child.id}/sessions/${run.id}/complete`, {headers, data: {result: playSession(run)}})).ok()).toBe(true);
   await click(page, 'home');await expect(page.locator('.client-welcome')).toBeVisible();

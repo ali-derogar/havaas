@@ -11,7 +11,7 @@ const click=(page,action)=>page.locator(`[data-action="${action}"]:visible`).fir
 async function login(page){await page.goto('/');await page.locator('#login-form [name=identifier]').fill(seed.users.otherUser.username);await page.locator('#login-form [name=password]').fill(seed.password);await page.locator('#login-form button[type=submit]').click();await expect(page.locator('.hero')).toBeVisible();}
 async function setup(page,level,material){
  const options={gameId:'nback',material},base=await(await page.request.get('/api/auth/session')).json();
- const run=await(await page.request.post(`/api/children/${seed.children[1].id}/sessions`,{headers:{'X-CSRF-Token':base.csrfToken},data:{...options,kind:'baseline'}})).json();
+ const run=await(await page.request.post(`/api/children/${seed.children[1].id}/sessions`,{headers:{'X-CSRF-Token':base.csrfToken},data:{clientExperienceVersion:4,...options,kind:'baseline'}})).json();
  expect((await page.request.post(`/api/children/${seed.children[1].id}/sessions/${run.id}/complete`,{headers:{'X-CSRF-Token':base.csrfToken},data:{result:playSession(run)}})).ok()).toBe(true);
  const api=await request.newContext({baseURL:'http://127.0.0.1:4181'});
  try{let auth=await(await api.get('/api/auth/session')).json();auth=await(await api.post('/api/auth/login',{headers:{'X-CSRF-Token':auth.csrfToken},data:{identifier:seed.users.admin.username,password:seed.password}})).json();expect((await api.patch(`/api/children/${seed.children[1].id}/difficulty`,{headers:{'X-CSRF-Token':auth.csrfToken},data:{...options,level,mode:'fixed'}})).ok()).toBe(true);}finally{await api.dispose();}
@@ -102,7 +102,7 @@ test('memory: starting during a material refresh keeps the selected mode and ign
  try{
   await page.locator('[data-action=material][data-material=numbers]').click();await fetched;
   const requested=page.waitForRequest(r=>r.method()==='POST'&&r.url().endsWith('/sessions'));
-  await click(page,'main-game');const launch=await requested;expect(launch.postDataJSON()).toMatchObject({material:'numbers',clientExperienceVersion:3,kind:'training'});
+  await click(page,'main-game');const launch=await requested;expect(launch.postDataJSON()).toMatchObject({material:'numbers',clientExperienceVersion:4,kind:'training'});
   const guideResponse=page.waitForResponse(r=>r.url().includes('/api/bootstrap')&&r.status()===200);releaseGuide();await(await guideResponse).finished();await page.evaluate(()=>new Promise(resolve=>setTimeout(resolve,0)));
   releaseStart();await expect(page.locator('.memory-preparation')).toBeVisible();await expect(page.locator('.level-pill')).toHaveText('سخت');await begin(page);await expect(page.locator('.memory-stage .symbol text')).toHaveText(/^[0-9]$/);await expect(page.locator('#position')).toHaveText('۱ از ۳');
  }finally{releaseGuide();releaseStart();}

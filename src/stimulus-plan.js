@@ -1,6 +1,9 @@
 import {seededRandom,shuffle} from './core/random.js';
 
 export const TARGET_COLORS=Object.freeze(['blue','green','red','yellow']);
+export function validStimulusPlan(plan){
+ return Boolean(plan&&Array.isArray(plan.colorsByPhase)&&plan.colorsByPhase.length>=1&&plan.colorsByPhase.length<=10&&plan.colorsByPhase.every(colors=>Array.isArray(colors)&&colors.length>=1&&colors.length<=2&&colors.every(color=>['blue','green','red','yellow','purple','pink'].includes(color))));
+}
 // This stream is independent of the scored trial stream, including old clients.
 export function createStimulusPlan({gameId,seed=0,targetCount=1,practice=false}={}){
  const random=seededRandom((seed>>>0)^0x719ac4e3),colors=shuffle(TARGET_COLORS,random);

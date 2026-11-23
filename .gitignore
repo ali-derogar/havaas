@@ -9,3 +9,6 @@ node_modules/
 test-results/
 playwright-report/
 backups/
+
+# Temporary voice generation must never be saved as shipped audio.
+.voice-build-*/

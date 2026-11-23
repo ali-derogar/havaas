@@ -1,3 +1,5 @@
+import {FACTORIES} from '../../src/games/index.js';
+import {seededRandom} from '../../src/core/random.js';
 import {test,expect} from '@playwright/test';
 import {readFile} from 'node:fs/promises';
 import {playSession} from '../helpers/play-session.mjs';
@@ -57,4 +59,30 @@ test('English public reports and PDF preserve participant names and exclude clin
  const link=await(await page.request.post(`/api/children/${seed.children[1].id}/report-links`,{headers:{'X-CSRF-Token':auth.csrfToken},data:{label:'English report'}})).json();
  const context=await browser.newContext(),parent=await context.newPage();const url=new URL(link.url);url.searchParams.set('lang','en');await parent.goto(url.href);await expect(parent.locator('.public-report')).toBeVisible();await expect(parent.locator('html')).toHaveAttribute('dir','ltr');await expect(parent.locator('.parent-narrative')).not.toContainText('در تمرین');await expect(parent.locator('body')).toContainText(seed.children[1].firstName);await expect(parent.locator('body')).not.toContainText('clinical-secret');
  await parent.screenshot({path:'.local/verification/v4_english_family_report.png',fullPage:true});await parent.pdf({path:'.local/verification/v4_english_family_report.pdf',printBackground:true});await context.close();
+});
+
+test('English Stroop follows each phase color and defers a language change until the saved result',async({page})=>{
+ await clock(page);await login(page);await baseline(page,'stroop');await page.locator('[data-action=open][data-game=stroop]').first().click();
+ const launching=page.waitForResponse(response=>/\/sessions$/.test(response.url())&&response.request().method()==='POST');await click(page,'main-game');const run=await(await launching).json(),engine=FACTORIES.stroop({...run.settings,random:seededRandom(run.settings.seed)});await click(page,'begin-game');await advance(page,3000);
+ const saved=page.waitForResponse(response=>response.url().endsWith('/complete')&&response.request().method()==='POST');
+ for(let i=0;i<150;i++){
+  if([40,80,120].includes(i)){await expect(page.locator('.automatic-rule-notice')).toBeVisible();await advance(page,3000);}
+  const trial=engine.trials[i],color=run.settings.stimulusPlan.colorsByPhase[trial.phase][0];await expect(page.locator('.studio-stage-heading b')).toContainText(color);if(trial.stimulus.word)await expect(page.locator('.word-stimulus')).toHaveText(trial.stimulus.word);
+  if(i===30){await click(page,'pause');await page.locator('#modal [data-locale-select]').selectOption('fa');await expect(page.locator('html')).toHaveAttribute('lang','en');await click(page,'resume');}
+  if(i===120)await page.screenshot({path:'.local/verification/v4_english_stroop.png',fullPage:true});
+  await advance(page,100);if(trial.target)await click(page,'respond');await advance(page,engine.intervalMs-100);
+ }
+ await expect(page.locator('.result-card')).toBeVisible();expect((await(await saved).json()).record.result.locale).toBe('en');await expect(page.locator('html')).toHaveAttribute('lang','fa');await page.reload();await expect(page.locator('html')).toHaveAttribute('lang','fa');
+});
+
+test('all English voice clips decode in Chrome and the offline page keeps its selected language',async({page})=>{
+ await page.goto('/?lang=en');const durations=await page.evaluate(async()=>{const {GUIDANCE}=await import('/src/guidance.js');const context=new AudioContext();try{return await Promise.all(Object.keys(GUIDANCE).map(async key=>{const response=await fetch(`/assets/audio/en/${key}.mp3`);if(!response.ok)throw Error(key);const buffer=await context.decodeAudioData(await response.arrayBuffer());return {key,duration:buffer.duration};}));}finally{await context.close();}});expect(durations).toHaveLength(53);expect(durations.every(clip=>clip.duration>.2)).toBe(true);
+ await page.goto('/offline.html');await expect(page.locator('html')).toHaveAttribute('lang','en');await expect(page.locator('h1')).toHaveText('Reconnect to continue');await page.locator('[data-locale-select]').selectOption('fa');await expect(page.locator('h1')).toHaveText('برای ادامه، دوباره وصل شو');
+});
+
+test('switching a registration form between calendars preserves its unsaved date, password and Persian name',async({page,browser})=>{
+ await login(page,'admin');const auth=await(await page.request.get('/api/auth/session')).json();const invitation=await(await page.request.post('/api/registration-links',{headers:{'X-CSRF-Token':auth.csrfToken},data:{label:'Language and calendar test'}})).json();
+ const context=await browser.newContext(),registration=await context.newPage(),url=new URL(invitation.url);url.searchParams.set('lang','en');await registration.goto(url.href);await expect(registration.locator('#registration-form')).toBeVisible();await registration.locator('[name=firstName]').fill('آبی');await registration.locator('[name=lastName]').fill('Preserved');await registration.locator('[name=birthDate]').fill('2016-04-01');await registration.locator('[name=password]').fill('Unsaved-password-2026!');
+ await registration.locator('[data-locale-select]').selectOption('fa');await expect(registration.locator('[name=birthDate]')).toHaveValue('2016-04-01');await expect(registration.locator('[data-birth-part=year]')).toHaveValue('1395');await expect(registration.locator('[data-birth-part=month]')).toHaveValue('1');await expect(registration.locator('[data-birth-part=day]')).toHaveValue('13');await expect(registration.locator('[name=firstName]')).toHaveValue('آبی');await expect(registration.locator('[name=password]')).toHaveValue('Unsaved-password-2026!');
+ await registration.locator('[data-locale-select]').selectOption('en');await expect(registration.locator('[name=birthDate]')).toHaveAttribute('type','date');await expect(registration.locator('[name=birthDate]')).toHaveValue('2016-04-01');await expect(registration.locator('[name=firstName]')).toHaveValue('آبی');await context.close();
 });

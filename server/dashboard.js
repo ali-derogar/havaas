@@ -1,9 +1,10 @@
+import {t as uiText} from '../src/i18n.js';
 import {requireValue as check} from './security.js';
 import {GAMES,GAME_PROTOCOLS} from '../src/config.js';
 
 export function registerDashboard(app,pool,role){
  app.get('/api/admin/dashboard',async(req,res)=>{
-  role(req,['admin']);const days=Number(req.query.days||30);check([7,30,90].includes(days),'بازهٔ زمانی معتبر انتخاب کنید.');
+  role(req,['admin']);const days=Number(req.query.days||30);check([7,30,90].includes(days),uiText('بازهٔ زمانی معتبر انتخاب کنید.'));
   const result=await pool.query(`WITH bounds AS (SELECT (now() AT TIME ZONE 'Asia/Tehran')::date AS today),
    recent AS (SELECT s.*,c.owner_user_id FROM game_sessions s JOIN children c ON c.id=s.child_id WHERE s.result IS NOT NULL AND s.finished_at>=((SELECT today FROM bounds)-($1::int-1))::timestamp AT TIME ZONE 'Asia/Tehran' AND s.finished_at<((SELECT today FROM bounds)+1)::timestamp AT TIME ZONE 'Asia/Tehran' AND c.owner_user_id IS NOT NULL),
    assessments AS (SELECT c.owner_user_id,count(DISTINCT s.result->>'gameId') FILTER (WHERE s.kind='baseline' AND s.result->>'level'='easy' AND COALESCE(s.result->>'variant','standard')='standard' AND (s.result->>'protocolVersion')::int=($2::jsonb->>(s.result->>'gameId'))::int) AS done FROM children c LEFT JOIN game_sessions s ON s.child_id=c.id AND s.result IS NOT NULL GROUP BY c.owner_user_id)

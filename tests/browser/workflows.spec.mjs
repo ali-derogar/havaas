@@ -71,7 +71,7 @@ test('seven baselines sync on another device, parent report needs no account, an
 test('a failed completion stays pending and can be saved after reauthentication without duplication',async({page})=>{
  await clock(page);await login(page,'user');
  const {playSession}=await import('../helpers/play-session.mjs'),{csrfToken}=await (await page.request.get('/api/auth/session')).json(),headers={'X-CSRF-Token':csrfToken};
- const run=await (await page.request.post(`/api/children/${seed.children[0].id}/sessions`,{headers,data:{gameId:'traffic',kind:'baseline'}})).json();expect((await page.request.post(`/api/children/${seed.children[0].id}/sessions/${run.id}/complete`,{headers,data:{result:playSession(run)}})).ok()).toBe(true);
+ const run=await (await page.request.post(`/api/children/${seed.children[0].id}/sessions`,{headers,data:{clientExperienceVersion:4,gameId:'traffic',kind:'baseline'}})).json();expect((await page.request.post(`/api/children/${seed.children[0].id}/sessions/${run.id}/complete`,{headers,data:{result:playSession(run)}})).ok()).toBe(true);
  await click(page,'open','[data-game="traffic"]');await click(page,'main-game');
  await page.route('**/api/children/*/sessions/*/complete',route=>route.abort('failed'));
  for(let i=0;i<150;i++){await advance(page,100);await page.keyboard.press('Space');await advance(page,(await trialMs(page))-100);}
@@ -86,7 +86,7 @@ test('every main game completes and its preparation and arena fit mobile, tablet
  const {csrfToken}=await (await page.request.get('/api/auth/session')).json(),headers={'X-CSRF-Token':csrfToken};
  // Each main mode has its own completed initial assessment, even when run in isolation.
  for(const gameId of ['hunt','ark','space','traffic','search','nback','stroop']){
-  const runResponse=await page.request.post(`/api/children/${seed.children[0].id}/sessions`,{headers,data:{gameId,kind:'baseline'}});expect(runResponse.ok()).toBe(true);
+  const runResponse=await page.request.post(`/api/children/${seed.children[0].id}/sessions`,{headers,data:{clientExperienceVersion:4,gameId,kind:'baseline'}});expect(runResponse.ok()).toBe(true);
   const run=await runResponse.json();const saved=await page.request.post(`/api/children/${seed.children[0].id}/sessions/${run.id}/complete`,{headers,data:{result:playSession(run)}});expect(saved.ok()).toBe(true);
  }
  for(const game of ['hunt','ark','space','traffic','search','nback','stroop']){
@@ -123,7 +123,7 @@ test.describe('touch gameplay',()=>{
  test('a real touch on the response button records one onset response and leaves the next trial unanswered',async({page})=>{
   const {playSession}=await import('../helpers/play-session.mjs');await clock(page);await login(page,'user');
   const {csrfToken}=await (await page.request.get('/api/auth/session')).json(),headers={'X-CSRF-Token':csrfToken};
-  const run=await (await page.request.post(`/api/children/${seed.children[0].id}/sessions`,{headers,data:{gameId:'traffic',kind:'baseline'}})).json();expect((await page.request.post(`/api/children/${seed.children[0].id}/sessions/${run.id}/complete`,{headers,data:{result:playSession(run)}})).ok()).toBe(true);
+  const run=await (await page.request.post(`/api/children/${seed.children[0].id}/sessions`,{headers,data:{clientExperienceVersion:4,gameId:'traffic',kind:'baseline'}})).json();expect((await page.request.post(`/api/children/${seed.children[0].id}/sessions/${run.id}/complete`,{headers,data:{result:playSession(run)}})).ok()).toBe(true);
   await click(page,'open','[data-game="traffic"]');await click(page,'main-game');let submitted;
   page.on('request',request=>{if(request.url().endsWith('/complete'))submitted=request.postDataJSON().result;});
   const button=page.locator('.response-button');await expect(button).toBeInViewport();await advance(page,100);const bounds=await button.boundingBox();await page.touchscreen.tap(bounds.x+bounds.width/2,bounds.y+bounds.height/2);await expect(button).toBeDisabled();
@@ -134,7 +134,7 @@ test.describe('touch gameplay',()=>{
 test('hunt hit areas stay separate and the response remains reachable on short portrait and landscape screens',async({page})=>{
  const {playSession}=await import('../helpers/play-session.mjs');await clock(page);await login(page);
  const {csrfToken}=await (await page.request.get('/api/auth/session')).json(),headers={'X-CSRF-Token':csrfToken};
- const run=await (await page.request.post(`/api/children/${seed.children[0].id}/sessions`,{headers,data:{gameId:'hunt',kind:'baseline'}})).json();expect((await page.request.post(`/api/children/${seed.children[0].id}/sessions/${run.id}/complete`,{headers,data:{result:playSession(run)}})).ok()).toBe(true);
+ const run=await (await page.request.post(`/api/children/${seed.children[0].id}/sessions`,{headers,data:{clientExperienceVersion:4,gameId:'hunt',kind:'baseline'}})).json();expect((await page.request.post(`/api/children/${seed.children[0].id}/sessions/${run.id}/complete`,{headers,data:{result:playSession(run)}})).ok()).toBe(true);
  for(const level of ['easy','medium','hard']){
   await setLevel('hunt',level);await click(page,'open','[data-game="hunt"]');await click(page,'main-game');
   for(const viewport of [{width:360,height:600},{width:800,height:360}]){
@@ -210,7 +210,7 @@ test('a pending report link protects account changes and cannot appear in the ne
 });
 
 test('a delayed raw CSV export does not download after switching from admin to a user',async({page})=>{
- const {playSession}=await import('../helpers/play-session.mjs'),headers={'X-CSRF-Token':adminCsrf};const run=await (await adminApi.post(`/api/children/${seed.children[0].id}/sessions`,{headers,data:{gameId:'traffic',kind:'baseline'}})).json();expect((await adminApi.post(`/api/children/${seed.children[0].id}/sessions/${run.id}/complete`,{headers,data:{result:playSession(run)}})).ok()).toBe(true);
+ const {playSession}=await import('../helpers/play-session.mjs'),headers={'X-CSRF-Token':adminCsrf};const run=await (await adminApi.post(`/api/children/${seed.children[0].id}/sessions`,{headers,data:{clientExperienceVersion:4,gameId:'traffic',kind:'baseline'}})).json();expect((await adminApi.post(`/api/children/${seed.children[0].id}/sessions/${run.id}/complete`,{headers,data:{result:playSession(run)}})).ok()).toBe(true);
  await login(page,'admin');await click(page,'inspect-user',`[data-user="${seed.users.user.id}"]`);await click(page,'user-tab','[data-tab="sessions"]');await page.locator('[data-report-filter=kind]').selectOption('baseline');await expect(page.locator('[data-action=export-trials]')).toBeVisible();const allowed=page.waitForEvent('download');await click(page,'export-trials');const file=await allowed;expect(file.suggestedFilename()).toBe('havaas-responses.csv');const chunks=[];for await(const chunk of await file.createReadStream())chunks.push(chunk);const csv=Buffer.concat(chunks);expect(csv.subarray(0,3).equals(Buffer.from([0xef,0xbb,0xbf]))).toBe(true);expect(csv.toString('utf8')).toContain('ردیف');
  let release,ready;const gate=new Promise(resolve=>release=resolve),fetched=new Promise(resolve=>ready=resolve),downloads=[];page.on('download',download=>downloads.push(download));await page.route('**/api/children/*/sessions/*/export',async route=>{const response=await route.fetch();ready();await gate;await route.fulfill({response});});
  try{
@@ -221,8 +221,8 @@ test('a delayed raw CSV export does not download after switching from admin to a
 
 test('legacy import validates files, recognizes a repeat, and lets its owner start training from the imported baseline',async({page,browser})=>{
  const {playSession}=await import('../helpers/play-session.mjs'),{normalizeSettings}=await import('../../server/domain.js');
- const result=playSession({id:'legacy-browser-run',kind:'baseline',settings:{...normalizeSettings({gameId:'traffic'}),seed:42}});delete result.variant;
- const profile={id:'legacy-browser-case',firstName:'انتقال',lastName:'مرورگری',birthDate:'2016-01-01',grade:'پایهٔ ۳',school:'امید',concerns:'private-import-note',createdAt:'2026-01-01T12:00:00.000+03:30'},document={version:1,profile,records:[{id:'legacy-browser-result',profileId:profile.id,kind:'baseline',result}]};
+ const result=playSession({clientExperienceVersion:4,id:'legacy-browser-run',kind:'baseline',settings:{...normalizeSettings({gameId:'traffic'}),seed:42}});delete result.variant;
+ const profile={id:'legacy-browser-case',firstName:'انتقال',lastName:'مرورگری',birthDate:'2016-01-01',grade:'پایهٔ ۳',school:'امید',concerns:'private-import-note',createdAt:'2026-01-01T12:00:00.000+03:30'},document={version:1,profile,records:[{clientExperienceVersion:4,id:'legacy-browser-result',profileId:profile.id,kind:'baseline',result}]};
  const upload=async data=>page.locator('#import-file').setInputFiles({name:'legacy.json',mimeType:'application/json',buffer:Buffer.from(JSON.stringify(data))});
  await login(page,'admin');await click(page,'account');
  await upload({...document,records:[{...document.records[0],result:{...result,finishedAt:'2026-02-30T12:00:00Z'}}]});await expect(page.locator('#import-preview [role=alert]')).toBeVisible();await expect(page.locator('[data-action=commit-import]')).toHaveCount(0);
@@ -249,7 +249,7 @@ test('an expired session removes clinical data even when preparing the next logi
 test('an acknowledged result remains saved when refreshing the account afterwards loses connection',async({page})=>{
  const {playSession}=await import('../helpers/play-session.mjs');await clock(page);await login(page);
  const {csrfToken}=await (await page.request.get('/api/auth/session')).json(),headers={'X-CSRF-Token':csrfToken};
- const baseline=await (await page.request.post(`/api/children/${seed.children[0].id}/sessions`,{headers,data:{gameId:'traffic',kind:'baseline'}})).json();expect((await page.request.post(`/api/children/${seed.children[0].id}/sessions/${baseline.id}/complete`,{headers,data:{result:playSession(baseline)}})).ok()).toBe(true);
+ const baseline=await (await page.request.post(`/api/children/${seed.children[0].id}/sessions`,{headers,data:{clientExperienceVersion:4,gameId:'traffic',kind:'baseline'}})).json();expect((await page.request.post(`/api/children/${seed.children[0].id}/sessions/${baseline.id}/complete`,{headers,data:{result:playSession(baseline)}})).ok()).toBe(true);
  await click(page,'open','[data-game=traffic]');await click(page,'main-game');await page.route('**/api/bootstrap*',route=>route.abort('failed'));
  const completed=page.waitForResponse(response=>response.url().endsWith('/complete')&&response.status()===200);
  for(let i=0;i<150;i++){await advance(page,100);await page.keyboard.press('Space');await advance(page,(await trialMs(page))-100);}
@@ -419,7 +419,7 @@ test('a delayed JSON export does not download after reviewing a different client
 
 async function openExportableReport(page){
  const {playSession}=await import('../helpers/play-session.mjs'),headers={'X-CSRF-Token':adminCsrf};
- const run=await (await adminApi.post(`/api/children/${seed.children[0].id}/sessions`,{headers,data:{gameId:'traffic',kind:'baseline'}})).json();
+ const run=await (await adminApi.post(`/api/children/${seed.children[0].id}/sessions`,{headers,data:{clientExperienceVersion:4,gameId:'traffic',kind:'baseline'}})).json();
  expect((await adminApi.post(`/api/children/${seed.children[0].id}/sessions/${run.id}/complete`,{headers,data:{result:playSession(run)}})).ok()).toBe(true);
  await login(page,'admin');await click(page,'inspect-user',`[data-user="${seed.users.user.id}"]`);await click(page,'user-tab','[data-tab="sessions"]');await page.locator('[data-report-filter=kind]').selectOption('baseline');
 }

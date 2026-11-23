@@ -1,3 +1,4 @@
+import {t as uiText,lt} from '../src/i18n.js';
 import {validateTiming,timingKey} from '../src/game-timing.js';
 import { randomUUID } from 'node:crypto';
 import { transaction } from './db.js';
@@ -5,6 +6,7 @@ import { requireValue as check, digest, uuid } from './security.js';
 import { validateProfile,isValidText } from '../src/core/clients.js';
 import { GAME_MAP, GAME_PROTOCOLS, LEVELS } from '../src/config.js';
 import { recommendLevel } from '../src/core/reports.js';
+import {validStimulusPlan} from '../src/stimulus-plan.js';
 
 function validDocumentText(input){
   const stack=[[input,0]];
@@ -29,23 +31,28 @@ function validLegacyOutcome(outcome){
 }
 export function inspectLegacy(input){
   const errors=[],profiles=Array.isArray(input?.profiles)?input.profiles:input?.profile?[input.profile]:[],records=input?.records;
-  if(input?.version!==1||!profiles.length||!Array.isArray(records)||profiles.length>500||records.length>20000)return {errors:['فایل باید خروجی نسخهٔ ۱ و شامل مشخصات کاربران و سوابق بازی‌ها باشد. سوابق بدون مشخصات کاربر قابل انتقال نیستند.']};
-  if(!validDocumentText(input))return {errors:['بخشی از فایل قابل خواندن نیست یا ساختار آن بیش از حد تو‌در‌تو است.']};
+  if(input?.version!==1||!profiles.length||!Array.isArray(records)||profiles.length>500||records.length>20000)return {errors:[uiText('فایل باید خروجی نسخهٔ ۱ و شامل مشخصات کاربران و سوابق بازی‌ها باشد. سوابق بدون مشخصات کاربر قابل انتقال نیستند.')]};
+  if(!validDocumentText(input))return {errors:[uiText('بخشی از فایل قابل خواندن نیست یا ساختار آن بیش از حد تو‌در‌تو است.')]};
   const ids=new Set();
   for(const [i,p] of profiles.entries()){
-    if(!p||typeof p.id!=='string'||p.id.length>150||ids.has(p.id)||validateProfile(p).error)errors.push(`مشخصات نفر ${i+1} ناقص یا تکراری است.`);else ids.add(p.id);
-    if(p?.createdAt!==undefined&&!validTimestamp(p.createdAt))errors.push(`تاریخ و ساعت ثبت مشخصات نفر ${i+1} باید با قالب ISO و همراه منطقهٔ زمانی باشد.`);
+    if(!p||typeof p.id!=='string'||p.id.length>150||ids.has(p.id)||validateProfile(p).error)errors.push(lt`مشخصات نفر ${i+1} ناقص یا تکراری است.`);else ids.add(p.id);
+    if(p?.createdAt!==undefined&&!validTimestamp(p.createdAt))errors.push(lt`تاریخ و ساعت ثبت مشخصات نفر ${i+1} باید با قالب ISO و همراه منطقهٔ زمانی باشد.`);
   }
   const seen=new Set();
   for(const [i,r] of records.entries()){
     const result=r?.result,id=r?.id||digest(JSON.stringify(result)),profileId=r?.profileId||input.profile?.id;
-    if(!r||typeof id!=='string'||id.length>150||!ids.has(profileId)||!['baseline','training'].includes(r.kind)||!result||typeof result.gameId!=='string'||!Object.hasOwn(GAME_MAP,result.gameId)||typeof result.level!=='string'||!Object.hasOwn(LEVELS,result.level)||!Number.isInteger(result.protocolVersion)||result.protocolVersion<1||result.protocolVersion>100||!validTimestamp(result.finishedAt)||typeof result.completed!=='boolean'||['score','maxScore','hits','correctResponses','correctRejections','omissions','falseSelections','longestStreak','durationMs'].some(k=>!Number.isFinite(result[k])||result[k]<0)||result.score>result.maxScore||result.hits>result.maxScore||!(result.meanReactionMs===null||Number.isFinite(result.meanReactionMs)&&result.meanReactionMs>=0)||result.outcomes!==undefined&&!Array.isArray(result.outcomes)||seen.has(`${profileId}:${id}`))errors.push(`نتیجهٔ شمارهٔ ${i+1} درست نیست یا در فایل تکرار شده است.`);
-    if(result&&(typeof (result.variant||'standard')!=='string'||String(result.variant||'standard').length>100||result.inventory!==undefined&&(!Array.isArray(result.inventory)||result.inventory.some(v=>typeof v!=='string'))||result.mission!==undefined&&typeof result.mission!=='string'))errors.push(`اطلاعات تکمیلی نتیجهٔ ${i+1} معتبر نیستند.`);
-    if(result&&result.experienceVersion!==undefined&&![1,2,3,4].includes(result.experienceVersion))errors.push(`نسخهٔ تجربهٔ نتیجهٔ ${i+1} معتبر نیست.`);
-    if(result?.experienceVersion>=3){try{validateTiming(result.gameId,result.timing);}catch{errors.push(`زمان‌بندی نتیجهٔ ${i+1} معتبر نیست.`);}}
-    if(result&&[result.stimulusFamily,result.settingsSnapshot?.theme].some(value=>value!==undefined&&value!==null&&(typeof value!=='string'||value.length>100)))errors.push(`خانوادهٔ محرک نتیجهٔ ${i+1} باید متن معتبر باشد.`);
+    if(!r||typeof id!=='string'||id.length>150||!ids.has(profileId)||!['baseline','training'].includes(r.kind)||!result||typeof result.gameId!=='string'||!Object.hasOwn(GAME_MAP,result.gameId)||typeof result.level!=='string'||!Object.hasOwn(LEVELS,result.level)||!Number.isInteger(result.protocolVersion)||result.protocolVersion<1||result.protocolVersion>100||!validTimestamp(result.finishedAt)||typeof result.completed!=='boolean'||['score','maxScore','hits','correctResponses','correctRejections','omissions','falseSelections','longestStreak','durationMs'].some(k=>!Number.isFinite(result[k])||result[k]<0)||result.score>result.maxScore||result.hits>result.maxScore||!(result.meanReactionMs===null||Number.isFinite(result.meanReactionMs)&&result.meanReactionMs>=0)||result.outcomes!==undefined&&!Array.isArray(result.outcomes)||seen.has(`${profileId}:${id}`))errors.push(lt`نتیجهٔ شمارهٔ ${i+1} درست نیست یا در فایل تکرار شده است.`);
+    if(result&&(typeof (result.variant||'standard')!=='string'||String(result.variant||'standard').length>100||result.inventory!==undefined&&(!Array.isArray(result.inventory)||result.inventory.some(v=>typeof v!=='string'))||result.mission!==undefined&&typeof result.mission!=='string'))errors.push(lt`اطلاعات تکمیلی نتیجهٔ ${i+1} معتبر نیستند.`);
+    if(result&&result.experienceVersion!==undefined&&![1,2,3,4].includes(result.experienceVersion))errors.push(lt`نسخهٔ تجربهٔ نتیجهٔ ${i+1} معتبر نیست.`);
+    if(result?.experienceVersion>=3){try{validateTiming(result.gameId,result.timing);}catch{errors.push(lt`زمان‌بندی نتیجهٔ ${i+1} معتبر نیست.`);}}
+    if(result?.experienceVersion===4){
+      if(!['fa','en'].includes(result.locale))errors.push(uiText('زبان اجرای نتیجه معتبر نیست.'));
+      const phases={hunt:r.kind==='baseline'?1:3,stroop:4,nback:1,search:r.kind==='baseline'?5:10}[result.gameId];
+      if(phases&&(!validStimulusPlan(result.stimulusPlan)||result.stimulusPlan.colorsByPhase.length!==phases||result.stimulusPlan.colorsByPhase.some(colors=>colors.length!==(result.gameId==='hunt'&&result.variant==='divided'?2:1))))errors.push(uiText('برنامهٔ رنگ‌های نتیجه معتبر نیست.'));
+    }
+    if(result&&[result.stimulusFamily,result.settingsSnapshot?.theme].some(value=>value!==undefined&&value!==null&&(typeof value!=='string'||value.length>100)))errors.push(lt`خانوادهٔ محرک نتیجهٔ ${i+1} باید متن معتبر باشد.`);
     if(typeof profileId==='string'&&typeof id==='string')seen.add(`${profileId}:${id}`);
-    if(Array.isArray(result?.outcomes)&&!result.outcomes.every(validLegacyOutcome))errors.push(`پاسخ‌های نتیجهٔ ${i+1} معتبر نیستند.`);
+    if(Array.isArray(result?.outcomes)&&!result.outcomes.every(validLegacyOutcome))errors.push(lt`پاسخ‌های نتیجهٔ ${i+1} معتبر نیستند.`);
   }
   return {errors,document:errors.length?null:{version:1,profiles,records:records.map(r=>({...r,id:r.id||digest(JSON.stringify(r.result)),profileId:r.profileId||input.profile.id}))}};
 }
@@ -59,19 +66,19 @@ export function registerImports(app,pool,{role,childAccess}){
     res.json({id,errors:[],profiles,totalRecords:stored.records.length});
   });
   app.post('/api/imports/commit',async(req,res)=>{
-    role(req,['admin']);uuid(req.body.previewId);check(Array.isArray(req.body.mapping)&&req.body.mapping.every(m=>m&&typeof m==='object'&&!Array.isArray(m)&&typeof m.sourceId==='string'&&(m.targetId===undefined||m.targetId===null||typeof m.targetId==='string')),'برای انتقال سوابق، باید مشخصات قبلی و حساب مقصد هر نفر مشخص باشند.');
+    role(req,['admin']);uuid(req.body.previewId);check(Array.isArray(req.body.mapping)&&req.body.mapping.every(m=>m&&typeof m==='object'&&!Array.isArray(m)&&typeof m.sourceId==='string'&&(m.targetId===undefined||m.targetId===null||typeof m.targetId==='string')),uiText('برای انتقال سوابق، باید مشخصات قبلی و حساب مقصد هر نفر مشخص باشند.'));
     const response=await transaction(pool,async db=>{
       await db.query('SELECT pg_advisory_xact_lock(82004175)');await db.query("SELECT set_config('havaas.actor_id',$1,true)",[req.user.id]);
-      const preview=(await db.query('SELECT * FROM import_previews WHERE id=$1 AND user_id=$2 FOR UPDATE',[req.body.previewId,req.user.id])).rows[0];check(preview&&new Date(preview.expires_at)>new Date(),'این پیش‌نمایش دیگر قابل استفاده نیست. فایل را دوباره انتخاب کنید.');if(preview.committed_at)return preview.response;
+      const preview=(await db.query('SELECT * FROM import_previews WHERE id=$1 AND user_id=$2 FOR UPDATE',[req.body.previewId,req.user.id])).rows[0];check(preview&&new Date(preview.expires_at)>new Date(),uiText('این پیش‌نمایش دیگر قابل استفاده نیست. فایل را دوباره انتخاب کنید.'));if(preview.committed_at)return preview.response;
       const document=preview.document,targets=new Map();let createdProfiles=0,importedRecords=0;
-      check(req.body.mapping.length===document.profiles.length,'برای سوابق هر نفر، یک حساب مقصد انتخاب کنید.');
+      check(req.body.mapping.length===document.profiles.length,uiText('برای سوابق هر نفر، یک حساب مقصد انتخاب کنید.'));
       for(const p of document.profiles){
-        const choices=req.body.mapping.filter(m=>m.sourceId===p.id);check(choices.length===1,'برای هر نفر فقط یک حساب مقصد انتخاب کنید و هیچ موردی را خالی نگذارید.');const m=choices[0],sourceKey=digest(JSON.stringify(p)),known=(await db.query('SELECT child_id FROM legacy_profiles WHERE source_key=$1',[sourceKey])).rows[0];let id=known?.child_id||m.targetId;
-        if(known&&m.targetId)check(m.targetId===known.child_id,'این سوابق قبلاً به حساب دیگری منتقل شده‌اند.',409);
-        if(id){const child=await childAccess(db,req.user,id,true);if(req.body.requireUser)check(child.owner_user_id,'ابتدا کاربر مقصد را بسازید.',400);}
+        const choices=req.body.mapping.filter(m=>m.sourceId===p.id);check(choices.length===1,uiText('برای هر نفر فقط یک حساب مقصد انتخاب کنید و هیچ موردی را خالی نگذارید.'));const m=choices[0],sourceKey=digest(JSON.stringify(p)),known=(await db.query('SELECT child_id FROM legacy_profiles WHERE source_key=$1',[sourceKey])).rows[0];let id=known?.child_id||m.targetId;
+        if(known&&m.targetId)check(m.targetId===known.child_id,uiText('این سوابق قبلاً به حساب دیگری منتقل شده‌اند.'),409);
+        if(id){const child=await childAccess(db,req.user,id,true);if(req.body.requireUser)check(child.owner_user_id,uiText('ابتدا کاربر مقصد را بسازید.'),400);}
         else {
-          check(!req.body.requireUser,'انتخاب کاربر مقصد الزامی است.');
-          check(!m.ownerUserId,'اول برای این مشخصات حساب بسازید، سپس آن حساب را برای انتقال سوابق انتخاب کنید.');id=randomUUID();
+          check(!req.body.requireUser,uiText('انتخاب کاربر مقصد الزامی است.'));
+          check(!m.ownerUserId,uiText('اول برای این مشخصات حساب بسازید، سپس آن حساب را برای انتقال سوابق انتخاب کنید.'));id=randomUUID();
           await db.query('INSERT INTO children(id,profile,created_at) VALUES($1,$2,$3)',[id,validateProfile(p).profile,p.createdAt?new Date(p.createdAt).toISOString():new Date()]);createdProfiles++;
         }
         await db.query('INSERT INTO legacy_profiles(source_key,child_id) VALUES($1,$2) ON CONFLICT DO NOTHING',[sourceKey,id]);targets.set(p.id,id);
