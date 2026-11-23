@@ -154,7 +154,7 @@ test('admin can switch the reviewed client from the report selector without retu
  await click(page,'user-tab','[data-tab="sessions"]');await page.locator('#report-client-filter [name=search]').fill(seed.users.otherUser.username);await page.locator('#report-client-filter button:not([type])').click();await expect(page.locator(`#report-profile option[value="${seed.children[1].id}"]`)).toHaveCount(1);await page.locator('#report-profile').selectOption(seed.children[1].id);
  await expect(page.getByRole('heading',{level:1,name:`بررسی ${seed.users.otherUser.name}`,exact:true})).toBeVisible();
  await click(page,'user-tab','[data-tab="details"]');await expect(page.locator('#profile-form [name=firstName]')).toHaveValue('علی');await expect(page.locator('#profile-form [name=concerns]')).toHaveValue('clinical-secret-1');await expect(page.locator('#edit-user-form')).toHaveAttribute('data-user',seed.users.otherUser.id);
- await click(page,'user-tab','[data-tab="sessions"]');await page.locator('#report-client-filter [name=search]').fill(seed.users.user.username);await page.locator('#report-client-filter button:not([type])').click();await expect(page.locator(`#report-profile option[value="${seed.children[0].id}"]`)).toHaveCount(1);await page.locator('#report-profile').selectOption(seed.children[0].id);
+ await click(page,'user-tab','[data-tab="sessions"]');await page.locator('#report-client-filter [name=search]').fill(seed.users.user.name);await page.locator('#report-client-filter button:not([type])').click();await expect(page.locator(`#report-profile option[value="${seed.children[0].id}"]`)).toHaveCount(1);await page.locator('#report-profile').selectOption(seed.children[0].id);
  await expect(page.getByRole('heading',{level:1,name:`بررسی ${seed.users.user.name}`,exact:true})).toBeVisible();await click(page,'user-tab','[data-tab="details"]');await expect(page.locator('#profile-form [name=firstName]')).toHaveValue('سارا');await expect(page.locator('#edit-user-form')).toHaveAttribute('data-user',seed.users.user.id);
 });
 
@@ -360,7 +360,7 @@ test('the last administrator receives a visible error in the active tab when dea
  const headers={'X-CSRF-Token':adminCsrf},users=(await (await adminApi.get('/api/users')).json()).users,others=users.filter(u=>u.role==='admin'&&u.active&&u.id!==seed.users.admin.id);
  try{
   for(const user of others)expect((await adminApi.patch(`/api/users/${user.id}`,{headers,data:{active:false,expectedRevision:(await(await adminApi.get(`/api/users/${user.id}`)).json()).user.revision}})).ok()).toBe(true);
-  await login(page,'admin');await click(page,'inspect-user',`[data-user="${seed.users.admin.id}"]`);const blocked=page.waitForResponse(r=>r.url().endsWith(`/api/users/${seed.users.admin.id}`)&&r.request().method()==='PATCH'&&r.status()===409);await page.locator(`[data-action=toggle-user][data-user="${seed.users.admin.id}"]`).click();await blocked;await expect(page.locator('#account-status')).toBeVisible();await expect(page.locator('#account-status')).toContainText('آخرین ادمین');await expect(page.locator('.admin-sidebar')).toBeVisible();expect((await (await adminApi.get(`/api/users/${seed.users.admin.id}`)).json()).user.active).toBe(true);
+  await login(page,'admin');await click(page,'inspect-user',`[data-user="${seed.users.admin.id}"]`);const blocked=page.waitForResponse(r=>r.url().endsWith(`/api/users/${seed.users.admin.id}`)&&r.request().method()==='PATCH'&&r.status()===409);await page.locator(`[data-action=toggle-user][data-user="${seed.users.admin.id}"]`).click();await blocked;await expect(page.locator('#account-status')).toBeVisible();await expect(page.locator('#account-status')).toContainText('تنها مدیر فعال');await expect(page.locator('.admin-sidebar')).toBeVisible();expect((await (await adminApi.get(`/api/users/${seed.users.admin.id}`)).json()).user.active).toBe(true);
  }finally{for(const user of others)expect((await adminApi.patch(`/api/users/${user.id}`,{headers,data:{active:true,expectedRevision:(await(await adminApi.get(`/api/users/${user.id}`)).json()).user.revision}})).ok()).toBe(true);}
 });
 
@@ -398,7 +398,7 @@ test('an HTML unauthorized response clears the private admin screen and allows s
 test('an HTML gateway error during login shows a readable error and permits retrying',async({page})=>{
  await page.goto('/');await page.locator('#login-form [name=identifier]').fill(seed.users.admin.username);await page.locator('#login-form [name=password]').fill(seed.password);
  await page.route('**/api/auth/login',route=>route.fulfill({status:502,contentType:'text/html',body:'<h1>Bad Gateway</h1>'}));
- await page.locator('#login-form button[type=submit]').click();await expect(page.locator('#account-error')).toContainText('پاسخ سرور معتبر نیست');
+ await page.locator('#login-form button[type=submit]').click();await expect(page.locator('#account-error')).toContainText('اطلاعات درست دریافت نشد');
  await expect(page.locator('#login-form button[type=submit]')).toBeEnabled();
  await page.locator('.auth-card').screenshot({path:'.local/verification/gateway-error-recovery.png'});
  await page.unroute('**/api/auth/login');await page.locator('#login-form button[type=submit]').click();await expect(page.locator('.admin-stats')).toBeVisible();
@@ -434,7 +434,7 @@ for(const format of ['json','html'])test(`an expired CSV export session clears t
 test('an HTML response cannot be downloaded as a successful CSV export',async({page})=>{
  await openExportableReport(page);const downloads=[];page.on('download',download=>downloads.push(download));
  await page.route('**/api/children/*/sessions/*/export',route=>route.fulfill({status:200,contentType:'text/html',body:'<h1>Login required</h1>'}));
- await page.locator('[data-action=export-trials]').click();await expect(page.locator('#account-status')).toContainText('CSV معتبر نیست');await page.waitForLoadState('networkidle');
+ await page.locator('[data-action=export-trials]').click();await expect(page.locator('#account-status')).toContainText('فایل CSV درست دریافت نشد');await page.waitForLoadState('networkidle');
  expect(downloads).toHaveLength(0);await expect(page.locator('.admin-sidebar')).toBeVisible();
 });
 
@@ -446,7 +446,7 @@ test('report exports wait for a delayed filter refresh before accepting another 
   await page.locator('[data-report-filter=level]').selectOption('easy');await fetched;await expect(page.locator('[data-action=export-trials]')).toBeDisabled();
   release();await expect(page.locator('[data-action=export-trials]')).toBeEnabled();
   await page.route('**/api/children/*/sessions/*/export',route=>route.fulfill({status:200,contentType:'text/html',body:'<h1>Unexpected HTML</h1>'}));
-  await page.locator('[data-action=export-trials]').click();await expect(page.locator('#account-status')).toContainText('CSV معتبر نیست');
+  await page.locator('[data-action=export-trials]').click();await expect(page.locator('#account-status')).toContainText('فایل CSV درست دریافت نشد');
  }finally{release();await page.unrouteAll({behavior:'wait'});}
 });
 

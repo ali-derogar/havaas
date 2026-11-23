@@ -167,3 +167,8 @@
     background:linear-gradient(130deg,#b3efde,#80d7c3) #80d7c3;border-color:#b3efde;color:#15382f;box-shadow:0 4px 0 #162c2c;
   }
 }
+
+@media screen {
+  :root[data-color-scheme=dark] .play-panel[data-game=hunt] .automatic-rule-notice .hunt-target-copy>b { color:var(--night-accent); }
+  :root[data-color-scheme=dark] .play-panel[data-game=hunt] .automatic-rule-notice .hunt-target-copy>small { color:var(--theme-muted); }
+}

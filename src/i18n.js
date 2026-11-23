@@ -39,6 +39,6 @@ export function localized(value){
  if(proxies.has(value))return proxies.get(value);
  const proxy=new Proxy(value,{get(target,key,receiver){const item=Reflect.get(target,key,receiver);return typeof item==='string'?t(item):item&&typeof item==='object'?localized(item):item;}});proxies.set(value,proxy);return proxy;
 }
-export function languageSelector(){return `<label class="theme-switcher language-switcher"><span>${locale==='en'?'Language':'زبان'}</span><select data-locale-select aria-label="${locale==='en'?'Language':'زبان'}"><option value="fa"${locale==='fa'?' selected':''}>فارسی</option><option value="en"${locale==='en'?' selected':''}>English</option></select></label>`;}
+export function languageSelector(selected=getLocale()){const language=getLocale();return `<label class="theme-switcher language-switcher"><span>${language==='en'?'Language':'زبان'}</span><select data-locale-select aria-label="${language==='en'?'Language':'زبان'}"><option value="fa"${selected==='fa'?' selected':''}>فارسی</option><option value="en"${selected==='en'?' selected':''}>English</option></select></label>`;}
 
 export function colorName(color,language=getLocale()){const names={blue:'آبی',green:'سبز',red:'قرمز',yellow:'زرد',purple:'بنفش',pink:'صورتی'};return translate(names[color]||'',language);}

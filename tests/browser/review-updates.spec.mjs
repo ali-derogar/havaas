@@ -15,7 +15,7 @@ async function leave(page){await click(page,'pause');await click(page,'home');aw
 async function baseline(page,gameId){const {csrfToken}=await(await page.request.get('/api/auth/session')).json();const run=await(await page.request.post(`/api/children/${seed.children[1].id}/sessions`,{headers:{'X-CSRF-Token':csrfToken},data:{clientExperienceVersion:4,gameId,kind:'baseline'}})).json();expect((await page.request.post(`/api/children/${seed.children[1].id}/sessions/${run.id}/complete`,{headers:{'X-CSRF-Token':csrfToken},data:{result:playSession(run)}})).ok()).toBe(true);}
 async function policy(gameId,level){const api=await request.newContext({baseURL:'http://127.0.0.1:4181'});try{let auth=await(await api.get('/api/auth/session')).json();auth=await(await api.post('/api/auth/login',{headers:{'X-CSRF-Token':auth.csrfToken},data:{identifier:seed.users.admin.username,password:seed.password}})).json();expect((await api.patch(`/api/children/${seed.children[1].id}/difficulty`,{headers:{'X-CSRF-Token':auth.csrfToken},data:{gameId,level,mode:'fixed'}})).ok()).toBe(true);}finally{await api.dispose();}}
 
-test('review: all 31 recorded Persian clips decode as audible speech without clipping',async({page})=>{
+test('review: all 53 Persian clips preserve the recordings and decode as audible speech without clipping',async({page})=>{
  await page.goto('/');
  const clips=await page.evaluate(async()=>{
   const manifest=await(await fetch('/assets/audio/scripts.json')).json(),context=new OfflineAudioContext(1,1,24000),results=[];
@@ -25,17 +25,18 @@ test('review: all 31 recorded Persian clips decode as audible speech without cli
    let square=0,clipped=0;for(const sample of samples){square+=sample*sample;if(Math.abs(sample)>=.999)clipped++;}
    results.push({key,duration:buffer.duration,channels:buffer.numberOfChannels,rms:Math.sqrt(square/samples.length),clipped:clipped/samples.length});
   }
-  return {voice:manifest.voice,results};
+  return {voice:manifest.voice,recorded:Object.keys(manifest.clips).length,generated:Object.keys(manifest.generated).length,results};
  });
- expect(clips.voice).toBe('user-provided-recordings');expect(clips.results).toHaveLength(31);
+ expect(clips.voice).toBe('user-provided-recordings');expect(clips.recorded).toBe(31);expect(clips.generated).toBe(22);expect(clips.results).toHaveLength(53);
  for(const clip of clips.results){expect(clip.duration,clip.key).toBeGreaterThan(1);expect(clip.duration,clip.key).toBeLessThan(22);expect(clip.channels,clip.key).toBe(1);expect(clip.rms,clip.key).toBeGreaterThan(.01);expect(clip.clipped,clip.key).toBeLessThan(.001);}
 });
 
 test('review: Persian audio really plays, stops before countdown, and traffic reaches its flag without retreating',async({page})=>{
- await clock(page);await login(page);
+ await clock(page);await login(page);await baseline(page,'traffic');
+ const completions=[];page.on('request',req=>{if(req.method()==='POST'&&req.url().endsWith('/complete'))completions.push(req);});
  await page.evaluate(()=>{const play=HTMLMediaElement.prototype.play;window.playedGuides=[];HTMLMediaElement.prototype.play=function(){window.playedGuides.push(this);return play.call(this);};});
  await start(page,'traffic');
- const clip=page.waitForResponse(r=>r.url().includes('/assets/audio/traffic.mp3')&&r.ok());await click(page,'listen-guide');await clip;
+ const clip=page.waitForResponse(r=>r.url().includes('/assets/audio/traffic-route.mp3')&&r.ok());await click(page,'listen-guide');await clip;
  await expect(page.locator('.game-preparation .guide-audio-button')).toHaveAttribute('aria-pressed','true');
  await expect.poll(()=>page.evaluate(()=>window.playedGuides[0]?.duration)).toBeGreaterThan(1);
  await page.screenshot({path:'.local/verification/review-spoken-guide.png',fullPage:true});
@@ -49,7 +50,7 @@ test('review: Persian audio really plays, stops before countdown, and traffic re
   await advance(page,(await trialMs(page))-100);
   if(i<4){await click(page,'continue-review');expect(Number(await page.locator('.traffic-road').getAttribute('data-progress'))).toBeGreaterThanOrEqual(previous);}
  }
- expect(arrived).toBe(true);await click(page,'continue-review');await expect(page.locator('.local-note')).toContainText('ذخیره شد');
+ expect(arrived).toBe(true);await click(page,'continue-review');await expect(page.locator('.result-card')).toBeVisible();await expect(page.locator('[data-action=main-game]')).toBeEnabled();expect(completions).toHaveLength(0);
 });
 
 test('review: moving birds remain selectable and pause freezes their route',async({page})=>{
@@ -91,9 +92,9 @@ test('review: second pass keeps spoken Stroop instructions aligned with all four
  for(let index=0;index<8;index++){
   const phase=Math.floor(index/2),box=page.locator('#lesson-box');
   await expect(box.locator('.stroop-rule-picture')).toHaveAttribute('data-rule-phase',String(phase));
-  await expect(box.locator('[data-action=listen-guide]')).toHaveAttribute('data-guide',`stroop-${phase}`);
+  await expect(box.locator('[data-action=listen-guide]')).toHaveAttribute('data-guide',`stroop-${phase}-yellow`);
   await box.locator('[data-action=listen-guide]').click();
-  await expect.poll(()=>page.evaluate(()=>window.guideStarts.at(-1))).toBe(`stroop-${phase}.mp3`);
+  await expect.poll(()=>page.evaluate(()=>window.guideStarts.at(-1))).toBe(`stroop-${phase}-yellow.mp3`);
   if(index===6){await page.setViewportSize({width:360,height:900});await box.screenshot({path:'.local/verification/review-second-stroop.png'});}
   await box.locator(`[data-action=lesson-answer][data-response="${index%2===0}"]`).click();
   await expect(box.locator('.lesson-feedback.good')).toBeVisible();await click(page,'lesson-next');

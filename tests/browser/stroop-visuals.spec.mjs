@@ -18,7 +18,13 @@ async function setup(page,level){
 }
 async function start(page,practice){await page.locator('[data-action=open][data-game=stroop]').first().click();await click(page,practice?'practice':'main-game');await expect(page.locator('.studio-preparation')).toBeVisible();}
 async function begin(page){await click(page,'begin-game');await advance(page,3000);await expect(page.locator('.studio-stage')).toBeVisible();}
-const stimulus=page=>page.locator('.studio-stage').evaluate(stage=>{const node=stage.querySelector('.studio-stimulus').firstElementChild,phase=Number(stage.dataset.rulePhase),yellow=node.getAttribute('style')?.includes('#dc9b00')||node.outerHTML.includes('fill="#dc9b00"'),word=node.classList.contains('word-stimulus')?node.textContent:'';return {phase,yellow,word,target:phase<=1?yellow:phase===2?word==='زرد':yellow&&word==='زرد',html:node.outerHTML};});
+const stimulus=page=>page.locator('.studio-stage').evaluate(stage=>{
+ const node=stage.querySelector('.studio-stimulus').firstElementChild,phase=Number(stage.dataset.rulePhase),goal=document.querySelector('.instruction-strip .rule-picture-target');
+ const paint=element=>getComputedStyle(element.classList.contains('word-stimulus')?element:element.querySelector('g[fill]'))[element.classList.contains('word-stimulus')?'color':'fill'];
+ const expectedPaint=phase===0?paint(goal.querySelector('.symbol')):phase===1||phase===3?getComputedStyle(goal.querySelector('.rule-swatch')).backgroundColor:null;
+ const matchColor=expectedPaint===paint(node),word=node.classList.contains('word-stimulus')?node.textContent:'',expectedWord=goal.querySelector('.rule-word')?.textContent;
+ return {phase,word,target:phase<=1?matchColor:phase===2?word===expectedWord:matchColor&&word===expectedWord,html:node.outerHTML};
+});
 async function gate(page,phase){
  if(await page.locator('.automatic-rule-notice').count()){
   await expect(page.locator('.rule-sample,[data-action=acknowledge]')).toHaveCount(0);
@@ -32,7 +38,7 @@ async function gate(page,phase){
 test('studio: all eight illustrated lessons and five frozen practice reviews retain the four rules',async({page})=>{
  await clock(page);await login(page);await page.locator('[data-action=open][data-game=stroop]').first().click();
  for(let i=0;i<8;i++){
-  const box=page.locator('#lesson-box');await expect(box.locator('.stroop-rule-picture')).toHaveAttribute('data-rule-phase',String(Math.floor(i/2)));await expect(box.locator('[data-action=listen-guide]')).toHaveAttribute('data-guide',`stroop-${Math.floor(i/2)}`);
+  const box=page.locator('#lesson-box');await expect(box.locator('.stroop-rule-picture')).toHaveAttribute('data-rule-phase',String(Math.floor(i/2)));await expect(box.locator('[data-action=listen-guide]')).toHaveAttribute('data-guide',`stroop-${Math.floor(i/2)}-yellow`);
   await box.locator(`[data-action=lesson-answer][data-response="${i%2===0}"]`).click();await expect(box.locator('.lesson-feedback.good')).toBeVisible();await click(page,'lesson-next');
  }
  await click(page,'practice');await page.setViewportSize({width:1440,height:1250});await page.screenshot({path:'.local/verification/stroop_preparation.png',fullPage:true,animations:'disabled'});await begin(page);

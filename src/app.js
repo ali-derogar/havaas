@@ -53,6 +53,7 @@ import { icon, logo, art, heroArt, symbol, equipment, trophyArt, huntBackground,
 
 setLocale(getLocale());
 let pendingLocale=null;
+let localeChangeAttempt=null;
 const app = document.querySelector('#app');
 const modal = document.querySelector('#modal');
 const announcer = document.querySelector('#announcer');
@@ -309,7 +310,7 @@ async function start(practice, forceBaseline = false, repeatOptions = null) {
     const policy=clients.difficulties.find(d=>d.gameId===selectedGame&&d.variant===currentVariant()&&d.protocolVersion===GAME_PROTOCOLS[selectedGame]);
     if(policy)selectedLevel=policy.level;
   }
-  const options={...(repeatOptions||gameOptions())};
+  const options={...(repeatOptions||gameOptions()),locale:getLocale()};
   if(repeatOptions){selectedGame=options.gameId;selectedLevel=options.level;}
   const attempt={};launchAttempt=attempt;starting=true;notify(uiText('در حال آماده‌سازی بازی…'));document.querySelectorAll('[data-action="practice"],[data-action="repeat-practice"],[data-action="main-game"],[data-action="replay"]').forEach(button=>button.disabled=true);
   try {
@@ -522,6 +523,7 @@ function finish({renderOnly=false}={}) {
   renderResultActions();
   if(currentUser.role!=='admin')document.querySelector('.level-recommendation button')?.remove();
   announcer.textContent = title;
+  renderSaveStatus();
   if(needsSave&&!renderOnly)void persistPending();
 }
 
@@ -538,7 +540,7 @@ function pause() {
   if (route!=='play'||!engine) return;
   guidance.stop();
   engine.pause(); preparationClock?.pause(); if(engine.done) return finish();
-  openModal(lt`<span class="pause-emblem">${icon('pause')}</span><h2 id="modal-title">یک نفس تازه کن.</h2><p>بازی و زمان متوقف شده. هر وقت آماده بودی، از همین‌جا ادامه بده.</p>${guideControl(guidanceKey({...engine,...gameOptions(),n:engine.n,phase:engine.current?.phase}))}${languageSelector()}<div class="modal-buttons"><button class="button primary" data-action="resume">ادامهٔ بازی ${icon('play')}</button><button class="button subtle" data-action="restart">از اول شروع کن ${icon('repeat')}</button><button class="text-button" data-action="home">برگشت به بازی‌ها ${icon('home')}</button></div>`, 'pause');
+  openModal(lt`<span class="pause-emblem">${icon('pause')}</span><h2 id="modal-title">یک نفس تازه کن.</h2><p>بازی و زمان متوقف شده. هر وقت آماده بودی، از همین‌جا ادامه بده.</p>${guideControl(guidanceKey({...engine,...gameOptions(),n:engine.n,phase:engine.current?.phase}))}${languageSelector(pendingLocale||getLocale())}<div class="modal-buttons"><button class="button primary" data-action="resume">ادامهٔ بازی ${icon('play')}</button><button class="button subtle" data-action="restart">از اول شروع کن ${icon('repeat')}</button><button class="text-button" data-action="home">برگشت به بازی‌ها ${icon('home')}</button></div>`, 'pause');
 }
 function closeModal() {
   guidance.stop();
@@ -641,11 +643,11 @@ async function exportTrials() {
   const records=profileRecords(clients).filter(r=>(!reportState.game||r.result.gameId===reportState.game)&&(!reportState.level||r.result.level===reportState.level)&&(!reportState.variant||variantOf(r.result)===reportState.variant)&&(!reportState.kind||r.kind===reportState.kind));
   const record=clients.reportPage?.selected||records.find(r=>r.id===reportState.recordId)||records.at(-1);if(!record)return;
   try{
-    const response=await fetch(`/api/children/${clients.activeId}/sessions/${record.id}/export`,{credentials:'same-origin'});
+    const response=await fetch(`/api/children/${clients.activeId}/sessions/${record.id}/export`,{credentials:'same-origin',headers:{'X-App-Locale':getLocale()}});
     if(!currentView(view)){await response.body?.cancel();return;}
     if(!response.ok){
       let error;try{error=await response.json();}catch{}
-      throw new ApiError(typeof error?.error==='string'?error.error:uiText('این فایل در دسترس نیست یا اجازهٔ دریافتش را ندارید.'),response.status,typeof error?.code==='string'?error.code:'EXPORT_FAILED');
+      throw new ApiError(typeof error?.error==='string'?uiText(error.error):uiText('این فایل در دسترس نیست یا اجازهٔ دریافتش را ندارید.'),response.status,typeof error?.code==='string'?error.code:'EXPORT_FAILED');
     }
     if(response.headers.get('Content-Type')?.split(';',1)[0].trim().toLowerCase()!=='text/csv'){
       await response.body?.cancel();throw new ApiError(uiText('فایل CSV درست دریافت نشد. دوباره تلاش کنید.'),response.status,'INVALID_RESPONSE');
@@ -1041,6 +1043,7 @@ function showLogin(invite=null){
 }
 function clearPrivateData(){
  if(modal.open)modal.close();modal.replaceChildren();modalKind='';
+ pendingLocale=null;localeChangeAttempt=null;
  navigationGuard.clear();completedRecord=null;delete clients.panelSummary;delete clients.reportPage;delete clients.selectorProfiles;delete clients.trainingProfiles;delete clients.gameTimings;unresolvedProfiles=[];
  members=[];inspectedUserId=null;publicReportData=null;previewImport=null;importAttempt=null;remoteRun=null;pendingAdminRefresh=null;pendingPanelRefresh=null;
  pendingStart=null;guideState=null;lessonState=null;editingProfile=null;sessionRecordId=null;sessionOptions=null;repeatingPractice=false;engine=null;launchAttempt=null;starting=false;userTab='overview';
@@ -1070,17 +1073,38 @@ function publicReportMessage(title,message,retry=false){
 }
 async function changeLanguage(select){
  const desired=select.value;
- if(!['fa','en'].includes(desired)||desired===getLocale())return;
- if(route==='play'&&engine&&!engine.done){pendingLocale=desired;select.value=getLocale();const message=uiText('زبان انتخاب‌شده پس از پایان بازی اعمال می‌شود.');select.setAttribute('aria-description',message);setText('feedback',message);announcer.textContent=message;const url=new URL(location.href);if(url.searchParams.has('lang')){url.searchParams.set('lang',desired);history.replaceState?.({},'',url);}return;}
- const forms=[...document.querySelectorAll('form')].map(form=>({id:form.id,fields:[...form.querySelectorAll('[name]')].filter(input=>input.type!=='file').map(input=>({name:input.name,value:input.value,checked:input.checked}))}));
- const files=[...document.querySelectorAll('input[type=file]')].filter(input=>input.files?.length).map(input=>({id:input.id,input}));
+ if(!['fa','en'].includes(desired))return;
+ if(route==='play'&&engine&&!engine.done){
+  pendingLocale=desired===getLocale()?null:desired;
+  const message=pendingLocale?uiText('زبان انتخاب‌شده پس از پایان بازی اعمال می‌شود.'):engine.feedback;
+  if(pendingLocale)select.setAttribute('aria-description',message);else select.removeAttribute('aria-description');
+  setText('feedback',message);announcer.textContent=message;
+  const url=new URL(location.href);if(url.searchParams.has('lang')){url.searchParams.set('lang',desired);history.replaceState?.({},'',url);}return;
+ }
+ if(desired===getLocale())return;
+ const previous=localeChangeAttempt?.previous||{locale:getLocale(),title:document.title,url:location.href};
+ const url=new URL(location.href),attempt={view:beginView(),hash:location.hash,previous};localeChangeAttempt=attempt;
+ const current=()=>localeChangeAttempt===attempt&&getLocale()===desired&&location.hash===attempt.hash&&currentUser?.id===attempt.view.userId&&currentUser?.role===attempt.view.role;
+ // Retain the original controls so edits made while requests are pending survive rendering.
+ const forms=[...document.querySelectorAll('form')],files=[...document.querySelectorAll('input[type=file]')];
  setLocale(desired);clients.locale=desired;guidance.stop();
- const url=new URL(location.href);if(url.searchParams.has('lang')){url.searchParams.set('lang',desired);history.replaceState?.({},'',url);}
- if(currentUser&&clients.activeId)await refreshClients();
- if(route==='result')finish({renderOnly:true});else await navigate();
- for(const saved of forms){const form=document.getElementById(saved.id);if(!form)continue;for(const field of saved.fields){const input=[...form.querySelectorAll('[name]')].find(input=>input.name===field.name);if(input){if(field.name==='birthDate'&&input.closest('[data-birth-date]')){input.closest('[data-birth-date]').outerHTML=birthDateField(field.value);continue;}if(['from','to'].includes(field.name)&&input.closest('.audit-date-field')){input.closest('.audit-date-field').outerHTML=auditDateField(field.name,uiText(field.name==='from'?'از تاریخ':'تا تاریخ'),field.value);continue;}input.value=field.value;if(['checkbox','radio'].includes(input.type))input.checked=field.checked;}}}
- for(const saved of files)document.getElementById(saved.id)?.replaceWith(saved.input);
- navigationGuard.sync();
+ if(url.searchParams.has('lang')){url.searchParams.set('lang',desired);history.replaceState?.({},'',url);}
+ try{
+  if(currentUser&&clients.activeId&&!publicReportData&&!await refreshClients(attempt.view))return;
+  if(!current()||!currentView(attempt.view))return;
+  if(route==='public-report')await refreshPublicReport();else if(route==='result')finish({renderOnly:true});else await navigate();
+  if(!current())return;
+  for(const saved of forms){const form=document.getElementById(saved.id);if(!form)continue;for(const field of saved.querySelectorAll('[name]')){if(field.type==='file')continue;const input=[...form.querySelectorAll('[name]')].find(input=>input.name===field.name&&(field.type!=='radio'||input.value===field.value));if(input){if(field.name==='birthDate'&&input.closest('[data-birth-date]')){input.closest('[data-birth-date]').outerHTML=birthDateField(field.value);continue;}if(['from','to'].includes(field.name)&&input.closest('.audit-date-field')){input.closest('.audit-date-field').outerHTML=auditDateField(field.name,uiText(field.name==='from'?'از تاریخ':'تا تاریخ'),field.value);continue;}input.value=field.value;if(['checkbox','radio'].includes(input.type))input.checked=field.checked;}}}
+  for(const input of files)if(input.files?.length)document.getElementById(input.id)?.replaceWith(input);
+  navigationGuard.sync();
+ }catch(error){
+  if(!current())return;
+  setLocale(previous.locale);clients.locale=previous.locale;document.title=previous.title;
+  if(select.isConnected)select.value=previous.locale;
+  history.replaceState?.({},'',previous.url);
+  if(error.code==='NETWORK_ERROR')error.message=uiText('اتصال به مرکز برقرار نشد. اینترنت را بررسی کنید و دوباره تلاش کنید.');
+  throw error;
+ }finally{if(localeChangeAttempt===attempt)localeChangeAttempt=null;}
 }
 async function navigate(){
  const id=location.hash.slice(1),shared=id.match(/^report\/([a-f0-9]{64})$/);
@@ -1128,19 +1152,27 @@ function showError(error){
   const node=candidates.find(field=>!field.closest('[hidden]'));
   if(node)node.textContent=error.message||uiText('درخواست انجام نشد. دوباره تلاش کنید.');else notify(error.message||uiText('درخواست انجام نشد. دوباره تلاش کنید.'));
 }
+function renderSaveStatus(){
+ const note=document.querySelector('.local-note');if(!note)return;
+ if(pendingSave?.error){
+  const message=pendingSave.error.code==='NETWORK_ERROR'?uiText('اتصال به مرکز برقرار نشد. اینترنت را بررسی کنید و دوباره تلاش کنید.'):uiText(pendingSave.error.message);
+  note.innerHTML=lt`<span>${icon('info')} نتیجه هنوز ذخیره نشده: ${esc(message)} تا وقتی این صفحه باز است، نتیجه نگه داشته می‌شود.</span><button class="button subtle" data-action="retry-save">تلاش دوباره برای ثبت</button><button class="text-button" data-action="reauth">ورود با حسابی که بازی را انجام داده</button>`;
+ }else if(pendingSave)note.innerHTML=lt`${icon('clock')} در حال ثبت نتیجه در سرور مرکز…`;
+ else if(completedRecord)note.innerHTML=lt`${icon('check')} نتیجه ذخیره شد.`;
+}
 async function persistPending(){
   const pending=pendingSave;if(!pending||pending.saving)return;
-  pending.saving=true;let data;
+  pending.saving=true;pending.error=null;renderSaveStatus();let data;
   try {
     data=await request(`/children/${pending.childId}/sessions/${pending.run.id}/complete`,{method:'POST',body:{result:pending.result,view:'panel'}});
   }catch(error){
-    pending.saving=false;const note=document.querySelector('.local-note');if(note)note.innerHTML=lt`<span>${icon('info')} نتیجه هنوز ذخیره نشده: ${esc(error.message)} تا وقتی این صفحه باز است، نتیجه نگه داشته می‌شود.</span><button class="button subtle" data-action="retry-save">تلاش دوباره برای ثبت</button><button class="text-button" data-action="reauth">ورود با حسابی که بازی را انجام داده</button>`;
+    pending.saving=false;pending.error=error;if(pendingSave===pending)renderSaveStatus();
     return;
   }
   // The completion acknowledgement is authoritative even if the following refresh fails.
   sessionRecordId=data.record.id;completedRecord=data.record;pendingSave=null;if(data.panelSummary)clients.panelSummary=data.panelSummary;
   const index=clients.records.findIndex(record=>record.id===data.record.id);if(index<0)clients.records.push(data.record);else clients.records[index]=data.record;
-  const note=document.querySelector('.local-note');if(note)note.innerHTML=lt`${icon('check')} نتیجه ذخیره شد.`;
+  renderSaveStatus();const note=document.querySelector('.local-note');
   renderResultActions();
   if(data.record.kind==='training'){
     const content=lt`بهترین امتیاز این سطح: <b>${fa(data.bestScore??Math.max(...comparableRecords(profileRecords(clients),data.record).map(r=>r.result.score)))} از ${fa(data.record.result.maxScore)}</b>`,best=document.querySelector('.best-score');

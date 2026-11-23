@@ -177,7 +177,7 @@ test('direct stimulus input validates visibility, trial identity and one respons
   t.advance(950);s.tick();assert.equal(s.respondToStimulus(0),null);t.advance(101);assert.equal(s.respondToStimulus(1),null);assert.equal(s.respond(),false);
   t.advance(899);s.tick();assert.equal(s.metrics.hits,1);assert.equal(s.metrics.falseAlarms,1);assert.equal(s.metrics.misses,0);
 });
-test('two-target hunt preserves 150 stimuli and exactly 15 appearances of each target',()=>{
+test('two-target hunt preserves 150 trials and balances both targets inside each section',()=>{
   for(const theme of Object.keys(THEMES))for(const level of Object.keys(LEVELS))for(let seed=0;seed<25;seed++) {
     const s=FACTORIES.hunt({level,theme,targetCount:2,random:seededRandom(seed)});assert.equal(s.trials.length,150);assert.equal(s.targets.length,2);assert.equal(s.variant,'divided');
     for(const [phase,targets]of s.targetsByPhase.entries())for(const target of targets)assert.equal(s.trials.filter(t=>t.phase===phase&&JSON.stringify(t.stimulus)===JSON.stringify(target)).length,[2,5,8][phase]);

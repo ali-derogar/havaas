@@ -21,6 +21,6 @@ export function stroopRulePicture(phase=0,session={}){
   const current=Math.max(0,Math.min(3,phase)),labels=[uiText('دایره'),uiText('رنگ'),uiText('کلمه'),uiText('رنگ + کلمه')];
   const channel=current===0?icon('target'):current===1?icon('palette'):current===2?icon('read'):`${icon('palette')}<b>+</b>${icon('read')}`;
   const color=colorAt(session,current),name=COLOR_NAMES[color];
-  const target=current===0?symbol({shape:'circle',color}):current===1?`<span class="rule-swatch" style="background:${COLORS[color]}" aria-hidden="true"></span>`:current===2?`<b class="rule-word">${name}</b>`:`<span class="rule-swatch" style="background:${COLORS[color]}" aria-hidden="true"></span><b>+</b><b class="rule-word" style="color:${COLORS[color]}">${name}</b>`;
+  const target=current===0?symbol({shape:'circle',color}):current===1?`<span class="rule-swatch" style="background:${COLORS[color]}" aria-hidden="true"></span>`:current===2?`<b class="rule-word">${name}</b>`:`<span class="rule-swatch" style="background:${COLORS[color]}" aria-hidden="true"></span><b>+</b><b class="rule-word">${name}</b>`;
   return `<div class="stroop-rule-picture" data-rule-phase="${current}" role="img" aria-label="${stroopRules(session)[current].title}"><span class="rule-channel">${channel}<small>${labels[current]}</small></span><span class="rule-picture-arrow" aria-hidden="true">←</span><span class="rule-picture-target">${target}</span><span class="rule-picture-tap">${icon('tap')}</span></div>`;
 }

@@ -99,7 +99,7 @@ test('copy link reports a denied copy and keeps the full link selected for manua
     document.execCommand=()=>false;
   });
   await page.locator('[data-action=copy-invitation]').click();
-  await expect(page.locator('[data-copy-status]')).toContainText('کپی خودکار ممکن نشد');
+  await expect(page.locator('[data-copy-status]')).toContainText('کپی نشد');
   await expect(page.locator('[data-action=copy-invitation]')).toHaveText('کپی لینک');
   expect(await page.locator('#invitation-url').evaluate(field=>field.value.slice(field.selectionStart,field.selectionEnd))).toBe(url);
 });

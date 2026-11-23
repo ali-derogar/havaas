@@ -47,7 +47,7 @@ export function inspectLegacy(input){
     if(result?.experienceVersion>=3){try{validateTiming(result.gameId,result.timing);}catch{errors.push(lt`زمان‌بندی نتیجهٔ ${i+1} معتبر نیست.`);}}
     if(result?.experienceVersion===4){
       if(!['fa','en'].includes(result.locale))errors.push(uiText('زبان اجرای نتیجه معتبر نیست.'));
-      const phases={hunt:r.kind==='baseline'?1:3,stroop:4,nback:1,search:r.kind==='baseline'?5:10}[result.gameId];
+      const phaseCounts={hunt:r.kind==='baseline'?1:3,stroop:4,nback:1,search:r.kind==='baseline'?5:10},phases=typeof result.gameId==='string'&&Object.hasOwn(phaseCounts,result.gameId)?phaseCounts[result.gameId]:null;
       if(phases&&(!validStimulusPlan(result.stimulusPlan)||result.stimulusPlan.colorsByPhase.length!==phases||result.stimulusPlan.colorsByPhase.some(colors=>colors.length!==(result.gameId==='hunt'&&result.variant==='divided'?2:1))))errors.push(uiText('برنامهٔ رنگ‌های نتیجه معتبر نیست.'));
     }
     if(result&&[result.stimulusFamily,result.settingsSnapshot?.theme].some(value=>value!==undefined&&value!==null&&(typeof value!=='string'||value.length>100)))errors.push(lt`خانوادهٔ محرک نتیجهٔ ${i+1} باید متن معتبر باشد.`);
