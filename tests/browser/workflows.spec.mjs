@@ -149,13 +149,34 @@ test('hunt hit areas stay separate and the response remains reachable on short p
 });
 
 test('admin can switch the reviewed client from the report selector without returning to the previous account',async({page})=>{
+ const [first,second]=await Promise.all([seed.users.user.id,seed.users.otherUser.id].map(async id=>await(await adminApi.get(`/api/users/${id}`)).json()));
  await login(page,'admin');await click(page,'inspect-user',`[data-user="${seed.users.user.id}"]`);
- await click(page,'user-tab','[data-tab="details"]');await expect(page.locator('#profile-form [name=firstName]')).toHaveValue('سارا');
+ await click(page,'user-tab','[data-tab="details"]');await expect(page.locator('#profile-form [name=firstName]')).toHaveValue(first.profile.firstName);
  await click(page,'user-tab','[data-tab="sessions"]');await page.locator('#report-client-filter [name=search]').fill(seed.users.otherUser.username);await page.locator('#report-client-filter button:not([type])').click();await expect(page.locator(`#report-profile option[value="${seed.children[1].id}"]`)).toHaveCount(1);await page.locator('#report-profile').selectOption(seed.children[1].id);
- await expect(page.getByRole('heading',{level:1,name:`بررسی ${seed.users.otherUser.name}`,exact:true})).toBeVisible();
- await click(page,'user-tab','[data-tab="details"]');await expect(page.locator('#profile-form [name=firstName]')).toHaveValue('علی');await expect(page.locator('#profile-form [name=concerns]')).toHaveValue('clinical-secret-1');await expect(page.locator('#edit-user-form')).toHaveAttribute('data-user',seed.users.otherUser.id);
- await click(page,'user-tab','[data-tab="sessions"]');await page.locator('#report-client-filter [name=search]').fill(seed.users.user.name);await page.locator('#report-client-filter button:not([type])').click();await expect(page.locator(`#report-profile option[value="${seed.children[0].id}"]`)).toHaveCount(1);await page.locator('#report-profile').selectOption(seed.children[0].id);
- await expect(page.getByRole('heading',{level:1,name:`بررسی ${seed.users.user.name}`,exact:true})).toBeVisible();await click(page,'user-tab','[data-tab="details"]');await expect(page.locator('#profile-form [name=firstName]')).toHaveValue('سارا');await expect(page.locator('#edit-user-form')).toHaveAttribute('data-user',seed.users.user.id);
+ await expect(page.getByRole('heading',{level:1,name:`بررسی ${second.user.name}`,exact:true})).toBeVisible();
+ await click(page,'user-tab','[data-tab="details"]');await expect(page.locator('#profile-form [name=firstName]')).toHaveValue(second.profile.firstName);await expect(page.locator('#profile-form [name=concerns]')).toHaveValue(second.profile.concerns);await expect(page.locator('#edit-user-form')).toHaveAttribute('data-user',seed.users.otherUser.id);
+ await click(page,'user-tab','[data-tab="sessions"]');await page.locator('#report-client-filter [name=search]').fill(first.user.name);await page.locator('#report-client-filter button:not([type])').click();await expect(page.locator(`#report-profile option[value="${seed.children[0].id}"]`)).toHaveCount(1);await page.locator('#report-profile').selectOption(seed.children[0].id);
+ await expect(page.getByRole('heading',{level:1,name:`بررسی ${first.user.name}`,exact:true})).toBeVisible();await click(page,'user-tab','[data-tab="details"]');await expect(page.locator('#profile-form [name=firstName]')).toHaveValue(first.profile.firstName);await expect(page.locator('#edit-user-form')).toHaveAttribute('data-user',seed.users.user.id);
+});
+
+test('a pending report refresh preserves a newly typed client search and keyboard focus',async({page})=>{
+ await login(page,'admin');await click(page,'inspect-user',`[data-user="${seed.users.user.id}"]`);
+ await click(page,'user-tab','[data-tab="sessions"]');await expect(page.locator('#report-client-filter')).toBeVisible();await expect(page.locator('#user-sessions')).not.toHaveAttribute('aria-busy','true');
+ await click(page,'user-tab','[data-tab="details"]');
+ let release,ready,delayed=false;
+ const gate=new Promise(resolve=>release=resolve),requested=new Promise(resolve=>ready=resolve);
+ await page.route('**/api/children/*/reports?**',async route=>{if(delayed)return route.continue();delayed=true;const response=await route.fetch();ready();await gate;await route.fulfill({response});});
+ try{
+  await click(page,'user-tab','[data-tab="sessions"]');await requested;
+  const search=page.locator('#report-client-filter [name=search]');await search.fill(seed.users.otherUser.username);
+  await search.evaluate(input=>input.setSelectionRange(2,4));
+  release();await expect(page.locator('#user-sessions')).not.toHaveAttribute('aria-busy','true');
+  await expect(search).toHaveValue(seed.users.otherUser.username);await expect(search).toBeFocused();
+  expect(await search.evaluate(input=>[input.selectionStart,input.selectionEnd])).toEqual([2,4]);
+  const filtered=page.waitForRequest(req=>req.url().includes('/api/users?role=user')&&new URL(req.url()).searchParams.get('search')===seed.users.otherUser.username);
+  await page.locator('#report-client-filter button:not([type])').click();await filtered;
+  await expect(page.locator(`#report-profile option[value="${seed.children[1].id}"]`)).toHaveCount(1);
+ }finally{release();await page.unrouteAll({behavior:'wait'});}
 });
 
 test('malformed and unknown parent links show a report error even when the browser is signed in as admin',async({page})=>{

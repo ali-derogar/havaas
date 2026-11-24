@@ -4,8 +4,12 @@ import { database, migrate } from '../../server/db.js';
 import { passwordHash } from '../../server/security.js';
 export const testPassword='Havaas-test-password-2026!';
 export async function testDatabase(source,name){
-  const manager=new pg.Pool({connectionString:source}),url=new URL(source);await manager.query(`CREATE DATABASE ${name}`);url.pathname='/'+name;const pool=database(url.href);await migrate(pool);
-  return {pool,url:url.href,async close(){await pool.end();await manager.query(`DROP DATABASE ${name} WITH (FORCE)`);await manager.end();}};
+  const manager=new pg.Pool({connectionString:source}),url=new URL(source);await manager.query(`CREATE DATABASE ${name}`);url.pathname='/'+name;const pool=database(url.href),disconnections=[];
+  // Pool.end() can resolve before idle sockets finish closing. Wait for them
+  // before dropping the database so FORCE cannot terminate a closing client.
+  pool.on('connect',client=>disconnections.push(new Promise(resolve=>client.once('end',resolve))));
+  await migrate(pool);
+  return {pool,url:url.href,async close(){await pool.end();await Promise.all(disconnections);await manager.query(`DROP DATABASE ${name} WITH (FORCE)`);await manager.end();}};
 }
 export async function seedAccounts(pool){
  const hash=await passwordHash(testPassword),users={};

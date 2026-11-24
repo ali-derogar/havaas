@@ -14,7 +14,7 @@ const server = http.createServer(async (req, res) => {
       res.writeHead(200,{'Content-Type':types['.js'],'Cache-Control':'no-cache','Service-Worker-Allowed':'/','X-Content-Type-Options':'nosniff'});res.end(source);return;
     }
     const file = resolve(root, `.${pathname === '/' ? '/index.html' : pathname}`);
-    if (!file.startsWith(root + sep) || pathname.split('/').some(part => part.startsWith('.')) || !['/', '/index.html','/offline.html','/manifest.webmanifest'].includes(pathname) && !/^\/(src|assets)\//.test(pathname)) {
+    if (!file.startsWith(root + sep) || pathname.split('/').some(part => part.startsWith('.')) || !['/', '/index.html','/offline.html','/manifest.webmanifest','/manifest.en.webmanifest'].includes(pathname) && !/^\/(src|assets)\//.test(pathname)) {
       res.writeHead(404).end('Not found'); return;
     }
     if (!(await stat(file)).isFile()) throw new Error('Not a file');
@@ -22,4 +22,4 @@ const server = http.createServer(async (req, res) => {
     res.end(await readFile(file));
   } catch { res.writeHead(404).end('Not found'); }
 });
-server.listen(port, '0.0.0.0', () => console.log(`حواس: http://localhost:${port}`));
+server.listen(port, '0.0.0.0', () => console.log(`حواس: http://localhost:${server.address().port}`));

@@ -31,6 +31,31 @@ async function warmup(page,n,visibleMs){
 }
 async function leave(page){await click(page,'pause');await click(page,'home');await expect(page.locator('.hero')).toBeVisible();}
 
+test('memory: a pending material change cannot consume a step in the previous lesson',async({page})=>{
+ await clock(page);await login(page);await setup(page,'hard','numbers');await open(page,'shapes');
+ let release,ready;const gate=new Promise(resolve=>release=resolve),requested=new Promise(resolve=>ready=resolve);
+ await page.route('**/api/bootstrap*',async route=>{const response=await route.fetch();ready();await gate;await route.fulfill({response});});
+ try{
+  await page.locator('[data-action=material][data-material=numbers]').click();await requested;
+  await expect(page.locator('#lesson-box')).toHaveAttribute('inert','');
+  await expect(page.locator('#lesson-box')).toHaveAttribute('aria-busy','true');
+  release();await expect(page.locator('#lesson-box')).not.toHaveAttribute('aria-busy','true');
+  await expect(page.locator('#lesson-box h3')).toContainText('۳');
+  for(let i=1;i<=3;i++){await click(page,'lesson-memory-next');await expect(page.locator('.memory-walkthrough')).toHaveAttribute('data-memory-step',String(i));}
+  await expect(page.locator('#lesson-box [data-action=lesson-answer]')).toHaveCount(2);
+ }finally{release();await page.unrouteAll({behavior:'wait'});}
+});
+
+test('memory: an unsuccessful material refresh releases the previous lesson controls',async({page})=>{
+ await clock(page);await login(page);await open(page,'shapes');
+ await page.route('**/api/bootstrap*',route=>route.abort('failed'));
+ await page.locator('[data-action=material][data-material=numbers]').click();
+ await expect(page.locator('#app-status')).not.toBeEmpty();
+ await expect(page.locator('#lesson-box')).not.toHaveAttribute('inert','');
+ await click(page,'lesson-memory-next');
+ await expect(page.locator('.memory-walkthrough')).toHaveAttribute('data-memory-step','1');
+});
+
 test('memory: all three distances and materials teach a sequence, hide old stimuli, and review five decisions',async({page})=>{
  const errors=[];page.on('pageerror',error=>errors.push(error.message));await clock(page);await login(page);
  for(const [level,n,visibleMs,material] of [['easy',1,800,'shapes'],['medium',2,500,'numbers'],['hard',3,300,'toys']]){

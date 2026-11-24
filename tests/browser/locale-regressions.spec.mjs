@@ -16,6 +16,23 @@ async function account(page){
  await expect(page.locator('#password-form')).toBeVisible();
 }
 
+for(const outcome of ['success','failure'])test(`a ${outcome === 'success' ? 'successful' : 'failed'} language switch preserves Back confirmation and Forward navigation`,async({page})=>{
+ await login(page);await account(page);
+ const index=await page.evaluate(()=>history.state.havaasIndex);
+ if(outcome==='failure')await page.route('**/api/bootstrap?**',route=>route.abort('failed'));
+ await page.locator('[data-locale-select]').selectOption('en');
+ if(outcome==='success')await expect(page.locator('#password-form')).toContainText('Current password');
+ else{await expect(page.locator('#account-error')).not.toBeEmpty();await page.unroute('**/api/bootstrap?**');}
+ expect(await page.evaluate(()=>history.state.havaasIndex)).toBe(index);
+ await page.locator('#password-form [name=currentPassword]').fill('unsaved-after-language-switch');
+ const url=page.url();
+ await page.goBack();await expect(page.locator('.navigation-confirm')).toBeVisible();await expect(page).toHaveURL(url);
+ await page.locator('[data-guard=stay]').click();await expect(page.locator('#password-form [name=currentPassword]')).toHaveValue('unsaved-after-language-switch');
+ await page.goBack();await expect(page.locator('.navigation-confirm')).toBeVisible();await page.locator('[data-guard=discard]').click();await expect(page.locator('.hero')).toBeVisible();
+ await page.goForward();await expect(page).toHaveURL(url);await expect(page.locator('#password-form')).toBeVisible();
+ await expect(page.locator('#password-form [name=currentPassword]')).toHaveValue('');
+});
+
 test('a late language response cannot overwrite edits made after switching back',async({page})=>{
  await login(page);await account(page);
  let release,ready;

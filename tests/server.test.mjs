@@ -414,3 +414,27 @@ apiTest('server: concurrent language contexts localize errors and reports while 
  for(const [i,response]of replies.entries()){assert.equal(response.status,400);assert.equal(/[\u0600-\u06ff]/.test(response.data.error),i%2===0);}
  const english=await user.call(`/children/${seed.children[0].id}/reports?view=panel`,{headers:{'X-App-Locale':'en'}});assert.equal(english.status,200);assert.doesNotMatch(english.data.narrative,/[\u0600-\u06ff]/);assert.equal(english.data.profile.firstName,seed.children[0].firstName);
 });
+
+apiTest('server: dashboard assessment totals use the same version and language compatibility as the assessment path',async()=>{
+ const total=async locale=>(await admin.call('/admin/dashboard?days=7',{headers:{'X-App-Locale':locale}})).data.totals.incompleteAssessments;
+ const beforeFa=await total('fa'),beforeEn=await total('en');
+ const created=await admin.call('/users',{method:'POST',body:{role:'user',method:'direct',username:'dashboard-assessment-compatibility',password:testPassword,profile:{firstName:'آزمون',lastName:'سازگاری ارزیابی',birthDate:'2016-01-01',grade:'پایهٔ ۳',school:'امید'}}});
+ assert.equal(created.status,201);const childId=created.data.profile.id;
+ const assess=async(gameId,clientExperienceVersion,locale='fa')=>{
+  const started=await admin.call(`/children/${childId}/sessions`,{method:'POST',headers:{'X-App-Locale':locale},body:{gameId,kind:'baseline',clientExperienceVersion,locale}});
+  assert.equal(started.status,201);
+  const completed=await admin.call(`/children/${childId}/sessions/${started.data.id}/complete`,{method:'POST',headers:{'X-App-Locale':locale},body:{result:playSession(started.data)}});
+  assert.equal(completed.status,200);
+ };
+ for(const game of GAMES)await assess(game.id,3);
+ const legacy=await admin.call(`/children/${childId}/assessment`);
+ assert.equal(legacy.data.steps.filter(step=>!step.baseline).length,3);
+ assert.equal(await total('fa'),beforeFa+1);
+ for(const gameId of ['hunt','traffic','stroop'])await assess(gameId,4);
+ assert.ok((await admin.call(`/children/${childId}/assessment`)).data.steps.every(step=>step.baseline));
+ assert.equal(await total('fa'),beforeFa);
+ assert.equal(await total('en'),beforeEn+1);
+ await assess('stroop',4,'en');
+ assert.equal(await total('en'),beforeEn);
+ assert.equal(await total('fa'),beforeFa);
+});

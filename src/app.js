@@ -265,15 +265,21 @@ function gameCopy(game) {
 }
 async function detail(id, updateHash = true) {
   if(!currentUser)return showLogin();if(currentUser.role==='admin')return adminPanel();
-  const view=beginView();if(!await refreshClients(view))return;
-  if(!Object.hasOwn(GAME_MAP,id))return home();
-  if(selectedGame!==id)selectedMaterial='shapes';selectedGame=id;
-  const key=timingIdentity({...gameOptions(),variant:currentVariant()});
-  if(clients.activeId){
-    const data=await viewRequest(view,`${timingPath(clients.activeId)}?${new URLSearchParams(key)}`);if(!currentView(view))return;
-    clients.gameTimings={...data,childId:clients.activeId};
-  }else delete clients.gameTimings;
-  return renderDetail(id,updateHash);
+  const view=beginView(),lesson=document.querySelector('#lesson-box');
+  // The previous mode's lesson is replaced when its settings arrive. Do not
+  // accept progress on that stale lesson while a mode change is in flight.
+  if(lesson){lesson.inert=true;lesson.setAttribute('aria-busy','true');}
+  try{
+    if(!await refreshClients(view))return;
+    if(!Object.hasOwn(GAME_MAP,id))return home();
+    if(selectedGame!==id)selectedMaterial='shapes';selectedGame=id;
+    const key=timingIdentity({...gameOptions(),variant:currentVariant()});
+    if(clients.activeId){
+      const data=await viewRequest(view,`${timingPath(clients.activeId)}?${new URLSearchParams(key)}`);if(!currentView(view))return;
+      clients.gameTimings={...data,childId:clients.activeId};
+    }else delete clients.gameTimings;
+    return renderDetail(id,updateHash);
+  }finally{if(lesson?.isConnected&&currentView(view)){lesson.inert=false;lesson.removeAttribute('aria-busy');}}
 }
 function renderDetail(id, updateHash = true) {
   if (!Object.hasOwn(GAME_MAP,id)) return home();
@@ -712,7 +718,14 @@ async function loadUserTab(){
  if(userTab!=='sessions')return;
  const panel=document.querySelector('#user-sessions');if(!panel)return;
  const view=beginView();panel.setAttribute('aria-busy','true');
- try{if(!await loadReportData(view)||!currentView(view))return;panel.innerHTML=reportsView(clients,reportState,currentUser);}
+ try{
+  if(!await loadReportData(view)||!currentView(view))return;
+  const search=panel.querySelector('#report-client-filter [name=search]'),focused=search&&document.activeElement===search;
+  const draft=search?.value,start=search?.selectionStart,end=search?.selectionEnd;
+  panel.innerHTML=reportsView(clients,reportState,currentUser);
+  const fresh=panel.querySelector('#report-client-filter [name=search]');
+  if(search&&fresh){fresh.value=draft;if(focused){fresh.focus({preventScroll:true});fresh.setSelectionRange(start,end);}}
+ }
  catch(error){if(currentView(view))showError(error);}
  finally{if(currentView(view))panel.removeAttribute('aria-busy');}
 }
@@ -777,11 +790,11 @@ async function processForm(form){
     return openSignedInHome(auth);
   }
   if(form.id==='accept-form'){
-    const auth=await request('/invitations/accept',{method:'POST',body:{...values,token:inviteToken}});history.replaceState?.({},'',location.pathname);return openSignedInHome(auth);
+    const auth=await request('/invitations/accept',{method:'POST',body:{...values,token:inviteToken}});history.replaceState?.(history.state,'',location.pathname);return openSignedInHome(auth);
   }
   if(form.id==='password-form'){const wasForced=currentUser.passwordChangeRequired;const data=await request('/auth/change-password',{method:'POST',body:values});currentUser=data.user;form.reset?.();if(wasForced)return openSignedInHome(data);return notify(uiText('رمز تغییر کرد. اگر حواس در دستگاه دیگری باز است، باید آنجا هم دوباره وارد شوید.'));}
   if(form.id==='registration-form'){
-    const auth=await request('/public/registration/complete',{method:'POST',body:{token:registrationToken,username:values.username,password:values.password,email:values.email,profile:values}});history.replaceState?.({},'',location.pathname);return openSignedInHome(auth);
+    const auth=await request('/public/registration/complete',{method:'POST',body:{token:registrationToken,username:values.username,password:values.password,email:values.email,profile:values}});history.replaceState?.(history.state,'',location.pathname);return openSignedInHome(auth);
   }
   if(form.id==='registration-link-form'){
     const view={version:viewVersion,userId:currentUser.id,role:currentUser.role},data=await request('/registration-links',{method:'POST',body:values});acknowledgeForm(form);if(!currentView(view))return false;
@@ -1081,7 +1094,7 @@ async function changeLanguage(select){
   const message=pendingLocale?uiText('زبان انتخاب‌شده پس از پایان بازی اعمال می‌شود.'):engine.feedback;
   if(pendingLocale)select.setAttribute('aria-description',message);else select.removeAttribute('aria-description');
   setText('feedback',message);announcer.textContent=message;
-  const url=new URL(location.href);if(url.searchParams.has('lang')){url.searchParams.set('lang',desired);history.replaceState?.({},'',url);}return;
+  const url=new URL(location.href);if(url.searchParams.has('lang')){url.searchParams.set('lang',desired);history.replaceState?.(history.state,'',url);}return;
  }
  if(desired===getLocale())return;
  const previous=localeChangeAttempt?.previous||{locale:getLocale(),title:document.title,url:location.href};
@@ -1090,7 +1103,7 @@ async function changeLanguage(select){
  // Retain the original controls so edits made while requests are pending survive rendering.
  const forms=[...document.querySelectorAll('form')],files=[...document.querySelectorAll('input[type=file]')];
  setLocale(desired);clients.locale=desired;guidance.stop();
- if(url.searchParams.has('lang')){url.searchParams.set('lang',desired);history.replaceState?.({},'',url);}
+ if(url.searchParams.has('lang')){url.searchParams.set('lang',desired);history.replaceState?.(history.state,'',url);}
  try{
   if(currentUser&&clients.activeId&&!publicReportData&&!await refreshClients(attempt.view))return;
   if(!current()||!currentView(attempt.view))return;
@@ -1103,7 +1116,7 @@ async function changeLanguage(select){
   if(!current())return;
   setLocale(previous.locale);clients.locale=previous.locale;document.title=previous.title;
   if(select.isConnected)select.value=previous.locale;
-  history.replaceState?.({},'',previous.url);
+  history.replaceState?.(history.state,'',previous.url);
   if(error.code==='NETWORK_ERROR')error.message=uiText('اتصال به مرکز برقرار نشد. اینترنت را بررسی کنید و دوباره تلاش کنید.');
   throw error;
  }finally{if(localeChangeAttempt===attempt)localeChangeAttempt=null;}
