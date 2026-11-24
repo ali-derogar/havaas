@@ -4,8 +4,22 @@ import {icon,symbol,huntBackground} from './visuals.js';
 import {describeStimulus} from './stimuli.js';
 import {escapeHTML as esc} from './core/clients.js';
 import {HUNT_TITLES,huntBinoculars} from './hunt-art.js';
+import {HUNT_SETTINGS,LEGACY_HUNT_SETTINGS} from './config.js';
 
 const fa=value=>Number(value).toLocaleString(numberLocale());
+const rows=settings=>Object.fromEntries(Object.entries(settings).map(([level,setting])=>[level,[...new Set(setting.positions.map(position=>position.y))].sort((a,b)=>a-b)]));
+const modernRows=rows(HUNT_SETTINGS),legacyRows=rows(LEGACY_HUNT_SETTINGS);
+// Keep neighboring hit areas separate when a short field compresses the rows.
+// Horizontal travel, visibility and the canonical scored path remain unchanged.
+export function huntDisplayPosition(session,choice,position,height,size){
+ if(!(height>0&&size>0))return position;
+ const bands=((session.stimulusVersion??9)>=6?modernRows:legacyRows)[session.level||'easy'];
+ const row=bands.reduce((best,y,i)=>Math.abs(y-choice.position.y)<Math.abs(bands[best]-choice.position.y)?i:best,0);
+ const start=row?(bands[row-1]+bands[row])/2:0,end=row+1<bands.length?(bands[row]+bands[row+1])/2:100;
+ const minimum=height*start/100+size/2+1,maximum=height*end/100-size/2-1;
+ const center=minimum<=maximum?Math.max(minimum,Math.min(maximum,position.y*height/100)):height*(start+end)/200;
+ return {...position,y:center/height*100};
+}
 export function huntTargetCue(session){
  return lt`<span class="target-examples">${session.targets.map(target=>`<span class="target-mini">${symbol(target)}</span>`).join('')}</span><span class="hunt-target-copy"><b>${session.targets.length===2?uiText('هر دو نمونه هدف‌اند'):uiText('فقط مثل این نمونه')}</b><small>رنگ و علامت را دقیق ببین</small><span class="sr-only">${session.targets.map(describeStimulus).join(uiText(' یا '))}</span></span>`;
 }

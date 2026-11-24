@@ -102,8 +102,8 @@ function compactPreparation(session) {
   if(id==='hunt')cue=`<div class="hunt-preparation-targets">${huntTargetCue(session)}</div>`;
   else if(id==='traffic')cue=trafficRulePicture(session.variant==='signs');
   else if(id==='stroop')cue=stroopRulePicture(0,session);
-  else if(id==='nback')cue=lt`<div class="visual-rule"><span>${icon('repeat')} با ${fa(session.n)} محرک قبل مقایسه کن</span></div>`;
-  else if(id==='search')cue=lt`<p>${session.targetCount===2?uiText('هر دو نمونه را'):uiText('نمونه را')} ${(session.timing.previewMs/1000).toLocaleString(numberLocale())} ثانیه به خاطر بسپار؛ سپس پیدایش کن.</p>`;
+  else if(id==='nback'){const instruction=lt`با ${fa(session.n)} محرک قبل مقایسه کن`;cue=`<div class="visual-rule"><span>${icon('repeat')} ${instruction}</span></div>`;}
+  else if(id==='search'){const instruction=lt`${session.targetCount===2?uiText('هر دو نمونه را'):uiText('نمونه را')} ${(session.timing.previewMs/1000).toLocaleString(numberLocale())} ثانیه به خاطر بسپار؛ سپس پیدایش کن.`;cue=`<p>${instruction}</p>`;}
   else cue=missionChecklist(session,{interactive:true});
   return lt`<div class="game-preparation ${classes[id]}-preparation compact-preparation"><span class="section-kicker">بازی اصلی · ${LEVELS[session.level].label}</span><h2>آماده‌ای شروع کنیم؟</h2><p>${shortPrompt(session)}</p>${cue}${guideControl(guidanceKey({...session,targetCount:session.targets?.length||session.targetCount}))}</div>`;
 }
@@ -116,8 +116,9 @@ export function reviewView(session) {
     const {trial,outcome}=review;good=outcome.correct;sample=tokens([trial.stimulus]);
     label=trial.target?uiText('این محرک هدف بود'):uiText('این محرک هدف نبود');
     if(session.gameId==='hunt') {
+      const targets=session.targetsByPhase?.[trial.phase]||session.targets;
       text=trial.target?uiText('شکل، رنگ و علامت با یکی از هدف‌ها یکسان بود؛ باید پاسخ می‌دادی.'):uiText('این شکل با نمونهٔ هدف یکسان نبود؛ باید بدون پاسخ صبر می‌کردی.');
-      sample=lt`<div class="review-comparison"><div><small>${outcome.response?uiText('انتخاب تو'):trial.target?uiText('هدف این نوبت'):uiText('یکی از شکل‌های این نوبت')}</small>${tokens([outcome.selectedStimulus||trial.stimulus])}</div><div><small>نمونهٔ هدف</small>${tokens(session.targets)}</div></div>`;
+      sample=lt`<div class="review-comparison"><div><small>${outcome.response?uiText('انتخاب تو'):trial.target?uiText('هدف این نوبت'):uiText('یکی از شکل‌های این نوبت')}</small>${tokens([outcome.selectedStimulus||trial.stimulus])}</div><div><small>نمونهٔ هدف</small>${tokens(targets)}</div></div>`;
     } else if(session.gameId==='traffic')text=trial.target?uiText('این نشانه اجازهٔ حرکت می‌داد؛ باید دکمهٔ حرکت را می‌زدی.'):uiText('این نشانه توقف بود؛ درست این بود که هیچ دکمه‌ای نزنی.');
     else if(session.gameId==='nback') {
       text=trial.target?lt`محرک فعلی با ${fa(session.n)} محرک قبل یکسان بود؛ باید پاسخ می‌دادی.`:lt`محرک فعلی با ${fa(session.n)} محرک قبل فرق داشت؛ باید صبر می‌کردی.`;

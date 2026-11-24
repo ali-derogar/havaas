@@ -28,7 +28,7 @@ import { searchOutcomeArt } from './search-art.js';
 import { memoryOutcomeArt } from './nback-art.js';
 import { stroopOutcomeArt } from './stroop-art.js';
 import { huntOutcomeArt } from './hunt-art.js';
-import { huntScene,huntTargetCue,huntControls } from './hunt-ui.js';
+import { huntScene,huntTargetCue,huntControls,huntDisplayPosition } from './hunt-ui.js';
 import { stroopScene,stroopControls } from './stroop-ui.js';
 import { memoryStage,memoryRule,memoryControls } from './nback-ui.js';
 import { searchWorkspaceHeading,searchPreview,searchChoices,searchMemoryNote } from './search-ui.js';
@@ -414,8 +414,10 @@ function updatePlay() {
     const huntFocus=engine.gameId==='hunt'&&engine.moving?document.activeElement:null;
     const stimulus = document.querySelector('.stimulus-shell'); if (stimulus) stimulus.style.visibility = engine.visible ? 'visible' : 'hidden';
     if(engine.gameId==='hunt'&&engine.moving){
-      document.querySelectorAll('.hunt-choice').forEach((node,index)=>{
-        const position=huntPosition(engine.current.choices[index],engine.clock.elapsed-engine.onset,engine.visibleMs);
+      const nodes=[...document.querySelectorAll('.hunt-choice')],height=document.querySelector('.hunt-surface')?.clientHeight||0,size=nodes[0]?.offsetHeight||0;
+      nodes.forEach((node,index)=>{
+        const choice=engine.current.choices[index],canonical=huntPosition(choice,engine.clock.elapsed-engine.onset,engine.visibleMs);
+        const position=huntDisplayPosition(engine,choice,canonical,height,size);
         node.style.left=`${position.x}%`;node.style.top=`${position.y}%`;
         const selectable=engine.visible&&huntOnScreen(engine.current.choices[index],engine.clock.elapsed-engine.onset,engine.visibleMs)&&!engine.response;
         node.disabled=!selectable;node.tabIndex=selectable?0:-1;node.setAttribute('aria-hidden',String(!selectable));node.classList.toggle('left-field',position.x>110);

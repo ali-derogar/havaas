@@ -4,9 +4,26 @@ import {parseHTML} from 'linkedom';
 import {FACTORIES} from '../src/games/index.js';
 import {seededRandom} from '../src/core/random.js';
 import {symbol} from '../src/visuals.js';
-import {huntScene,huntTargetCue,huntControls,syncHuntStage} from '../src/hunt-ui.js';
+import {huntScene,huntTargetCue,huntControls,syncHuntStage,huntDisplayPosition} from '../src/hunt-ui.js';
 import {huntOutcomeArt} from '../src/hunt-art.js';
 import {huntPosition,huntOnScreen} from '../src/games/hunt.js';
+
+test('compressed moving fields keep neighboring hit areas separate without changing horizontal travel or trials',()=>{
+ for(let seed=0;seed<16;seed++)for(const theme of ['fish','bird','butterfly']){
+  const session=FACTORIES.hunt({seed,theme,level:'hard',random:seededRandom(seed)}),before=JSON.stringify(session.trials);
+  for(const trial of session.trials)for(const [height,size]of [[192,44],[216,48]])for(const time of [0,.5,.999]){
+   const points=trial.choices.map(choice=>{
+    const canonical=huntPosition(choice,session.visibleMs*time,session.visibleMs);
+    const display=huntDisplayPosition(session,choice,canonical,height,size);
+    assert.equal(display.x,canonical.x);
+    const roomy=huntDisplayPosition(session,choice,canonical,1000,size);assert.ok(Math.abs(roomy.y-canonical.y)<1e-9);
+    return {x:display.x*320/100,y:display.y*height/100};
+   });
+   for(const [i,a]of points.entries())for(const b of points.slice(i+1))assert.ok(Math.abs(a.x-b.x)>=size-.5||Math.abs(a.y-b.y)>=size-.5,`${theme}, seed ${seed}, height ${height}, time ${time}`);
+  }
+  assert.equal(JSON.stringify(session.trials),before);
+ }
+});
 
 test('hunt presentation preserves exact symbols, original positions and moving paths without target hints',()=>{
  for(const theme of ['star','shape','fish','bird','butterfly'])for(const level of ['easy','medium','hard'])for(const targetCount of [1,2]){

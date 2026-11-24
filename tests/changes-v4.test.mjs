@@ -12,9 +12,10 @@ import {reportResult} from '../server/report-data.js';
 import {playSession} from './helpers/play-session.mjs';
 import {getLocale,setLocale,t,lt} from '../src/i18n.js';
 import {symbol} from '../src/visuals.js';
-import {preparationView,transitionView} from '../src/play-ui.js';
+import {preparationView,transitionView,learningRecap} from '../src/play-ui.js';
 import {comparableRecords,parentNarrative} from '../src/core/reports.js';
 import {loginView} from '../src/account-ui.js';
+import {memoryControls,memoryRule} from '../src/nback-ui.js';
 
 test('v4 color plans change at section boundaries, balance targets and reconstruct on the server',()=>{
  for(let seed=0;seed<40;seed++)for(const targetCount of [1,2]){
@@ -80,4 +81,46 @@ test('v4 exports retain session language and color plans, and malformed imported
  const settings={...normalizeSettings({gameId:'hunt',locale:'en',targetCount:2}),seed:7,level:'easy'},run={id:'import-v4',kind:'baseline',settings},result=canonicalResult(run,playSession(run));
  const profile={id:'source',firstName:'آبی',lastName:'آزمون',birthDate:'2016-01-01',grade:'3',school:'school'},document={version:1,profile,records:[{id:'source-session',kind:'baseline',result}]};
  assert.deepEqual(inspectLegacy(document).errors,[]);for(const patch of [{locale:'unknown'},{stimulusPlan:{colorsByPhase:[['blue']] }},{stimulusPlan:{colorsByPhase:[['blue','invalid']]}}])assert.ok(inspectLegacy({...document,records:[{...document.records[0],result:{...result,...patch}}]}).errors.length);
+});
+
+test('English game instructions preserve the exact memory distance and complete timed-search sentences',()=>{
+ setLocale('en');try{
+  for(const [level,n]of [['easy',1],['medium',2],['hard',3]]){
+   const session=FACTORIES.nback({level,seed:7,locale:'en'});
+   const ready=parseHTML(preparationView(session)).document;
+   assert.equal(ready.querySelector('.visual-rule').textContent.trim(),`Compare with the item exactly ${n} steps ago`);
+   const controls=parseHTML(memoryControls(session)).document;
+   assert.equal(controls.querySelector('.response-button>span').textContent,`Same as the item ${n} back!`);
+   assert.equal(controls.querySelector('.sr-only').textContent,`Respond only if it matches the item exactly ${n} steps ago.`);
+   assert.equal(parseHTML(memoryRule(session)).document.querySelector('.memory-rule-copy').textContent,'First, just remember');
+  }
+  for(const targetCount of [1,2]){
+   const ready=parseHTML(preparationView(FACTORIES.search({seed:7,locale:'en',targetCount}))).document;
+   assert.equal(ready.querySelector('.compact-preparation>p:last-of-type').textContent,`Remember ${targetCount===2?'both samples':'the sample'} for 2 seconds, then find a match.`);
+  }
+  assert.match(preparationView(FACTORIES.traffic({seed:7,locale:'en'})),/Green: tap; red: wait/);
+ }finally{setLocale('fa');}
+});
+
+test('hunt mistake reviews retain the target colors from each decision phase after all color changes',()=>{
+ for(const targetCount of [1,2])for(const locale of ['fa','en']){
+  setLocale(locale);try{
+   let now=0;const session=FACTORIES.hunt({seed:19,locale,targetCount,theme:'butterfly',random:seededRandom(19),now:()=>now}),missed=new Set();
+   while(!session.done){
+    if(session.transitionClock){now+=3000;session.tick();continue;}
+    now+=100;
+    if(session.current.target){if(missed.has(session.current.phase))session.respond();else missed.add(session.current.phase);}
+    now+=session.intervalMs-100;session.tick();
+   }
+   const before=JSON.stringify(session.result),doc=parseHTML(learningRecap(session)).document;
+   const mistakes=session.outcomes.filter(outcome=>!outcome.correct);
+   assert.equal(mistakes.length,3);
+   for(const [i,card]of [...doc.querySelectorAll('.recap-step')].entries()){
+    const actual=[...card.querySelectorAll('.review-comparison>div:last-child .ready-token')].map(node=>node.innerHTML);
+    const expected=session.targetsByPhase[mistakes[i].phase].map(target=>parseHTML(`<span>${symbol(target)}</span>`).document.querySelector('span').innerHTML);
+    assert.deepEqual(actual,expected,`phase ${mistakes[i].phase}, ${targetCount} targets, ${locale}`);
+   }
+   assert.equal(JSON.stringify(session.result),before);
+  }finally{setLocale('fa');}
+ }
 });

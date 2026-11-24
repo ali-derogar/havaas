@@ -39,6 +39,26 @@
  .play-panel[data-game=stroop][data-phase=playing] .studio-stage .word-stimulus { font-size:58px; }
 }
 
+/* A rule change must stay readable for its full three-second notice. */
+@media(max-height:520px) and (min-width:480px) and (orientation:landscape) {
+ body[data-screen=play] .play-main:has(.reaction[data-phase=rule]) { padding:6px; }
+ .play-main:has(.reaction[data-phase=rule]) .play-heading { justify-content:flex-end; margin-bottom:5px; }
+ .play-main:has(.reaction[data-phase=rule]) .play-heading>div:first-child { position:absolute; width:1px; height:1px; overflow:hidden; clip-path:inset(50%); }
+ .play-main:has(.reaction[data-phase=rule])>.play-footnote { display:none; }
+ .play-panel.reaction[data-phase=rule]>.play-hud { min-height:40px; padding:3px 12px; }
+ .play-panel.reaction[data-phase=rule]>.play-hud span { font-size:8px; margin:0; }
+ .play-panel.reaction[data-phase=rule]>.play-hud b { font-size:15px; }
+ .play-panel.reaction[data-phase=rule] #hits { width:30px; height:30px; font-size:16px; }
+ .play-panel.reaction[data-phase=rule]>.instruction-strip { display:none; }
+ .play-panel.reaction[data-phase=rule]>.arena { min-height:0; }
+ .play-panel.reaction[data-phase=rule] .automatic-rule-notice { display:flex; flex-direction:column; min-height:0; padding:8px; gap:5px; }
+ .play-panel.reaction[data-phase=rule] .automatic-rule-notice>h2 { font-size:19px; margin:0; }
+ .play-panel.reaction[data-phase=rule] .automatic-rule-notice>p { margin:0; font-size:12px; }
+ .play-panel.reaction[data-phase=rule] .automatic-rule-notice>.studio-phase-path { display:none; }
+ .play-panel.reaction[data-phase=rule] .automatic-rule-notice>.stroop-rule-picture { min-height:48px; padding:4px 10px; }
+ .play-panel.reaction[data-phase=rule] .automatic-rule-notice .rule-word { font-size:25px; }
+}
+
 @media(max-height:400px) and (min-width:640px) {
  .play-panel[data-game=stroop][data-phase=playing] .studio-phase-path { padding:4px 12px; }
  .play-panel[data-game=stroop][data-phase=playing] .studio-phase-path>span { grid-template-rows:15px 10px; padding:4px 6px; gap:1px 4px; }
@@ -74,3 +94,87 @@
 /* Keep the on-demand voice control within the existing play toolbar. */
 .play-heading>div:first-child{min-width:0}.play-heading h1{flex-wrap:wrap}.play-heading-actions{flex-shrink:0}.play-heading-actions .guide-audio-button{min-width:0;min-height:44px;padding:8px 10px;font-size:12px;gap:5px}.play-heading-actions .guide-audio-button .icon{width:20px;height:20px}
 @media(max-width:700px){.play-heading-actions .guide-audio-button{padding:7px;font-size:11px;gap:4px}.play-heading-actions .guide-audio-button .icon{width:18px;height:18px}}
+
+/* The landscape toolbar belongs to the response column in either language. */
+@media(max-height:520px) and (min-width:480px) and (orientation:landscape) {
+ body[data-screen=play] .play-main:has(.reaction[data-phase=playing]) .play-heading-actions {
+  left:auto; right:auto; inset-inline-end:max(28px,calc((100vw - 1200px)/2 + 28px));
+  bottom:12px; width:168px; display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:6px; z-index:20;
+ }
+ .play-main:has(.reaction[data-phase=playing]) .play-heading-actions .theme-switcher { min-width:0; }
+ .play-main:has(.reaction[data-phase=playing]) .play-heading-actions .theme-switcher>span { display:none; }
+ .play-main:has(.reaction[data-phase=playing]) .play-heading-actions .theme-switcher select { width:100%; min-width:0; }
+ .play-main:has(.reaction[data-phase=playing]) .play-heading-actions :is(.guide-audio-button,.pause-button) { width:100%; padding:7px; }
+ .play-panel.reaction[data-phase=playing]>.play-controls { padding-bottom:112px; }
+ .play-panel.reaction[data-phase=playing] .keyboard-hint { display:none; }
+}
+
+@media(max-height:520px) and (min-width:640px) {
+ .play-panel[data-game=hunt][data-phase=playing] .hunt-world>.hunt-trail { display:none; }
+ .play-panel[data-game=hunt][data-phase=playing] .hunt-surface { height:220px; min-height:220px; flex-shrink:0; }
+}
+
+/* Small phones also need a landscape layout below the tablet breakpoint. */
+@media(max-height:400px) and (min-width:480px) and (max-width:639px) {
+ body[data-screen=play] .play-main:has(.reaction[data-phase=playing]) { padding:6px; }
+ .play-main:has(.reaction[data-phase=playing]) .play-heading { height:0; margin:0; }
+ .play-main:has(.reaction[data-phase=playing]) .play-heading>div:first-child { position:absolute; width:1px; height:1px; overflow:hidden; clip-path:inset(50%); }
+ .play-main:has(.reaction[data-phase=playing])>.play-footnote { display:none; }
+ body[data-screen=play] .play-main:has(.reaction[data-phase=playing]) .play-heading-actions { position:fixed; width:144px; inset-inline-end:16px; }
+ .play-panel.reaction[data-phase=playing] { display:grid; grid-template-columns:minmax(0,1fr) 160px; }
+ .play-panel.reaction[data-phase=playing]>.play-hud { grid-column:1/-1; min-height:40px; padding:3px 12px; }
+ .play-panel.reaction[data-phase=playing]>.play-hud span { font-size:8px; margin:0; }
+ .play-panel.reaction[data-phase=playing]>.play-hud b { font-size:15px; }
+ .play-panel.reaction[data-phase=playing] #hits { width:30px; height:30px; font-size:16px; }
+ .play-panel.reaction[data-phase=playing]>.progress-track { grid-column:1/-1; height:3px; }
+ .play-panel.reaction[data-phase=playing]>.instruction-strip { grid-column:1/-1; min-height:48px; padding:3px 8px; gap:8px; font-size:11px; }
+ .play-panel.reaction[data-phase=playing]>.arena { grid-column:1; grid-row:4; min-height:0; }
+ .play-panel.reaction[data-phase=playing]>.play-controls { grid-column:2; grid-row:4; align-self:stretch; height:100%; min-height:0; padding:6px 8px 108px; border:0; gap:5px; }
+ .play-panel.reaction[data-phase=playing]>.feedback { display:none; }
+ .play-panel.reaction[data-phase=playing] :is(.hunt-response-rule,.memory-response-rule,.studio-response-rule) { flex-direction:column; gap:6px; }
+ .play-panel.reaction[data-phase=playing] .response-button { width:100%; min-width:0; min-height:52px; padding:6px; gap:5px; font-size:14px; line-height:1.4; }
+ .play-panel.reaction[data-phase=playing] .response-button>.icon { width:24px; height:24px; }
+ .play-panel.reaction[data-phase=playing] :is(.hunt-wait-reminder,.memory-wait-reminder,.studio-wait-reminder) { gap:5px; font-size:10px; line-height:1.4; }
+ .play-panel.reaction[data-phase=playing] :is(.hunt-wait-reminder,.memory-wait-reminder,.studio-wait-reminder)>.icon { width:18px; height:18px; padding:3px; }
+ .play-panel[data-game=hunt][data-phase=playing] .target-mini { width:36px; height:36px; }
+ .play-panel[data-game=hunt][data-phase=playing] .target-mini>.symbol { width:32px; height:32px; }
+ .play-panel[data-game=hunt][data-phase=playing] .hunt-target-copy>small { display:none; }
+ .play-panel[data-game=hunt][data-phase=playing] .reaction-stage.hunt-world { height:216px; min-height:0; padding:6px; gap:4px; }
+ .play-panel[data-game=hunt][data-phase=playing] :is(.hunt-field-heading,.hunt-trail) { display:none; }
+ .play-panel[data-game=hunt][data-phase=playing] .hunt-surface { width:100%; height:196px; min-height:196px; }
+ .play-panel[data-game=hunt][data-phase=playing] .hunt-choice { width:44px; height:44px; }
+ .play-panel[data-game=traffic][data-phase=playing] .reaction-stage.traffic-world { display:grid; grid-template-columns:82px minmax(0,1fr); grid-template-rows:22px 1fr; gap:4px; height:216px; padding:6px 6px 0; }
+ .play-panel[data-game=traffic][data-phase=playing] .traffic-signal-area { grid-column:1; grid-row:1/span 2; gap:0; padding:0; }
+ .play-panel[data-game=traffic][data-phase=playing] :is(.traffic-look-hint,.traffic-trip-note,.traffic-signal-area>.stage-caption) { display:none; }
+ .play-panel[data-game=traffic][data-phase=playing] .traffic-route-heading { grid-column:2; grid-row:1; margin:0; padding:0; min-height:0; }
+ .play-panel[data-game=traffic][data-phase=playing] .traffic-route-heading>span:first-child { font-size:9px; gap:3px; }
+ .play-panel[data-game=traffic][data-phase=playing] .traffic-town { grid-column:2; grid-row:2; height:174px; }
+ .play-panel[data-game=traffic][data-phase=playing] .traffic-town>.traffic-road { transform:translate(var(--traffic-camera-x,0px),-105px); }
+ .play-panel[data-game=traffic][data-phase=playing] .sign-mode .traffic-signal-case { width:78px; height:78px; border-radius:17px; }
+ .play-panel[data-game=traffic][data-phase=playing] .sign-mode .traffic-live-signal { top:8px; left:8px; width:56px; height:56px; }
+ .play-panel[data-game=traffic][data-phase=playing] .sign-mode .traffic-live-signal .stimulus-tap { width:56px; height:56px; }
+ .play-panel[data-game=nback][data-phase=playing] .reaction-stage.memory-stage { height:216px; padding:8px; }
+ .play-panel[data-game=nback][data-phase=playing] :is(.memory-now-label,.memory-stage-note,.memory-station-footer,.memory-trail-caption) { display:none; }
+ .play-panel[data-game=nback][data-phase=playing] .memory-station-heading>span { font-size:11px; }
+ .play-panel[data-game=nback][data-phase=playing] .memory-station-heading>small { font-size:9px; padding:3px 6px; }
+ .play-panel[data-game=nback][data-phase=playing] .memory-console { flex-direction:row; padding:0; gap:4px; }
+ .play-panel[data-game=nback][data-phase=playing] .memory-status { gap:5px; }
+ .play-panel[data-game=nback][data-phase=playing] .memory-status>.memory-sealed-slot { width:38px; height:48px; display:flex; }
+ .play-panel[data-game=nback][data-phase=playing] .memory-sealed-slot>small { display:none; }
+ .play-panel[data-game=nback][data-phase=playing] .memory-sealed-slot .icon { width:16px; height:16px; }
+ .play-panel[data-game=nback][data-phase=playing] .memory-connection { width:10px; }
+ .play-panel[data-game=nback][data-phase=playing] .memory-focus-frame { width:142px; height:142px; padding:8px; }
+ .play-panel[data-game=nback][data-phase=playing] .memory-stage .focus-corners { width:126px; height:126px; }
+ .play-panel[data-game=nback][data-phase=playing] .memory-stage .stimulus-shell { width:116px; height:116px; }
+ .play-panel[data-game=nback][data-phase=playing] .memory-stage .symbol { width:100px; height:100px; }
+ .play-panel[data-game=stroop][data-phase=playing] .studio-phase-path { padding:3px; gap:4px; }
+ .play-panel[data-game=stroop][data-phase=playing] .studio-phase-path>span { min-width:0; padding:3px; grid-template-rows:13px 9px; }
+ .play-panel[data-game=stroop][data-phase=playing] .reaction-stage.studio-stage { height:174px; padding:6px; gap:4px; }
+ .play-panel[data-game=stroop][data-phase=playing] .studio-stage-heading>span { font-size:10px; }
+ .play-panel[data-game=stroop][data-phase=playing] :is(.studio-stage-heading>small,.studio-stage-note) { display:none; }
+ .play-panel[data-game=stroop][data-phase=playing] .studio-easel { padding:5px 8px 10px; }
+ .play-panel[data-game=stroop][data-phase=playing] .studio-stage .focus-corners { width:210px; height:108px; }
+ .play-panel[data-game=stroop][data-phase=playing] .studio-stage .stimulus-shell { height:98px; }
+ .play-panel[data-game=stroop][data-phase=playing] .studio-stage .symbol { width:90px; height:90px; }
+ .play-panel[data-game=stroop][data-phase=playing] .studio-stage .word-stimulus { font-size:42px; }
+}
