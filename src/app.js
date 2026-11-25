@@ -790,11 +790,11 @@ async function processForm(form){
     return openSignedInHome(auth);
   }
   if(form.id==='accept-form'){
-    const auth=await request('/invitations/accept',{method:'POST',body:{...values,token:inviteToken}});history.replaceState?.(history.state,'',location.pathname);return openSignedInHome(auth);
+    const auth=await request('/invitations/accept',{method:'POST',body:{...values,token:inviteToken}});history.replaceState?.(history.state,'',location.pathname+location.search);return openSignedInHome(auth);
   }
   if(form.id==='password-form'){const wasForced=currentUser.passwordChangeRequired;const data=await request('/auth/change-password',{method:'POST',body:values});currentUser=data.user;form.reset?.();if(wasForced)return openSignedInHome(data);return notify(uiText('رمز تغییر کرد. اگر حواس در دستگاه دیگری باز است، باید آنجا هم دوباره وارد شوید.'));}
   if(form.id==='registration-form'){
-    const auth=await request('/public/registration/complete',{method:'POST',body:{token:registrationToken,username:values.username,password:values.password,email:values.email,profile:values}});history.replaceState?.(history.state,'',location.pathname);return openSignedInHome(auth);
+    const auth=await request('/public/registration/complete',{method:'POST',body:{token:registrationToken,username:values.username,password:values.password,email:values.email,profile:values}});history.replaceState?.(history.state,'',location.pathname+location.search);return openSignedInHome(auth);
   }
   if(form.id==='registration-link-form'){
     const view={version:viewVersion,userId:currentUser.id,role:currentUser.role},data=await request('/registration-links',{method:'POST',body:values});acknowledgeForm(form);if(!currentView(view))return false;

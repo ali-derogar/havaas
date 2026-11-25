@@ -8,17 +8,18 @@ export function setupPwa({canUpdate=()=>true,formTracker=null}={}){
  const banner=document.createElement('aside');banner.id='pwa-banner';banner.className='pwa-banner';banner.hidden=true;banner.setAttribute('aria-label',uiText('وضعیت برنامه'));
  banner.innerHTML=uiText('<p role="status" aria-live="polite"></p><button type="button" class="button subtle" data-pwa-action="update">به‌روزرسانی</button><button type="button" class="pwa-dismiss" data-pwa-action="dismiss" aria-label="بستن پیام">×</button>');
  document.body.append(banner);
- const message=banner.querySelector('p'),update=banner.querySelector('[data-pwa-action=update]');
+ const message=banner.querySelector('p'),update=banner.querySelector('[data-pwa-action=update]'),dismiss=banner.querySelector('[data-pwa-action=dismiss]');
  const forms=formTracker||createFormTracker();
  let registration=null,installPrompt=null,installed=standalone(),dismissed='',notice='',preparing=false,previousInert=false,updateTimer=null;
  const state=()=>navigator.onLine===false?'offline':notice?'notice':registration?.waiting?'update':'';
  const activeForms=()=>[...document.querySelectorAll('form')].filter(form=>!form.closest('dialog:not([open]),[hidden]'));
  const safe=()=>canUpdate()&&!document.querySelector('dialog[open],form[data-waiting]')&&!document.activeElement?.matches('input,textarea,select')&&!activeForms().some(form=>forms.isDirty(form));
  function sync(){
+  banner.setAttribute('aria-label',uiText('وضعیت برنامه'));update.textContent=uiText('به‌روزرسانی');dismiss.setAttribute('aria-label',uiText('بستن پیام'));
   activeForms().forEach(form=>forms.remember(form));
   for(const card of document.querySelectorAll('[data-pwa-install]')){card.hidden=installed||standalone();const button=card.querySelector('[data-pwa-action=install]'),label=installPrompt?uiText('نصب حواس'):uiText('راهنمای نصب');if(button&&button.textContent!==label)button.textContent=label;}
   const current=state();banner.hidden=!current||dismissed===current||document.body.dataset.screen==='play';
-  message.textContent=current==='offline'?uiText('اینترنت قطع شده. برای دیدن و ذخیرهٔ نتیجه‌ها، دوباره وصل شو.'):notice||uiText('نسخهٔ جدید حواس آمادهٔ نصبه.');
+  message.textContent=current==='offline'?uiText('اینترنت قطع شده. برای دیدن و ذخیرهٔ نتیجه‌ها، دوباره وصل شو.'):notice?uiText(notice):uiText('نسخهٔ جدید حواس آمادهٔ نصبه.');
   update.hidden=current==='offline'||!registration?.waiting||!safe();update.disabled=preparing;
  }
  function release(){
@@ -33,7 +34,7 @@ export function setupPwa({canUpdate=()=>true,formTracker=null}={}){
  worker.addEventListener('message',event=>{
   if(event.data?.type==='PWA_PREPARE_UPDATE')event.ports[0]?.postMessage({ready:prepare()});
   if(event.data?.type==='PWA_CANCEL_UPDATE')release();
-  if(event.data?.type==='PWA_UPDATE_BLOCKED'){release();notice=uiText('حواس در یک پنجرهٔ دیگه بازه. اول بازی یا ذخیرهٔ اطلاعات رو اونجا تموم کن، بعد دوباره به‌روزرسانی رو بزن.');dismissed='';sync();}
+  if(event.data?.type==='PWA_UPDATE_BLOCKED'){release();notice='حواس در یک پنجرهٔ دیگه بازه. اول بازی یا ذخیرهٔ اطلاعات رو اونجا تموم کن، بعد دوباره به‌روزرسانی رو بزن.';dismissed='';sync();}
  });
  worker.addEventListener('controllerchange',()=>{if(preparing){clearTimeout(updateTimer);location.reload();}else sync();});
  window.addEventListener('beforeinstallprompt',event=>{event.preventDefault();installPrompt=event;installed=false;sync();});

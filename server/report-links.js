@@ -3,7 +3,7 @@ import {managedTransaction} from './management.js';
 import {panelReport} from './panel.js';
 import { randomUUID } from 'node:crypto';
 import { token,digest,uuid,requireValue as check,textOf } from './security.js';
-import {appOrigin} from './origin.js';
+import {appLink} from './origin.js';
 
 // Deliberately independent of the staff/session DTO, including legacy imports.
 export {reportResult} from './report-data.js';
@@ -20,6 +20,6 @@ export function registerPublicReport(app,pool,limit){
 }
 export function registerReportLinks(app,pool,childAccess){
  app.get('/api/children/:id/report-links',async(req,res)=>{await childAccess(pool,req.user,req.params.id);res.json({links:(await pool.query('SELECT id,label,created_at AS "createdAt",revoked_at AS "revokedAt" FROM report_links WHERE child_id=$1 ORDER BY created_at DESC,id',[req.params.id])).rows});});
- app.post('/api/children/:id/report-links',async(req,res)=>{await childAccess(pool,req.user,req.params.id);const message=uiText('عنوان لینک باید بین ۱ تا ۱۰۰ کاراکتر داشته باشد.'),label=textOf(req.body.label??uiText('گزارش خانواده'),message);check(label.length>=1&&label.length<=100,message);const raw=token(),id=randomUUID();await managedTransaction(pool,req,db=>db.query('INSERT INTO report_links(id,child_id,token_hash,label,created_by) VALUES($1,$2,$3,$4,$5)',[id,req.params.id,digest(raw),label,req.user.id]));res.status(201).json({id,url:`${appOrigin(req)}/#report/${raw}`});});
+ app.post('/api/children/:id/report-links',async(req,res)=>{await childAccess(pool,req.user,req.params.id);const message=uiText('عنوان لینک باید بین ۱ تا ۱۰۰ کاراکتر داشته باشد.'),label=textOf(req.body.label??uiText('گزارش خانواده'),message);check(label.length>=1&&label.length<=100,message);const raw=token(),id=randomUUID();await managedTransaction(pool,req,db=>db.query('INSERT INTO report_links(id,child_id,token_hash,label,created_by) VALUES($1,$2,$3,$4,$5)',[id,req.params.id,digest(raw),label,req.user.id]));res.status(201).json({id,url:appLink(req,`report/${raw}`)});});
  app.delete('/api/children/:id/report-links/:linkId',async(req,res)=>{await childAccess(pool,req.user,req.params.id);uuid(req.params.linkId);check((await managedTransaction(pool,req,db=>db.query('UPDATE report_links SET revoked_at=COALESCE(revoked_at,now()) WHERE id=$1 AND child_id=$2',[req.params.linkId,req.params.id]))).rowCount,uiText('لینک پیدا نشد.'),404);res.json({ok:true});});
 }

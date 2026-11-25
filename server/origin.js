@@ -10,3 +10,8 @@ export function normalizeAppOrigin(value){
 export function appOrigin(req){
   return normalizeAppOrigin(process.env.APP_ORIGIN||`${req.protocol}://${req.get('host')}`);
 }
+
+export function appLink(req,route){
+  const locale=req.get('X-App-Locale')==='en'?'en':'fa';
+  return `${appOrigin(req)}/?lang=${locale}#${route}`;
+}

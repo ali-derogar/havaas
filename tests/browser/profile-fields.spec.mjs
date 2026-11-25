@@ -88,6 +88,8 @@ test('copy link uses the browser clipboard fallback when Clipboard API is unavai
   await page.locator('[data-action=new-user]').first().click();
   await page.locator('[data-action=create-mode][data-mode=link]').click();
   const destination=page.locator('#registration-link-form [name=label]');
+  // A link with a language parameter can exceed the label field's limit.
+  await destination.evaluate(input=>input.removeAttribute('maxlength'));
   await destination.fill('');await destination.press('Control+V');
   await expect(destination).toHaveValue(url);
 });

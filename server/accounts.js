@@ -6,7 +6,7 @@ import { requireValue as check, HttpError, token, digest, passwordHash, verifyPa
 import { validateProfile } from '../src/core/clients.js';
 import {registerPublicRegistration,registerRegistrationAdmin} from './registration.js';
 import {registerDashboard} from './dashboard.js';
-import {appOrigin} from './origin.js';
+import {appLink} from './origin.js';
 
 const save=req=>new Promise((resolve,reject)=>req.session.save(e=>e?reject(e):resolve()));
 async function signIn(req,user){await new Promise((resolve,reject)=>req.session.regenerate(e=>e?reject(e):resolve()));req.session.userId=user.id;req.session.authVersion=user.auth_version;req.session.csrf=token();await save(req);return {user:publicUser(user),csrfToken:req.session.csrf};}
@@ -20,7 +20,7 @@ async function issue(db,req,user,purpose){
  const raw=token(),expiresAt=new Date(Date.now()+(purpose==='reset'?30*60*1000:48*60*60*1000));
  await db.query('UPDATE invitations SET used_at=now() WHERE user_id=$1 AND used_at IS NULL',[user.id]);
  await db.query('INSERT INTO invitations(id,token_hash,role,purpose,created_by,user_id,expires_at) VALUES($1,$2,$3,$4,$5,$6,$7)',[randomUUID(),digest(raw),user.role,purpose,req.user.id,user.id,expiresAt]);
- return {url:`${appOrigin(req)}/#invite/${raw}`,expiresAt};
+ return {url:appLink(req,`invite/${raw}`),expiresAt};
 }
 export function registerAccounts(app,pool,{authLimit,role,profileDTO}){
  registerPublicRegistration(app,pool,{authLimit,accountTransaction,creatorActive,signIn});

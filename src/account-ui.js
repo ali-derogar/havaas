@@ -3,14 +3,23 @@ import {t as uiText,lt} from './i18n.js';
 import {trainingProfilesShell} from './training-profile-ui.js';
 import { escapeHTML as esc } from './core/clients.js';
 import {birthDateField} from './birth-date.js';
+import {schoolGrades} from './grades.js';
 import {icon} from './visuals.js';
 import {journeyArt,sectionArt} from './platform-art.js';
 export const roleName=role=>({admin:uiText('مدیر'),user:uiText('کاربر')}[role]||'');
 const installCard=()=>uiText('<section class="surface pwa-install-card" data-pwa-install hidden><img src="/assets/icons/icon-192.png" width="56" height="56" alt=""><div><h2>حواس رو روی دستگاهت داشته باش</h2><p>حواس رو نصب کن تا دفعهٔ بعد با یک اشاره بازش کنی.</p><button type="button" class="button subtle" data-pwa-action="install">نصب حواس</button><p data-pwa-help role="status" hidden></p></div></section>');
 const fa=n=>Number(n||0).toLocaleString(numberLocale());
 const date=value=>value?new Intl.DateTimeFormat(numberLocale(),{timeZone:'Asia/Tehran',dateStyle:'medium',timeStyle:'short'}).format(new Date(value)):'—';
+function gradeOptions(selected=''){
+ const grades=schoolGrades();
+ const known=grades.some(grade=>grade.value===selected||grade.aliases.includes(selected));
+ return (selected&&!known?`<option value="${esc(selected)}" selected>${esc(selected)}</option>`:'')+grades.map(grade=>{
+  const active=grade.value===selected||grade.aliases.includes(selected);
+  return `<option value="${esc(active?selected:grade.value)}" ${active?'selected':''}>${esc(grade.label)}</option>`;
+ }).join('');
+}
 export function profileFields(p={},{clinical=true}={}){
- return lt`<label>نام<input name="firstName" required maxlength="80" value="${esc(p.firstName)}"></label><label>نام خانوادگی<input name="lastName" required maxlength="80" value="${esc(p.lastName)}"></label>${birthDateField(p.birthDate)}<label>پایهٔ تحصیلی<select name="grade" required><option value="">انتخاب پایه</option>${[uiText('پیش‌دبستانی'),...Array.from({length:12},(_,i)=>lt`پایهٔ ${fa(i+1)}`),uiText('خارج از مدرسه')].map(g=>`<option ${p.grade===g?'selected':''}>${g}</option>`).join('')}</select></label><label class="wide">مدرسه<input name="school" required maxlength="160" value="${esc(p.school)}" placeholder="نام مدرسه؛ اگر مدرسه نمی‌رود، بنویسید «ندارد»"></label>${clinical?lt`<label class="wide">یادداشت بالینی (فقط برای مدیر)<textarea name="concerns" maxlength="500" rows="3">${esc(p.concerns)}</textarea></label>`:''}`;
+ return lt`<label>نام<input name="firstName" required maxlength="80" value="${esc(p.firstName)}"></label><label>نام خانوادگی<input name="lastName" required maxlength="80" value="${esc(p.lastName)}"></label>${birthDateField(p.birthDate)}<label>پایهٔ تحصیلی<select name="grade" required><option value="">انتخاب پایه</option>${gradeOptions(p.grade)}</select></label><label class="wide">مدرسه<input name="school" required maxlength="160" value="${esc(p.school)}" placeholder="نام مدرسه؛ اگر مدرسه نمی‌رود، بنویسید «ندارد»"></label>${clinical?lt`<label class="wide">یادداشت بالینی (فقط برای مدیر)<textarea name="concerns" maxlength="500" rows="3">${esc(p.concerns)}</textarea></label>`:''}`;
 }
 export function loginView({invite=null,error='',reauth=false}={}){
  const accepting=invite&&!reauth;

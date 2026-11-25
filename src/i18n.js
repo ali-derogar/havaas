@@ -3,13 +3,16 @@ import {EN} from './locales/en.js';
 export const LOCALE_KEY='havaas:locale:v1';
 const valid=value=>value==='en'||value==='fa';
 let locale='fa';
-try{const query=new URL(globalThis.location?.href||'http://localhost').searchParams.get('lang');const saved=globalThis.localStorage?.getItem(LOCALE_KEY);locale=valid(query)?query:valid(saved)?saved:'fa';}catch{}
+let query=null,saved=null;
+try{query=new URL(globalThis.location?.href||'http://localhost').searchParams.get('lang');}catch{}
+if(valid(query))locale=query;
+else{try{saved=globalThis.localStorage?.getItem(LOCALE_KEY);}catch{}if(valid(saved))locale=saved;}
 let localeProvider=()=>null;
 export const setLocaleProvider=provider=>{localeProvider=provider;};
 export const getLocale=()=>localeProvider()||locale;
 export const numberLocale=()=>getLocale()==='en'?'en-US':'fa-IR';
 export const formatNumber=(value,options={})=>Number(value).toLocaleString(numberLocale(),options);
-export const formatDate=(value,options={})=>new Intl.DateTimeFormat(numberLocale(),{timeZone:'Asia/Tehran',timeZone:'Asia/Tehran',...options}).format(new Date(value));
+export const formatDate=(value,options={})=>new Intl.DateTimeFormat(numberLocale(),{timeZone:'Asia/Tehran',...options}).format(new Date(value));
 export function setLocale(value){
  if(!valid(value))return false;locale=value;
  try{globalThis.localStorage?.setItem(LOCALE_KEY,value);}catch{}

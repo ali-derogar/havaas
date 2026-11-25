@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {normalizeAppOrigin,appOrigin} from '../server/origin.js';
+import {normalizeAppOrigin,appOrigin,appLink} from '../server/origin.js';
 
 test('configured application origins use browser URL normalization for slash, case, ports and IPv6',()=>{
   for(const [configured,expected] of [
@@ -22,4 +22,16 @@ test('shared links and CSRF checks use the same normalized origin and retain the
     delete process.env.APP_ORIGIN;
     assert.equal(appOrigin(req),'https://internal.example.test');
   }finally{if(previous===undefined)delete process.env.APP_ORIGIN;else process.env.APP_ORIGIN=previous;}
+});
+
+test('shared links pin the interface language without moving private tokens out of the fragment',()=>{
+ const previous=process.env.APP_ORIGIN;
+ try{
+  process.env.APP_ORIGIN='https://HAVAAS.test:443/';
+  for(const locale of ['en','fa',undefined,'invalid'])for(const route of ['register/token','invite/token','report/token']){
+   const req={get:name=>name==='X-App-Locale'?locale:undefined},url=new URL(appLink(req,route));
+   assert.equal(url.origin,'https://havaas.test');assert.equal(url.searchParams.get('lang'),locale==='en'?'en':'fa');
+   assert.equal(url.hash,'#'+route);assert.equal(url.searchParams.has('token'),false);
+  }
+ }finally{if(previous===undefined)delete process.env.APP_ORIGIN;else process.env.APP_ORIGIN=previous;}
 });

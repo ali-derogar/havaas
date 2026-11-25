@@ -3,7 +3,7 @@ import {managedTransaction} from './management.js';
 import {randomUUID} from 'node:crypto';
 import {requireValue as check,token,digest,passwordHash,usernameOf,emailOf,uuid,textOf} from './security.js';
 import {validateProfile} from '../src/core/clients.js';
-import {appOrigin} from './origin.js';
+import {appLink} from './origin.js';
 
 async function inspect(db,raw,lock=false){
  check(typeof raw==='string'&&/^[a-f0-9]{64}$/.test(raw),uiText('لینک ثبت‌نام معتبر نیست.'),404,'REGISTRATION_INVALID');
@@ -31,7 +31,7 @@ export function registerRegistrationAdmin(app,pool,{role,accountTransaction,crea
   role(req,['admin']);const message=uiText('عنوان دعوت باید بین ۱ تا ۱۰۰ کاراکتر داشته باشد.'),label=textOf(req.body.label??uiText('دعوت مراجعه‌کننده'),message);check(label.length>=1&&label.length<=100,message);
   const raw=token(),id=randomUUID(),expiresAt=new Date(Date.now()+48*60*60*1000);
   await managedTransaction(pool,req,async db=>{await creatorActive(db,req.user.id);await db.query('INSERT INTO registration_links(id,token_hash,label,created_by,expires_at) VALUES($1,$2,$3,$4,$5)',[id,digest(raw),label,req.user.id,expiresAt]);});
-  res.status(201).json({id,expiresAt,url:`${appOrigin(req)}/#register/${raw}`});
+  res.status(201).json({id,expiresAt,url:appLink(req,`register/${raw}`)});
  });
  app.delete('/api/registration-links/:id',async(req,res)=>{
   role(req,['admin']);uuid(req.params.id);await managedTransaction(pool,req,async db=>{await creatorActive(db,req.user.id);check((await db.query('UPDATE registration_links SET revoked_at=COALESCE(revoked_at,now()) WHERE id=$1 AND used_at IS NULL',[req.params.id])).rowCount,uiText('این دعوت پیدا نشد یا دیگر قابل لغو نیست.'),404);});res.json({ok:true});
