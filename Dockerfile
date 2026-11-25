@@ -3,7 +3,7 @@ WORKDIR /app
 COPY package*.json ./
 RUN npm ci
 COPY index.html ./
-COPY offline.html manifest.webmanifest ./
+COPY offline.html manifest.webmanifest manifest.en.webmanifest ./
 COPY src ./src
 COPY assets ./assets
 COPY scripts/build.mjs scripts/pwa.mjs ./scripts/
