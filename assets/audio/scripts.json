@@ -1,6 +1,6 @@
 {
   "generator": "FFmpeg segmentation of user-provided recordings",
-  "revision": 4,
+  "revision": 5,
   "voice": "user-provided-recordings",
   "encoding": "MP3, mono, 44.1 kHz, 128 kbps",
   "recordings": {
@@ -23,6 +23,21 @@
     "voice/5.mp3": {
       "sha256": "f5c337468114fdff509c47be6866a06826784760732ed9c57210199365d56446",
       "duration": 24.8
+    },
+    "replacement-1": {
+      "sourceFile": "voice/1.mp3",
+      "sha256": "3b0b8daf45d739b195c7e236c34139c170130187b888fcbb51ef8aafc36d52bd",
+      "duration": 75.28
+    },
+    "replacement-2": {
+      "sourceFile": "voice/2.mp3",
+      "sha256": "82e71e37c9825c75f18715295c50ef7c48234c8abbaefa375adfd334520ed9b0",
+      "duration": 55.76
+    },
+    "replacement-3": {
+      "sourceFile": "voice/3.mp3",
+      "sha256": "d278d03d555296cb0deadafb61672cdaae9d3d7887161440dd6a3a3daf3d9d24",
+      "duration": 42.4
     }
   },
   "clips": {
@@ -180,6 +195,138 @@
       "recording": "voice/5.mp3",
       "start": 20.2,
       "end": 24.8
+    },
+    "hunt-flex": {
+      "recording": "replacement-1",
+      "start": 0,
+      "end": 11.545,
+      "sha256": "9660bdf89da152ca5f4aaea24ee180197988b6e5689b64fb2d26672dcd1825df"
+    },
+    "hunt-flex-dual": {
+      "recording": "replacement-1",
+      "start": 11.545,
+      "end": 20.238,
+      "sha256": "d60eec05e9b7f2515ee064787d940aa22f54b77fa3bc4ad63f5499953e7c15a9"
+    },
+    "hunt-moving-flex": {
+      "recording": "replacement-1",
+      "start": 20.238,
+      "end": 30.71,
+      "sha256": "1cf733f394499b522a7a2540bb61f6fefe754583e74c752d12d522ccfe6c610d"
+    },
+    "hunt-moving-flex-dual": {
+      "recording": "replacement-1",
+      "start": 30.71,
+      "end": 39.389,
+      "sha256": "0163fc37332b62ceb9b555009338ae3ff8a61c083d66b6860009947f224d2b84"
+    },
+    "traffic-route": {
+      "recording": "replacement-1",
+      "start": 39.389,
+      "end": 50.95,
+      "sha256": "e4804fc9058bceacc953515f5efc334481669b129a17837951f274e2e91e31ba"
+    },
+    "traffic-signs-route": {
+      "recording": "replacement-1",
+      "start": 50.95,
+      "end": 62.501,
+      "sha256": "70b0ef5865c610240a0eec349c07f17aa26216a7344981e341b2a7b99ddca3d2"
+    },
+    "stroop-0-blue": {
+      "recording": "replacement-1",
+      "start": 62.501,
+      "end": 67.882,
+      "sha256": "959f136ca982ce2718fa832ac57cc0e17988d7c5e76ccd7782d1c658729ed067"
+    },
+    "stroop-1-blue": {
+      "recording": "replacement-1",
+      "start": 67.882,
+      "end": 74.98,
+      "sha256": "bee41a2f8b68da647e894b34dcf150bb9a5764a2c96e76a5cbf8dc64777d82ac"
+    },
+    "stroop-2-blue": {
+      "recording": "replacement-2",
+      "start": 0,
+      "end": 7.223,
+      "sha256": "3cb72dc764cc57f0423e94123fc089aee7a51b6f2abe1822d9353a6b6480689b"
+    },
+    "stroop-3-blue": {
+      "recording": "replacement-2",
+      "start": 7.223,
+      "end": 14.898,
+      "sha256": "a03dea795c3214ccb0e6da54c38d0c5d02c3dde986b4cf0c9c22fd635df01717"
+    },
+    "stroop-0-green": {
+      "recording": "replacement-2",
+      "start": 14.898,
+      "end": 20.137,
+      "sha256": "fdc4f971597f5eeba1a9f3e8fab5aed9af00031638eac242d6fb458d7676ceb2"
+    },
+    "stroop-1-green": {
+      "recording": "replacement-2",
+      "start": 20.137,
+      "end": 27.769,
+      "sha256": "a0878c68e2c664e4d59a572351d52d180cd147fdc027655a96084bdd78579027"
+    },
+    "stroop-2-green": {
+      "recording": "replacement-2",
+      "start": 27.769,
+      "end": 35.201,
+      "sha256": "498a2cd7b1207ad20c6fb9d5be0706537dc7f1002d51d29c278670ca8ab27877"
+    },
+    "stroop-3-green": {
+      "recording": "replacement-2",
+      "start": 35.201,
+      "end": 42.714,
+      "sha256": "f5db17fbed310fe9976c76a57df22c2020cc92a5c2f6195cf8b684772db91336"
+    },
+    "stroop-0-red": {
+      "recording": "replacement-2",
+      "start": 42.714,
+      "end": 48.1,
+      "sha256": "2223cdf611c9fff9825cd94a472701ac227e39fca17da45125fd1903751dafce"
+    },
+    "stroop-1-red": {
+      "recording": "replacement-2",
+      "start": 48.1,
+      "end": 55.73,
+      "sha256": "e977d01a6fbb82d9a5aa1c0e433839c4f14c31290d0468578d4a2afc62aaa228"
+    },
+    "stroop-2-red": {
+      "recording": "replacement-3",
+      "start": 0,
+      "end": 7.115,
+      "sha256": "cffeb55a498e61cfa1c3f63f0ea7fc7d010d43f693c4fd7cbdfa102ba9fb4a80"
+    },
+    "stroop-3-red": {
+      "recording": "replacement-3",
+      "start": 7.115,
+      "end": 15.13,
+      "sha256": "b494103d839cebd0d91eb83249abc0ebe7491ef7d7ac670404a06998e02400ec"
+    },
+    "stroop-0-yellow": {
+      "recording": "replacement-3",
+      "start": 15.13,
+      "end": 20.313,
+      "sha256": "1d97146c59edfcd8b99206e612987ee30e2fb251f876937d69daa6264132fb11"
+    },
+    "stroop-1-yellow": {
+      "recording": "replacement-3",
+      "start": 20.313,
+      "end": 27.769,
+      "sha256": "66ba044b66bfb8936ef8a9e4bed17b2e7c28b0f669c6c9e88c95f5dae2d75856"
+    },
+    "stroop-2-yellow": {
+      "recording": "replacement-3",
+      "start": 27.769,
+      "end": 34.911,
+      "sha256": "bddca6530ecc126e55ab64c3e116ff8fb246cc0507d0658fdd4eb9221799d008"
+    },
+    "stroop-3-yellow": {
+      "recording": "replacement-3",
+      "start": 34.911,
+      "end": 42.32,
+      "sha256": "1b40cb57d5f3dd0c9b2cf76e618da736496abd84280d3fb419a985fd04316628"
     }
   },
   "scripts": {
@@ -237,116 +384,5 @@
     "stroop-2-yellow": "فقط خود کلمه مهم است. اگر کلمهٔ زرد را دیدی، بزن. رنگ نوشته مهم نیست.",
     "stroop-3-yellow": "هم رنگ و هم کلمه مهم است. فقط اگر کلمهٔ زرد با رنگ زرد نوشته شده بود، بزن."
   },
-  "generated": {
-    "hunt-flex": {
-      "voice": "fa-IR-DilaraNeural",
-      "locale": "fa",
-      "encoding": "MP3, mono, 24 kHz, 48 kbps"
-    },
-    "hunt-flex-dual": {
-      "voice": "fa-IR-DilaraNeural",
-      "locale": "fa",
-      "encoding": "MP3, mono, 24 kHz, 48 kbps"
-    },
-    "hunt-moving-flex": {
-      "voice": "fa-IR-DilaraNeural",
-      "locale": "fa",
-      "encoding": "MP3, mono, 24 kHz, 48 kbps"
-    },
-    "hunt-moving-flex-dual": {
-      "voice": "fa-IR-DilaraNeural",
-      "locale": "fa",
-      "encoding": "MP3, mono, 24 kHz, 48 kbps"
-    },
-    "traffic-route": {
-      "voice": "fa-IR-DilaraNeural",
-      "locale": "fa",
-      "encoding": "MP3, mono, 24 kHz, 48 kbps"
-    },
-    "traffic-signs-route": {
-      "voice": "fa-IR-DilaraNeural",
-      "locale": "fa",
-      "encoding": "MP3, mono, 24 kHz, 48 kbps"
-    },
-    "stroop-0-blue": {
-      "voice": "fa-IR-DilaraNeural",
-      "locale": "fa",
-      "encoding": "MP3, mono, 24 kHz, 48 kbps"
-    },
-    "stroop-1-blue": {
-      "voice": "fa-IR-DilaraNeural",
-      "locale": "fa",
-      "encoding": "MP3, mono, 24 kHz, 48 kbps"
-    },
-    "stroop-2-blue": {
-      "voice": "fa-IR-DilaraNeural",
-      "locale": "fa",
-      "encoding": "MP3, mono, 24 kHz, 48 kbps"
-    },
-    "stroop-3-blue": {
-      "voice": "fa-IR-DilaraNeural",
-      "locale": "fa",
-      "encoding": "MP3, mono, 24 kHz, 48 kbps"
-    },
-    "stroop-0-green": {
-      "voice": "fa-IR-DilaraNeural",
-      "locale": "fa",
-      "encoding": "MP3, mono, 24 kHz, 48 kbps"
-    },
-    "stroop-1-green": {
-      "voice": "fa-IR-DilaraNeural",
-      "locale": "fa",
-      "encoding": "MP3, mono, 24 kHz, 48 kbps"
-    },
-    "stroop-2-green": {
-      "voice": "fa-IR-DilaraNeural",
-      "locale": "fa",
-      "encoding": "MP3, mono, 24 kHz, 48 kbps"
-    },
-    "stroop-3-green": {
-      "voice": "fa-IR-DilaraNeural",
-      "locale": "fa",
-      "encoding": "MP3, mono, 24 kHz, 48 kbps"
-    },
-    "stroop-0-red": {
-      "voice": "fa-IR-DilaraNeural",
-      "locale": "fa",
-      "encoding": "MP3, mono, 24 kHz, 48 kbps"
-    },
-    "stroop-1-red": {
-      "voice": "fa-IR-DilaraNeural",
-      "locale": "fa",
-      "encoding": "MP3, mono, 24 kHz, 48 kbps"
-    },
-    "stroop-2-red": {
-      "voice": "fa-IR-DilaraNeural",
-      "locale": "fa",
-      "encoding": "MP3, mono, 24 kHz, 48 kbps"
-    },
-    "stroop-3-red": {
-      "voice": "fa-IR-DilaraNeural",
-      "locale": "fa",
-      "encoding": "MP3, mono, 24 kHz, 48 kbps"
-    },
-    "stroop-0-yellow": {
-      "voice": "fa-IR-DilaraNeural",
-      "locale": "fa",
-      "encoding": "MP3, mono, 24 kHz, 48 kbps"
-    },
-    "stroop-1-yellow": {
-      "voice": "fa-IR-DilaraNeural",
-      "locale": "fa",
-      "encoding": "MP3, mono, 24 kHz, 48 kbps"
-    },
-    "stroop-2-yellow": {
-      "voice": "fa-IR-DilaraNeural",
-      "locale": "fa",
-      "encoding": "MP3, mono, 24 kHz, 48 kbps"
-    },
-    "stroop-3-yellow": {
-      "voice": "fa-IR-DilaraNeural",
-      "locale": "fa",
-      "encoding": "MP3, mono, 24 kHz, 48 kbps"
-    }
-  }
+  "generated": {}
 }

@@ -90,7 +90,7 @@ const englishLegacy={
   "not-needed": "We do not need this item for our mission. Wait without choosing it."
 };
 export const GUIDANCE_EN=Object.freeze({...englishLegacy,...englishModern});
-export const GUIDANCE_VOICE = Object.freeze({voice:'fa-IR-DilaraNeural',rate:'-4%',pitch:'+0Hz'});
+export const GUIDANCE_VOICE = Object.freeze({voice:'fa-IR-FaridNeural',rate:'-4%',pitch:'+0Hz'});
 const equipmentKeys=new Set(['water','food','medkit','vest','flashlight','compass','oxygen','suit','fuel','helmet','map','not-needed']);
 export const guidanceRate = key => ['correct','retry'].includes(key)?'+0%':equipmentKeys.has(key)?'-2%':GUIDANCE_VOICE.rate;
 

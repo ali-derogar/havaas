@@ -27,7 +27,7 @@ test('review: all 53 Persian clips preserve the recordings and decode as audible
   }
   return {voice:manifest.voice,recorded:Object.keys(manifest.clips).length,generated:Object.keys(manifest.generated).length,results};
  });
- expect(clips.voice).toBe('user-provided-recordings');expect(clips.recorded).toBe(31);expect(clips.generated).toBe(22);expect(clips.results).toHaveLength(53);
+ expect(clips.voice).toBe('user-provided-recordings');expect(clips.recorded).toBe(53);expect(clips.generated).toBe(0);expect(clips.results).toHaveLength(53);
  for(const clip of clips.results){expect(clip.duration,clip.key).toBeGreaterThan(1);expect(clip.duration,clip.key).toBeLessThan(22);expect(clip.channels,clip.key).toBe(1);expect(clip.rms,clip.key).toBeGreaterThan(.01);expect(clip.clipped,clip.key).toBeLessThan(.001);}
 });
 

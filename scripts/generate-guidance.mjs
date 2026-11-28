@@ -12,7 +12,7 @@ const keys=values.only?values.only.split(','):values.preview?['traffic','nback-2
 if(keys.some(key=>!Object.hasOwn(GUIDANCE,key)))throw Error('Unknown guidance key.');
 if(new Set(keys).size!==keys.length)throw Error('Guidance keys must be unique.');
 if((values.preview||values.only)&&!values.output)values.output='.local/voice-preview';
-const output=resolve(values.output||(values.locale==='en'?'assets/audio/en':'assets/audio')),{rate,pitch}=GUIDANCE_VOICE,voice=values.locale==='en'?'en-US-JennyNeural':GUIDANCE_VOICE.voice;
+const output=resolve(values.output||(values.locale==='en'?'assets/audio/en':'assets/audio')),{rate,pitch}=GUIDANCE_VOICE,voice=values.locale==='en'?'en-US-GuyNeural':GUIDANCE_VOICE.voice;
 if(keys.length!==Object.keys(GUIDANCE).length&&[resolve('assets/audio'),resolve('assets/audio/en')].includes(output))throw Error('Partial builds must use a separate output directory.');
 const command=process.env.EDGE_TTS_BIN||'edge-tts';
 await mkdir(output,{recursive:true});
