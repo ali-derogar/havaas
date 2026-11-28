@@ -109,16 +109,17 @@ export function lessonGuidanceKey(gameId,step,options={}){
 }
 
 export class GuidancePlayer {
-  constructor({AudioClass=globalThis.Audio,onState=()=>{}}={}){this.AudioClass=AudioClass;this.onState=onState;this.audio=null;this.key=null;this.generation=0;}
-  stop(){this.generation++;if(this.audio){this.audio.pause();this.audio=null;}this.key=null;this.onState('idle',null);}
+  constructor({AudioClass=globalThis.Audio,onState=()=>{}}={}){this.AudioClass=AudioClass;this.onState=onState;this.audio=null;this.key=null;this.generation=0;this.state='idle';}
+  setState(state,key){this.state=state;this.onState(state,key);}
+  stop(){this.generation++;if(this.audio){this.audio.pause();this.audio=null;}this.key=null;this.setState('idle',null);}
   async play(key){
-    this.stop();if(!Object.hasOwn(GUIDANCE,key)||!this.AudioClass){this.onState('unavailable');return false;}
+    this.stop();if(!Object.hasOwn(GUIDANCE,key)||!this.AudioClass){this.setState('unavailable');return false;}
     const generation=this.generation;
     try{
       const audio=new this.AudioClass(`/assets/audio/${getLocale()==='en'?'en/':''}${key}.mp3`);this.audio=audio;this.key=key;audio.volume=.85;
-      audio.onended=()=>{if(generation===this.generation){this.audio=null;this.key=null;this.onState('idle',null);}};
-      audio.onerror=()=>{if(generation===this.generation){this.audio=null;this.key=null;this.onState('unavailable',null);}};
-      await audio.play();if(generation!==this.generation){audio.pause();return false;}this.onState('playing',key);return true;
-    }catch{if(generation===this.generation){this.audio=null;this.key=null;this.onState('unavailable',null);}return false;}
+      audio.onended=()=>{if(generation===this.generation){this.audio=null;this.key=null;this.setState('idle',null);}};
+      audio.onerror=()=>{if(generation===this.generation){this.audio=null;this.key=null;this.setState('unavailable',null);}};
+      await audio.play();if(generation!==this.generation){audio.pause();return false;}this.setState('playing',key);return true;
+    }catch{if(generation===this.generation){this.audio=null;this.key=null;this.setState('unavailable',null);}return false;}
   }
 }

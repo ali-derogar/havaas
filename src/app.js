@@ -60,10 +60,7 @@ const announcer = document.querySelector('#announcer');
 const playMotion=new PlayMotion({document});
 const platformMotion=new PlatformMotion({document});
 const progress = readProgress();
-const guidance=new GuidancePlayer({onState:(state,key)=>{
-  document.querySelectorAll('[data-action=listen-guide]').forEach(button=>{const active=state==='playing'&&(button.dataset.guide===key||button.dataset.guide==='current');button.setAttribute('aria-pressed',String(active));button.classList.toggle('listening',active);});
-  document.querySelectorAll('.audio-guide-status').forEach(node=>{node.textContent=state==='unavailable'?uiText('صدا پخش نشد؛ دوباره دکمهٔ بشنو را بزن.'):state==='playing'?uiText('در حال پخش راهنمای صوتی'):'';});
-}});
+const guidance=new GuidancePlayer({onState:()=>syncGuidanceControls(document)});
 const clients = {version:1,activeId:null,profiles:[],records:[],difficulties:[]};
 const api=new ApiClient();
 const formTracker=createFormTracker();
@@ -194,21 +191,21 @@ function answerLessonChoice(index) {
   const choice=step.choices[index],correct=step.samples.some(sample=>['shape','color','detail'].every(key=>sample[key]===choice[key]));
   (correct?lessonState.searchFound:lessonState.searchRejected).push(index);lessonState.lastCorrect=correct;
   lessonState.answered=lessonState.searchFound.length===step.samples.length;tone(correct);
-  document.querySelector('#lesson-box').innerHTML=lessonContent();
+  renderLesson();
   const next=document.querySelector('#lesson-box [data-action="lesson-next"]')||[...document.querySelectorAll('#lesson-box .lesson-choice:not(:disabled)')].find(button=>Number(button.dataset.index)>index)||document.querySelector('#lesson-box .lesson-choice:not(:disabled)');next?.focus({preventScroll:true});
 }
 function answerLesson(response) {
   if(route!=='detail'||!lessonState||lessonState.answered)return;
   const step=lessonState.steps[lessonState.index];if(step.kind==='memory'&&!memoryLessonState(step,lessonState).ready)return;
   lessonState.answered=true;lessonState.correct=response===lessonState.steps[lessonState.index].expected;
-  tone(lessonState.correct);document.querySelector('#lesson-box').innerHTML=lessonContent();
+  tone(lessonState.correct);renderLesson();
   document.querySelector('#lesson-box [data-action="lesson-next"]')?.focus({preventScroll:true});
 }
 function nextLesson() {
   guidance.stop();
   if(route!=='detail'||!lessonState)return;
   lessonState.index=(lessonState.index+1)%lessonState.steps.length;lessonState.answered=false;lessonState.searchFound=[];lessonState.searchRejected=[];lessonState.lastCorrect=undefined;lessonState.memoryHidden=false;lessonState.memoryIndex=0;lessonState.memoryHelp=false;
-  document.querySelector('#lesson-box').innerHTML=lessonContent();
+  renderLesson();
   document.querySelector('#lesson-box [data-action="lesson-memory-next"],#lesson-box [data-action="lesson-answer"],#lesson-box [data-action="lesson-choice"],#lesson-box [data-action="lesson-hide"]')?.focus({preventScroll:true});
 }
 async function assessment() {
@@ -562,6 +559,22 @@ function closeModal() {
 function syncSoundControls(){
   document.querySelectorAll('.sound-button').forEach(node=>{node.innerHTML=icon(progress.sound?'sound':'mute');node.setAttribute('aria-pressed',String(progress.sound));node.setAttribute('aria-label',progress.sound?uiText('خاموش‌کردن صدا و راهنمای گویا'):uiText('روشن‌کردن صدا و راهنمای گویا'));});
 }
+function syncGuidanceControls(root){
+  const {state,key}=guidance;
+  for(const button of root.querySelectorAll('[data-action=listen-guide]')){
+    const active=state==='playing'&&(button.dataset.guide===key||button.dataset.guide==='current');
+    button.setAttribute('aria-pressed',String(active));
+    button.classList.toggle('listening',active);
+  }
+  for(const node of root.querySelectorAll('.audio-guide-status')){
+    node.textContent=state==='unavailable'?uiText('صدا پخش نشد؛ دوباره دکمهٔ بشنو را بزن.'):state==='playing'?uiText('در حال پخش راهنمای صوتی'):'';
+  }
+}
+function renderLesson(){
+  const lesson=document.querySelector('#lesson-box');
+  lesson.innerHTML=lessonContent();
+  syncGuidanceControls(lesson);
+}
 function narrateEntry(key){
   const identity=`${currentUser?.id}:${clients.activeId}:${selectedGame}`;
   if(guidanceVisit?.identity!==identity)guidanceVisit={identity,attempted:false};
@@ -576,7 +589,7 @@ function changeMemoryLesson(action){
   if(action==='lesson-memory-next')lessonState.memoryIndex=Math.min(step.stimuli.length-1,(lessonState.memoryIndex||0)+1);
   if(action==='lesson-memory-help')lessonState.memoryHelp=true;
   if(action==='lesson-memory-replay'){lessonState.memoryIndex=0;lessonState.memoryHelp=false;lessonState.answered=false;}
-  document.querySelector('#lesson-box').innerHTML=lessonContent();
+  renderLesson();
   document.querySelector('#lesson-box [data-action="lesson-memory-next"],#lesson-box [data-action="lesson-answer"]')?.focus({preventScroll:true});
 }
 function tone(good) {
@@ -949,7 +962,7 @@ async function handleAction(event) {
   if(action==='assessment-next') return beginAssessment(nextAssessmentGame(clients));
   if(action==='assess-game') return beginAssessment(button.dataset.game);
   if(action==='assessment-train') return trainFromAssessment(button.dataset.game);
-  if((action==='lesson-hide'||action==='lesson-show')&&route==='detail'&&lessonState?.steps[lessonState.index]?.memorize){lessonState.memoryHidden=action==='lesson-hide';document.querySelector('#lesson-box').innerHTML=lessonContent();document.querySelector('#lesson-box button')?.focus({preventScroll:true});return;}
+  if((action==='lesson-hide'||action==='lesson-show')&&route==='detail'&&lessonState?.steps[lessonState.index]?.memorize){lessonState.memoryHidden=action==='lesson-hide';renderLesson();document.querySelector('#lesson-box button')?.focus({preventScroll:true});return;}
   if(action==='lesson-choice')return answerLessonChoice(Number(button.dataset.index));
   if(action==='lesson-answer') return answerLesson(button.dataset.response==='true');
   if(action==='lesson-next') return nextLesson();

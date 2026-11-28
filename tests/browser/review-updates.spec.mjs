@@ -31,6 +31,27 @@ test('review: all 53 Persian clips preserve the recordings and decode as audible
  for(const clip of clips.results){expect(clip.duration,clip.key).toBeGreaterThan(1);expect(clip.duration,clip.key).toBeLessThan(22);expect(clip.channels,clip.key).toBe(1);expect(clip.rms,clip.key).toBeGreaterThan(.01);expect(clip.clipped,clip.key).toBeLessThan(.001);}
 });
 
+test('review: the lesson guide stays active through an answer and stops when the language changes',async({page})=>{
+ await login(page);
+ await page.evaluate(()=>{const play=HTMLMediaElement.prototype.play;window.lessonAudio=[];HTMLMediaElement.prototype.play=function(){window.lessonAudio.push(this);return play.call(this);};});
+ await click(page,'open','[data-game="traffic"]');
+ const guide=page.locator('#lesson-box [data-action="listen-guide"]');
+ const status=page.locator('#lesson-box .audio-guide-status');
+ await guide.click();await expect(guide).toHaveAttribute('aria-pressed','true');
+ await click(page,'lesson-answer');await expect(guide).toHaveAttribute('aria-pressed','true');
+ await expect(status).toHaveText('در حال پخش راهنمای صوتی');
+ await page.locator('header [data-locale-select]').selectOption('en');
+ await expect(guide).toHaveAttribute('aria-label','Play audio instructions');
+ await expect(guide).toHaveAttribute('aria-pressed','false');
+ expect(await page.evaluate(()=>window.lessonAudio.every(audio=>audio.paused))).toBe(true);
+ await guide.click();await expect(guide).toHaveAttribute('aria-pressed','true');
+ expect(await page.evaluate(()=>new URL(window.lessonAudio.at(-1).currentSrc).pathname)).toBe('/assets/audio/en/traffic-route.mp3');
+ await click(page,'lesson-answer');await expect(guide).toHaveAttribute('aria-pressed','true');
+ await expect(status).toHaveText('Playing audio instructions');
+ await click(page,'lesson-next');await expect(guide).toHaveAttribute('aria-pressed','false');
+ expect(await page.evaluate(()=>window.lessonAudio.every(audio=>audio.paused))).toBe(true);
+});
+
 test('review: Persian audio really plays, stops before countdown, and traffic reaches its flag without retreating',async({page})=>{
  await clock(page);await login(page);await baseline(page,'traffic');
  const completions=[];page.on('request',req=>{if(req.method()==='POST'&&req.url().endsWith('/complete'))completions.push(req);});
